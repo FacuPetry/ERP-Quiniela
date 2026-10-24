@@ -1,0 +1,37 @@
+{
+  "name": "erp-quiniela",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "prepare": "npm run build -w @erp/shared",
+    "dev": "npm run build -w @erp/shared && concurrently -k -n API,WEB \"npm run dev -w @erp/api\" \"npm run dev -w @erp/web\"",
+    "build": "npm run build -w @erp/shared && npm run build -w @erp/api && npm run build -w @erp/web",
+    "typecheck": "npm run build -w @erp/shared && npm run typecheck --workspaces --if-present",
+    "start": "node apps/api/dist/server.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx apps/api/src/database/migrate.ts",
+    "db:check": "tsx apps/api/src/database/check.ts",
+    "db:up": "docker compose up -d --wait",
+    "db:stop": "docker compose stop",
+    "env:local": "node scripts/local-env.mjs",
+    "test": "tsx --test tests/*.test.ts",
+    "test:integration": "node scripts/integration.mjs",
+    "check": "npm run typecheck && npm test && npm run build",
+    "db:migrate:prod": "node apps/api/dist/database/migrate.js"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "concurrently": "9.2.5",
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}

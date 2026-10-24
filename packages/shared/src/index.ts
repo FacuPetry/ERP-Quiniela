@@ -1,0 +1,18 @@
+/** Contratos HTTP; no contienen acceso a datos ni configuración sensible. */
+export interface HealthResponse {
+  status: 'ok';
+  service: 'erp-quiniela-api';
+}
+
+export interface ReadinessResponse {
+  status: 'ok' | 'error';
+  database: 'connected' | 'unavailable';
+}
+
+export interface ApiError {
+  error: string;
+}
+
+/** Los importes y BIGINT se transportan como texto para preservar precisión. */
+export type DecimalAmount = string;
+export type RecordId = string;
