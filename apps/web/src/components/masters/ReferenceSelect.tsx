@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { MasterField, MasterList } from "@erp/shared";
-import { listMasters } from "../../services/masters";
+import type { MasterField, MasterRecord } from "@erp/shared";
+import { referenceOptions } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 
 export function ReferenceSelect({
@@ -12,6 +12,8 @@ export function ReferenceSelect({
   filter = false,
   invalid = false,
   onExpired,
+  query = {},
+  optionFilter,
 }: {
   field: MasterField;
   id: string;
@@ -21,71 +23,82 @@ export function ReferenceSelect({
   filter?: boolean;
   invalid?: boolean;
   onExpired: () => void;
+  /** Filtros admitidos por la fuente de datos, definidos por el módulo. */
+  query?: Record<string, string>;
+  /** Restricción adicional por contexto; nunca habilita registros inactivos. */
+  optionFilter?: (option: MasterRecord) => boolean;
 }) {
-  const [search, setSearch] = useState("");
-  const [result, setResult] = useState<MasterList | null>(null);
+  const [options, setOptions] = useState<MasterRecord[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [revision, setRevision] = useState(0);
+  const queryKey = JSON.stringify(query);
   useEffect(() => {
     const request = new AbortController();
-    const timeout = setTimeout(() => {
-      setError("");
-      void listMasters(
-        field.relation!,
-        { q: search, estado: filter ? "todos" : "activo", limite: "100" },
-        request.signal,
-      )
-        .then((data) => {
-          if (!request.signal.aborted) setResult(data);
-        })
-        .catch((error) => {
-          if (request.signal.aborted) return;
-          if (error instanceof ApiRequestError && error.status === 401)
-            onExpired();
-          else setError("No se pudieron cargar las opciones.");
-        });
-    }, 250);
-    return () => {
-      clearTimeout(timeout);
-      request.abort();
-    };
-  }, [field.relation, search, revision, filter, onExpired]);
-  const hasSelected = result?.registros.some((row) => row.Codigo === value);
+    setLoading(true);
+    setError("");
+    setOptions([]);
+    void referenceOptions(
+      field.relation!,
+      JSON.parse(queryKey) as Record<string, string>,
+      request.signal,
+    )
+      .then((rows) => {
+        if (!request.signal.aborted) setOptions(rows);
+      })
+      .catch((error) => {
+        if (request.signal.aborted) return;
+        if (error instanceof ApiRequestError && error.status === 401)
+          onExpired();
+        else setError("No se pudieron cargar las opciones.");
+      })
+      .finally(() => {
+        if (!request.signal.aborted) setLoading(false);
+      });
+    return () => request.abort();
+  }, [field.relation, queryKey, revision, onExpired]);
+  const available = options.filter(
+    (row) => row.Activo && (!optionFilter || optionFilter(row)),
+  );
+  const hasSelected = available.some((row) => row.Codigo === value);
   return (
     <div className="reference-select">
-      <input
-        type="search"
-        aria-label={`Buscar ${field.label.toLocaleLowerCase("es-AR")}`}
-        placeholder="Buscar opciones…"
-        value={search}
-        maxLength={100}
-        disabled={disabled}
-        onChange={(event) => setSearch(event.target.value)}
-      />
       <select
         id={id}
         value={value}
         required={!filter && field.required}
-        disabled={disabled}
+        disabled={disabled || loading}
+        aria-busy={loading}
         aria-invalid={invalid}
         aria-describedby={invalid ? `${id}-error` : undefined}
         onChange={(event) => onChange(event.target.value)}
       >
-        <option value="">{filter ? "Todos" : "Seleccioná una opción"}</option>
+        <option value="">
+          {loading
+            ? "Cargando opciones…"
+            : filter
+              ? "Todos"
+              : "Seleccioná una opción"}
+        </option>
         {value && !hasSelected && (
-          <option value={value}>{value} · Selección actual</option>
+          <option value={value} disabled hidden>
+            {value} · Referencia actual
+          </option>
         )}
-        {result?.registros.map((row) => (
+        {available.map((row) => (
           <option value={row.Codigo} key={row.Codigo}>
             {row.Codigo} · {String(row.Descripcion ?? row.Nombre)}
-            {!row.Activo ? " (inactivo)" : ""}
           </option>
         ))}
       </select>
-      {result && result.total > result.registros.length && (
+      {!loading && !error && value && !hasSelected && (
         <span className="field-hint">
-          Hay más opciones. Refiná la búsqueda para encontrarlas.
+          La referencia actual no está disponible para nuevas selecciones. Podés
+          conservarla o elegir otra activa.
         </span>
+      )}
+      {!loading && !error && !available.length && (
+        <span className="field-hint">No hay opciones activas disponibles.</span>
       )}
       {error && (
         <div className="reference-error">

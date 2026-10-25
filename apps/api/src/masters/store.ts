@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
   masterDefinitions,
   type MasterDefinition,
@@ -46,8 +46,27 @@ function detail(row: MasterRecord): MasterDetail {
   };
 }
 
+async function nextClientCode(
+  connection: Pool | PoolConnection,
+): Promise<string> {
+  const [rows] = await connection.query<RowDataPacket[]>(
+    "SELECT MAX(CAST(Codigo AS UNSIGNED)) AS ultimo FROM CLIENTE WHERE Codigo REGEXP '^[0-9]{1,5}$'",
+  );
+  const next = Number(rows[0]?.ultimo ?? 0) + 1;
+  if (next > 99999)
+    throw new MasterRequestError(
+      409,
+      "Se agotó la numeración de clientes de cinco dígitos.",
+    );
+  return String(next).padStart(5, "0");
+}
+
 export function createMasterStore(pool: Pool) {
   return {
+    // Vista previa de lectura: no reserva ni bloquea un número.
+    async suggestClientCode() {
+      return { codigo: await nextClientCode(pool) };
+    },
     async list(
       master: MasterDefinition,
       query: ListQuery,
@@ -159,16 +178,7 @@ export function createMasterStore(pool: Pool) {
         await connection.beginTransaction();
         transaction = true;
         if (allocationLock && input) {
-          const [rows] = await connection.query<RowDataPacket[]>(
-            "SELECT MAX(CAST(Codigo AS UNSIGNED)) AS ultimo FROM CLIENTE WHERE Codigo REGEXP '^[0-9]{1,5}$'",
-          );
-          const next = Number(rows[0]?.ultimo ?? 0) + 1;
-          if (next > 99999)
-            throw new MasterRequestError(
-              409,
-              "Se agotó la numeración de clientes de cinco dígitos. No se creó el cliente.",
-            );
-          code = String(next).padStart(5, "0");
+          code = await nextClientCode(connection);
           input.Codigo = code;
         }
         let before: MasterRecord | null = null;

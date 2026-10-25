@@ -429,6 +429,7 @@
 }
 .action-toolbar .action-add:hover {
   background: #163d2e;
+  color: #fff;
 }
 .action-toolbar .action-icon:disabled {
   cursor: default;
@@ -562,5 +563,42 @@
   }
   .modal-actions:has(.clear-filters) {
     flex-wrap: wrap;
+  }
+}
+
+.form-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.form-heading h2 {
+  flex: 1;
+  min-width: 0;
+}
+.form-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.data-table tbody tr:has(.row-selector:focus-visible) {
+  outline: 2px solid #6d9b80;
+  outline-offset: -2px;
+}
+@media (max-width: 600px) {
+  .form-heading {
+    gap: 12px;
+  }
+  .form-heading h2 {
+    font-size: 16px;
+  }
+  .form-toolbar-actions {
+    gap: 7px;
+  }
+  .form-toolbar-actions .button {
+    padding: 8px 10px;
+    font-size: 11px;
+    min-height: 36px;
   }
 }

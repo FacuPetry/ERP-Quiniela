@@ -18,6 +18,9 @@ import type { MasterStore } from "./store.js";
 export function masterRouter(auth: AuthService, store: MasterStore) {
   const router = Router();
   router.use(requireSession(auth));
+  router.get("/clientes/meta/siguiente-codigo", async (_req, res) => {
+    res.json(await store.suggestClientCode());
+  });
   router.get("/:master", async (req, res) => {
     const master = definition(param(req, "master"));
     const query = listQuery.safeParse(req.query);

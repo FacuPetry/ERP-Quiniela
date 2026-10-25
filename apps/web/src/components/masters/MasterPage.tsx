@@ -15,7 +15,7 @@ import { ActionToolbar } from "../ui/ActionToolbar";
 import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { MasterForm } from "./MasterForm";
 
-const defaultFilters = { estado: "todos", referencia: "" };
+const defaultFilters = { q: "", estado: "todos", referencia: "" };
 
 export function MasterPage({
   master,
@@ -26,8 +26,6 @@ export function MasterPage({
   session: SessionResponse;
   onExpired: () => void;
 }) {
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({
     ...defaultFilters,
   });
@@ -37,7 +35,6 @@ export function MasterPage({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [view, setView] = useState<{ detail?: MasterDetail } | null>(null);
   const [deleting, setDeleting] = useState<MasterDetail | null>(null);
@@ -52,13 +49,18 @@ export function MasterPage({
   }, []);
   const canWrite = session.usuario.rol.codigo === "ADMIN";
   const relation = master.fields.find((field) => field.kind === "relation");
-  const expired = useCallback(() => onExpired(), [onExpired]);
-  const listBusy = loading || search.trim() !== query;
+  const expiredHandler = useRef(onExpired);
+  useEffect(() => {
+    expiredHandler.current = onExpired;
+  }, [onExpired]);
+  const expired = useCallback(() => expiredHandler.current(), []);
+  const listBusy = loading;
   const selectedRecord =
     !listBusy && !error
       ? data?.registros.find((row) => row.Codigo === selected)
       : undefined;
   const filterFields: FilterField[] = [
+    { key: "q", label: "Búsqueda general", kind: "text" },
     {
       key: "estado",
       label: "Estado",
@@ -81,23 +83,17 @@ export function MasterPage({
       : []),
   ];
   const filtersActive =
-    filters.estado !== "todos" || Boolean(filters.referencia);
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      setQuery(search.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timeout);
-  }, [search]);
+    filters.estado !== "todos" ||
+    Boolean(filters.referencia) ||
+    Boolean(filters.q?.trim());
   useEffect(() => {
     const request = new AbortController();
     setLoading(true);
     setError("");
-    setSelected(null);
     void listMasters(
       master.key,
       {
-        q: query,
+        q: filters.q?.trim() ?? "",
         estado: filters.estado ?? "todos",
         pagina: String(page),
         ...(filters.referencia ? { referencia: filters.referencia } : {}),
@@ -111,6 +107,11 @@ export function MasterPage({
           return;
         }
         setData(result);
+        setSelected((current) =>
+          result.registros.some((row) => row.Codigo === current)
+            ? current
+            : null,
+        );
       })
       .catch((error) => {
         if (request.signal.aborted) return;
@@ -127,12 +128,11 @@ export function MasterPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [master.key, query, filters, page, revision, expired]);
+  }, [master.key, filters, page, revision, expired]);
   async function open(action: "form" | "delete") {
     if (!selectedRecord || busy) return;
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       const detail = await getMaster(master.key, selectedRecord.Codigo);
       if (!mounted.current) return;
@@ -151,12 +151,11 @@ export function MasterPage({
       if (mounted.current) setBusy(false);
     }
   }
-  function returnToList(message?: string) {
+  function returnToList(refresh = false) {
     setView(null);
     setDeleting(null);
-    setSelected(null);
-    if (message) {
-      setNotice(message);
+    if (refresh) {
+      setSelected(null);
       setRevision((value) => value + 1);
     }
     requestAnimationFrame(() => listHeading.current?.focus());
@@ -189,13 +188,7 @@ export function MasterPage({
         csrf={session.csrfToken}
         readOnly={!canWrite}
         onClose={() => returnToList()}
-        onSaved={(detail) =>
-          returnToList(
-            master.automaticCode && !view.detail
-              ? `Cliente creado correctamente. Código: ${detail.registro.Codigo}.`
-              : "Registro guardado correctamente.",
-          )
-        }
+        onSaved={() => returnToList(true)}
         onExpired={expired}
       />
     );
@@ -221,13 +214,13 @@ export function MasterPage({
             edit: `${canWrite ? "Modificar" : "Consultar"} ${master.singular}`,
             remove: `Eliminar ${master.singular}`,
             filter: "Filtrar",
+            refresh: "Actualizar listado",
           }}
           selected={Boolean(selectedRecord)}
           busy={busy}
           readOnly={!canWrite}
           filtersActive={filtersActive}
           onAdd={() => {
-            setNotice("");
             setView({});
           }}
           onEdit={() => {
@@ -237,37 +230,10 @@ export function MasterPage({
             void open("delete");
           }}
           onFilter={() => setFilterOpen(true)}
+          onRefresh={() => setRevision((value) => value + 1)}
+          refreshing={loading}
         />
       </div>
-      <div className="list-filters search-only">
-        <div className="filter-search">
-          <label htmlFor="master-search">Buscar</label>
-          <input
-            id="master-search"
-            type="search"
-            placeholder="Código, nombre u otros datos…"
-            value={search}
-            maxLength={100}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              setSelected(null);
-            }}
-          />
-        </div>
-        <button
-          type="button"
-          className="button secondary refresh-list"
-          disabled={loading || busy}
-          onClick={() => setRevision((value) => value + 1)}
-        >
-          Actualizar
-        </button>
-      </div>
-      {notice && (
-        <p className="notice success" role="status">
-          {notice}
-        </p>
-      )}
       {error && (
         <p className="notice error" role="alert">
           {error}
@@ -280,7 +246,7 @@ export function MasterPage({
         rowKey={(row) => row.Codigo}
         loading={listBusy}
         selectionDisabled={busy}
-        selectedKey={selectedRecord?.Codigo ?? null}
+        selectedKey={selected}
         onSelectionChange={setSelected}
       />
       <span className="sr-only" role="status">
@@ -319,7 +285,7 @@ export function MasterPage({
           detail={deleting}
           csrf={session.csrfToken}
           onClose={() => setDeleting(null)}
-          onDeleted={() => returnToList("Registro eliminado correctamente.")}
+          onDeleted={() => returnToList(true)}
           onExpired={expired}
         />
       )}

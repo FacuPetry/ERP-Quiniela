@@ -40,11 +40,6 @@ export function DataTable<T>({
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
-            {selectable && (
-              <th scope="col" className="selection-column">
-                <span className="sr-only">Seleccionar registro</span>
-              </th>
-            )}
             {columns.map((column) => (
               <th key={column.key} scope="col">
                 {column.label}
@@ -76,22 +71,26 @@ export function DataTable<T>({
                   )
                     return;
                   onSelectionChange?.(rowKey(row));
+                  event.currentTarget
+                    .querySelector<HTMLInputElement>(".row-selector")
+                    ?.focus({ preventScroll: true });
                 }}
               >
-                {selectable && (
-                  <td className="selection-column">
-                    <input
-                      type="radio"
-                      name={selectionGroup}
-                      aria-label={`Seleccionar ${rowKey(row)}`}
-                      checked={selectedKey === rowKey(row)}
-                      disabled={loading || selectionDisabled}
-                      onChange={() => onSelectionChange?.(rowKey(row))}
-                    />
+                {columns.map((column, index) => (
+                  <td key={column.key}>
+                    {selectable && index === 0 && (
+                      <input
+                        className="row-selector sr-only"
+                        type="radio"
+                        name={selectionGroup}
+                        aria-label={`Seleccionar ${rowKey(row)}`}
+                        checked={selectedKey === rowKey(row)}
+                        disabled={loading || selectionDisabled}
+                        onChange={() => onSelectionChange?.(rowKey(row))}
+                      />
+                    )}
+                    {column.render(row)}
                   </td>
-                )}
-                {columns.map((column) => (
-                  <td key={column.key}>{column.render(row)}</td>
                 ))}
                 {actions && <td className="row-actions">{actions(row)}</td>}
               </tr>
@@ -99,9 +98,7 @@ export function DataTable<T>({
           ) : (
             <tr>
               <td
-                colSpan={
-                  columns.length + Number(selectable) + Number(Boolean(actions))
-                }
+                colSpan={columns.length + Number(Boolean(actions))}
                 className="table-empty"
               >
                 {loading

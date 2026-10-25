@@ -15,7 +15,7 @@ Se habilitan seis maestros con datos reales de la base existente:
 | Bancos | BANCO | Referencia de cuentas y cheques |
 | Cuentas bancarias | BANCOCUENTA | Banco → BANCO.Codigo |
 
-Cada pantalla ofrece listado, búsqueda, filtro de estado, paginación de veinte registros, consulta, alta, modificación, desactivación/reactivación y eliminación confirmada. Clientes y cuentas también filtran por su referencia. La búsqueda se procesa en el servidor y los selectores relacionados permiten buscar opciones cuando hay más de cien.
+Cada pantalla ofrece listado, búsqueda, filtro de estado, paginación de veinte registros, consulta, alta, modificación, desactivación/reactivación y eliminación confirmada. Clientes y cuentas también filtran por su referencia. La búsqueda se procesa en el servidor. En la revisión actual, todos los filtros están dentro de la ventana de filtros y los combos cargan todas las opciones activas sin buscador interno; ver [componentes compartidos](ajustes-componentes.md).
 
 Los registros se identifican por Codigo (hasta veinte caracteres), conservando los nombres del modelo. El código no se modifica luego del alta. Los datos opcionales vacíos se almacenan como NULL; documentos, números de cuenta y CBU/CVU se conservan como texto para mantener ceros iniciales. Observacion admite hasta 4000 caracteres en este formulario.
 
