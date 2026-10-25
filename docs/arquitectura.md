@@ -25,6 +25,10 @@ Los servicios de negocio se agregarán por módulo en etapas posteriores. Solo e
 - Un bloqueo de migración evita dos ejecuciones simultáneas sobre el mismo servidor.
 - MySQL no revierte todo el DDL de una migración fallida. Hacer backup antes de actualizar bases con datos e investigar la causa; no reintentar ciegamente ni borrar datos.
 
+## Consultas de listados a demanda
+
+Los ABM actuales y futuros que utilicen MasterPage comienzan sin consultar la grilla. Aplicar filtros o Actualizar solicita datos y habilita la paginación; volver a entrar al módulo restaura el estado sin búsqueda. Las escrituras refrescan la grilla únicamente si ya había sido solicitada, incluso cuando aquella consulta no tuvo coincidencias. DataTable permite distinguir el estado inicial, carga, resultado vacío y error mediante su mensaje configurable. Los módulos con listados propios deben conservar esta misma política. Las consultas de sesión, referencias y sugerencias de códigos siguen siendo independientes. Ver [navegación y carga manual](navegacion-abm.md#carga-manual-de-los-listados).
+
 ## Referencias en los listados
 
 Los listados actuales y futuros deben mostrar el texto descriptivo de las entidades relacionadas cuando la columna representa una FK. Los códigos propios del registro siguen visibles y todas las relaciones, filtros y escrituras conservan sus identificadores internos. Las descripciones se obtienen desde su tabla de origen, sin almacenarlas nuevamente en el registro principal ni hacer una solicitud por fila desde la interfaz.

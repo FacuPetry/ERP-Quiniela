@@ -4,6 +4,8 @@
 
 La barra muestra Agregar, Modificar/Consultar, Eliminar y Filtrar, seguidos de Actualizar listado. Las acciones son íconos con etiquetas y tooltips configurables. Los permisos de consulta y edición se mantienen.
 
+Al entrar o volver a un módulo, la grilla inicia sin consultar y muestra un mensaje de búsqueda pendiente. Aplicar filtros o Actualizar activa la consulta paginada. La paginación aparece después de recibir datos; una búsqueda sin coincidencias muestra el total real de cero y un mensaje distinto del estado inicial.
+
 La búsqueda general, estado, referencias y otros filtros se configuran exclusivamente en FilterDialog. El listado no muestra campos de búsqueda externos. Aplicar usa el borrador y vuelve a la primera página; Cancelar lo descarta; Limpiar restablece todos los criterios, incluida la búsqueda general, y requiere Aplicar para hacerlos efectivos. El ícono indica si hay filtros aplicados.
 
 DataTable conserva selección única por clic en cualquier celda no interactiva y por teclado. Los radios se mantienen visualmente ocultos dentro de la primera celda para conservar su semántica y navegación, sin una columna adicional. La fila se resalta y muestra un contorno al navegar con teclado. Modificar y Eliminar se habilitan según selección y permisos.
@@ -44,7 +46,7 @@ MasterForm sigue reemplazando al listado dentro del módulo. Su toolbar superior
 
 Guardar correctamente actualiza la lista. Cancelar vuelve sin escribir y conserva búsqueda, filtros, página y selección si siguen siendo válidos. Las validaciones permanecen junto a los campos y en un resumen con foco; no abren modales ni borran los valores ingresados. Los modales se reservan para filtros y confirmación de baja.
 
-Las altas, modificaciones y bajas correctas no muestran un aviso de éxito: se actualizan los datos de la grilla, sin recargar toda la página. Agregar mantiene el ícono blanco al pasar el ratón, cambiando únicamente el fondo verde; Modificar usa un lápiz simple y Actualizar una flecha circular. La posible sustitución de las validaciones por un modal agrupado sigue pendiente de revisión y no se implementa en este ajuste.
+Las altas, modificaciones y bajas correctas no muestran un aviso de éxito: si el usuario ya había solicitado el listado, se actualiza la grilla con sus filtros, aunque antes no hubiera coincidencias. Un alta previa a la primera búsqueda vuelve al estado inicial sin consultar. No se recarga toda la página. Agregar mantiene el ícono blanco al pasar el ratón, cambiando únicamente el fondo verde; Modificar usa un lápiz simple y Actualizar una flecha circular. La posible sustitución de las validaciones por un modal agrupado sigue pendiente de revisión y no se implementa en este ajuste.
 
 Los botones habilitados utilizan cursor de puntero. Los deshabilitados indican que la acción no está disponible, sin cursor de espera. Esto corrige Anterior/Siguiente en los límites de paginación; los límites y el bloqueo durante una carga se mantienen.
 
@@ -69,7 +71,7 @@ Los nuevos códigos siguen siendo textos de cinco dígitos desde 00001, sin SECU
 
 ## Cómo probar
 
-1. En Tipos de cliente, seleccionar una fila haciendo clic o usando teclado. No debe verse un radio. Esperar una comprobación de sesión o cambiar de pestaña y volver: la selección debe mantenerse.
+1. En Tipos de cliente, comprobar que inicialmente no se consulta la grilla. Pulsar Actualizar o aplicar filtros y seleccionar una fila haciendo clic o usando teclado. No debe verse un radio. Esperar una comprobación de sesión o cambiar de pestaña y volver: la selección debe mantenerse.
 2. Usar Actualizar listado: la fila debe seguir seleccionada si permanece en la página. Cambiar de página o aplicar otros filtros limpia la selección cuando corresponde.
 3. Abrir Filtrar: allí deben estar Búsqueda general y Estado, más Tipo de cliente o Banco en los módulos correspondientes. Probar Aplicar, Cancelar y Limpiar. No debe quedar un buscador externo.
 4. Abrir un alta: Cancelar y Guardar deben estar junto al título. Comprobar errores de campos obligatorios y que Cancelar no escriba datos.

@@ -25,42 +25,44 @@ El recorrido utiliza el orden del DOM y no agrega índices Tab positivos. En Cli
 
 Solo existe el estado Activo en los ABM actuales; no se agregan campos Visible, Inactivo ni Deshabilitado a la base de datos.
 
-## Evaluación de la carga de listados: propuesta pendiente
+## Carga manual de los listados
 
-Esta entrega conserva el comportamiento actual de carga y actualización del listado.
+MasterPage inicia con `hasRequestedList=false`, `loading=false` y sin datos. El efecto de consulta termina inmediatamente mientras el usuario no haya solicitado el listado. DataTable recibe un mensaje de estado inicial y la paginación se muestra recién cuando existe una respuesta, para no presentar un total de cero sin haber consultado.
 
-Actualmente, la grilla consulta una página de 20 registros y el total; no descarga toda la tabla. La API ejecuta un COUNT y una consulta con LIMIT/OFFSET. Entrar solo para dar un alta todavía provoca esa carga inicial.
+La carga anterior se debía al efecto de MasterPage, que llamaba a listMasters en cada montaje sin comprobar si el usuario había solicitado datos. Workspace crea una instancia por módulo mediante su key, por lo que cada cambio de módulo disparaba otra carga. La modalidad manual había quedado documentada como propuesta pendiente; ahora se implementa en la base compartida.
 
-Para este ERP, es razonable ofrecer el listado inicialmente sin consultar: evita solicitudes que el usuario no necesita y favorece la búsqueda explícita en tablas grandes. Agrega una acción para quien entra a consultar datos, por lo que es importante explicar el estado inicial y no confundirlo con una búsqueda sin resultados. No se midió un problema de rendimiento del hosting ni se promete una mejora cuantificada.
+| Acción                                                      | Comportamiento                                                                                                                        |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Entrar al módulo                                            | No consultar la grilla. Mostrar «Todavía no se realizó ninguna búsqueda. Aplicá filtros o usá Actualizar listado para ver registros». |
+| Abrir un alta                                               | Permitirlo inmediatamente. Mantener las consultas necesarias para sugerir el código y ofrecer referencias activas.                    |
+| Aplicar filtros                                             | Solicitar la primera página con los filtros aplicados, incluso si todos están vacíos.                                                 |
+| Pulsar Actualizar                                           | Consultar la página actual con los filtros activos.                                                                                   |
+| Cambiar de página del listado                               | Consultar la página elegida con los mismos filtros; la paginación está disponible después de buscar.                                  |
+| Cancelar filtros o formulario                               | Mantener la grilla y su estado previo sin nuevas consultas. Limpiar filtros modifica solo el borrador hasta Aplicar.                  |
+| Guardar sin haber consultado la grilla                      | Volver al estado inicial sin consultar el listado.                                                                                    |
+| Guardar, modificar o eliminar después de haber consultado   | Actualizar la página con los mismos filtros. Si se elimina su último registro, conservar la corrección de página existente.           |
+| Volver a entrar a un módulo, recargarlo o usar el historial | Volver al estado inicial sin carga automática.                                                                                        |
 
-La recomendación para una próxima implementación es:
+La condición para refrescar después de una escritura es «el usuario ya solicitó el listado», incluso si esa consulta devolvió cero registros. No depende de que existan filas visibles. Se mantienen la consulta paginada de veinte registros y su total, sin descargar toda la tabla.
 
-| Acción                                                    | Comportamiento propuesto                                                                                              |
-| --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Entrar al módulo                                          | No consultar la grilla; mostrar «Aplicá filtros o usá Actualizar listado para visualizar registros».                  |
-| Abrir un alta                                             | Permitirlo inmediatamente. Mantener las consultas necesarias para sugerir el código y ofrecer referencias activas.    |
-| Aplicar filtros o pulsar Actualizar                       | Consultar la página correspondiente, aunque no se haya ingresado texto de búsqueda.                                   |
-| Cancelar filtros o formulario                             | Mantener la grilla y su estado previo sin nuevas consultas.                                                           |
-| Guardar sin haber consultado la grilla                    | Volver al estado inicial, sin consultar el listado.                                                                   |
-| Guardar, modificar o eliminar después de haber consultado | Actualizar la página con los mismos filtros y conservar la corrección de página cuando se elimina su último registro. |
-| Volver a entrar al módulo                                 | Volver al estado inicial; no asumir que los datos anteriores siguen vigentes.                                         |
+El estado inicial, la carga, una búsqueda exitosa sin resultados y un error son distintos: antes de buscar aparece la orientación inicial; durante la consulta se indica carga; con cero coincidencias aparece «No hay registros para mostrar» y el total real; ante un error se muestra el aviso con la posibilidad de actualizar y no se presenta como búsqueda vacía.
 
-La condición para refrescar después de una escritura debe ser «el usuario ya solicitó el listado», incluso si esa consulta devolvió cero registros. No debe depender de que existan filas visibles. La grilla conservará su paginación; las comprobaciones de sesión y las consultas de referencias o códigos son independientes de esta modalidad.
-
-Esta política queda documentada para revisar su funcionamiento antes de cambiar la carga; no se implementa silenciosamente junto con los otros ajustes.
+Las comprobaciones de sesión, las opciones de los combos y la sugerencia de código son independientes de las consultas de grilla y siguen funcionando. No se agregan temporizadores de refresco ni cambios en el backend.
 
 ## Cómo probar esta entrega
 
-1. En cualquiera de los seis ABM, seleccionar una fila y hacer doble clic en otra: debe abrirse el registro del doble clic. Cancelar debe conservar esa selección. Probar también el lápiz.
+1. En cualquiera de los seis ABM, comprobar el mensaje inicial y pulsar Actualizar para cargar datos. Seleccionar una fila y hacer doble clic en otra: debe abrirse el registro del doble clic. Cancelar debe conservar esa selección. Probar también el lápiz.
 2. Abrir un alta o modificación: el foco debe estar en Código. En edición y en Clientes no debe permitir cambiar su contenido. Usar Tab y Shift+Tab para recorrer los controles siguiendo el orden visual.
 3. En Clientes, comprobar que la llegada del código sugerido no lleve el foco de vuelta a Código si ya se avanzó a otro campo.
 4. Dejar un campo obligatorio vacío y guardar: se conserva el mensaje y el foco en ese campo, sin volver al inicio.
 5. Cambiar Registro activo con la casilla, el label o espacio; guardar y volver a abrir para comprobar su persistencia.
 6. Revisar escritorio y móvil. En un perfil de consulta, el doble clic debe abrir Consultar y mantener la edición bloqueada.
-7. Verificar que la carga inicial y el refresco del listado después de una escritura sigan funcionando como antes.
+7. Entrar a otro módulo y volver: no deben consultarse grillas hasta Aplicar filtros o Actualizar. Comparar la búsqueda pendiente con una búsqueda sin coincidencias. Guardar un alta antes de buscar no consulta la grilla; guardar después de buscar la actualiza, aunque la búsqueda anterior no hubiera tenido resultados. Probar también paginación, filtros conservados, eliminación y reintento tras un error.
 
 Archivos: `components/ui/DataTable.tsx`, `components/ui/useInitialFieldFocus.ts`, `components/masters/MasterPage.tsx`, `components/masters/MasterForm.tsx`, `controls.css` y `masters.css`, todos bajo `apps/web/src`. Las medidas compartidas de labels permiten alinear el estado con el input sin duplicar la configuración de los controles.
 
-Validación: `npm run check` (TypeScript, 18 pruebas existentes y build), build web con `NODE_ENV=production` y Chromium contra MariaDB 11.8.9 aislada. Se verificaron los seis ABM, apertura de la fila correcta, bloqueo de aperturas duplicadas, foco inicial y recorrido de Tab/Shift+Tab, validaciones, sugerencias asíncronas, persistencia de Activo, eliminación, permisos de consulta y vistas de 320/375/768/1280 px. No se accedió a la base de Hostinger.
+Validación: `npm run check` (TypeScript, 19 pruebas y build con `NODE_ENV=production`) y Chromium contra MariaDB 11.8.9 aislada. Se verificaron los seis ABM, apertura de la fila correcta, bloqueo de aperturas duplicadas, foco inicial y recorrido de Tab/Shift+Tab, validaciones, sugerencias asíncronas, persistencia de Activo, eliminación, permisos de consulta y vistas de 320/375/768/1280 px. No se accedió a la base de Hostinger.
+
+La carga manual se comprobó contando las solicitudes HTTP de grilla: cero al entrar o volver a los seis módulos, al abrir y guardar un alta sin búsqueda y al cancelar filtros o formularios. Se verificaron búsqueda sin coincidencias, refresco posterior a una búsqueda vacía, filtros conservados, paginación y baja del último registro de una página, errores y reintento, sesión/visibilidad, historial, recarga, URL directa y perfiles de consulta. Las consultas de referencias se contaron por separado.
 
 Publicación: actualizar el PR abierto e incorporarlo a main cuando se haya revisado. Hostinger utiliza la configuración actual; no hay migraciones, dependencias ni variables nuevas.

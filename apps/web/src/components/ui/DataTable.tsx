@@ -22,6 +22,7 @@ export function DataTable<T>({
   onSelectionChange,
   onRowActivate,
   selectionDisabled = false,
+  emptyMessage = "No hay registros para mostrar.",
 }: {
   caption: string;
   columns: readonly TableColumn<T>[];
@@ -34,6 +35,8 @@ export function DataTable<T>({
   /** Acción principal sobre la fila; comparte permisos y carga con el toolbar. */
   onRowActivate?: (row: T) => void;
   selectionDisabled?: boolean;
+  /** Permite distinguir una grilla sin consultar de una búsqueda sin resultados. */
+  emptyMessage?: ReactNode;
 }) {
   const selectionGroup = useId();
   const selectable = Boolean(onSelectionChange);
@@ -113,9 +116,7 @@ export function DataTable<T>({
                 colSpan={columns.length + Number(Boolean(actions))}
                 className="table-empty"
               >
-                {loading
-                  ? "Cargando registros…"
-                  : "No hay registros para mostrar."}
+                {loading ? "Cargando registros…" : emptyMessage}
               </td>
             </tr>
           )}

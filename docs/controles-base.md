@@ -17,7 +17,7 @@ Los seis ABM actuales (Tipos de cliente, Clientes, Conceptos, Cajas, Bancos y Cu
 
 Los labels permanecen arriba para conservar la distribución actual en escritorio y móvil. El CheckBox conserva su label al lado. Los controles no consultan tablas ni conocen clientes, bancos o comprobantes.
 
-MasterForm agrupa Código y Registro activo en la fila superior y enfoca Código al abrir un alta, modificación o consulta. El orden de Tab sigue la disposición visual. Ver [apertura y navegación de los ABM](navegacion-abm.md), incluida la propuesta pendiente de carga manual de listados.
+MasterForm agrupa Código y Registro activo en la fila superior y enfoca Código al abrir un alta, modificación o consulta. El orden de Tab sigue la disposición visual. Ver [apertura y navegación de los ABM](navegacion-abm.md), incluida la carga manual de listados.
 
 Todos reciben `label`, `id` opcional, `value`, `onValueChange`, `required`, `disabled`, `invalid`, `error`, `hint` y `wide`. Si no se proporciona `id`, Field genera uno; los ABM conservan sus identificadores para enfocar el primer campo incorrecto. `wide` ocupa las dos columnas del formulario en escritorio y una en móvil.
 

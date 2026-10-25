@@ -32,7 +32,8 @@ export function MasterPage({
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState<MasterList | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [hasRequestedList, setHasRequestedList] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -88,6 +89,7 @@ export function MasterPage({
     Boolean(filters.referencia) ||
     Boolean(filters.q?.trim());
   useEffect(() => {
+    if (!hasRequestedList) return;
     const request = new AbortController();
     setLoading(true);
     setError("");
@@ -129,7 +131,12 @@ export function MasterPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [master.key, filters, page, revision, expired]);
+  }, [master.key, filters, page, revision, expired, hasRequestedList]);
+  function requestList() {
+    setHasRequestedList(true);
+    setLoading(true);
+    setRevision((value) => value + 1);
+  }
   async function open(action: "form" | "delete", record = selectedRecord) {
     if (!record || busy || opening.current || listBusy || error) return;
     opening.current = true;
@@ -160,7 +167,7 @@ export function MasterPage({
     setDeleting(null);
     if (refresh) {
       setSelected(null);
-      setRevision((value) => value + 1);
+      if (hasRequestedList) requestList();
     }
     requestAnimationFrame(() => listHeading.current?.focus());
   }
@@ -241,7 +248,7 @@ export function MasterPage({
             void open("delete");
           }}
           onFilter={() => setFilterOpen(true)}
-          onRefresh={() => setRevision((value) => value + 1)}
+          onRefresh={requestList}
           refreshing={loading}
         />
       </div>
@@ -256,6 +263,13 @@ export function MasterPage({
         rows={error ? [] : (data?.registros ?? [])}
         rowKey={(row) => row.Codigo}
         loading={listBusy}
+        emptyMessage={
+          !hasRequestedList
+            ? "Todavía no se realizó ninguna búsqueda. Aplicá filtros o usá Actualizar listado para ver registros."
+            : error
+              ? "No se pudo completar la búsqueda. Intentá actualizar el listado."
+              : undefined
+        }
         selectionDisabled={busy}
         selectedKey={selected}
         onSelectionChange={setSelected}
@@ -268,16 +282,19 @@ export function MasterPage({
           ? `Registro seleccionado: ${selectedRecord.Codigo}.`
           : "Ningún registro seleccionado."}
       </span>
-      <Pagination
-        page={page}
-        total={data?.total ?? 0}
-        limit={20}
-        loading={listBusy || busy}
-        onChange={(value) => {
-          setPage(value);
-          setSelected(null);
-        }}
-      />
+      {hasRequestedList && data && (
+        <Pagination
+          page={page}
+          total={data?.total ?? 0}
+          limit={20}
+          loading={listBusy || busy}
+          onChange={(value) => {
+            setPage(value);
+            setSelected(null);
+            setLoading(true);
+          }}
+        />
+      )}
       {filterOpen && (
         <FilterDialog
           fields={filterFields}
@@ -287,6 +304,7 @@ export function MasterPage({
             setFilters(values);
             setPage(1);
             setSelected(null);
+            requestList();
             setFilterOpen(false);
           }}
           onClose={() => setFilterOpen(false)}
