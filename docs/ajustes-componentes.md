@@ -18,7 +18,7 @@ Ahora el callback de App es estable y MasterPage mantiene una referencia al mane
 
 ## Combos sencillos y filtrado por contexto
 
-ReferenceSelect muestra un select nativo sin buscador interno. Carga todas las páginas de opciones activas, sin truncar a las primeras cien, y no ofrece registros inactivos. El modelo actual utiliza Activo; no se agregan campos de visibilidad.
+ReferenceSelect utiliza el [DropDown compartido](controles-base.md), con presentación personalizada y sin buscador interno. Conserva la carga de todas las páginas de opciones activas, sin truncar a las primeras cien, y no ofrece registros inactivos. El modelo actual utiliza Activo; no se agregan campos de visibilidad.
 
 El componente admite `query` para filtros soportados por la fuente y `optionFilter` para restringir las opciones desde el código del módulo. Ambos respetan la condición de activo. Esto prepara el filtrado por contexto de futuros comprobantes, sin implementar todavía ese módulo ni sus reglas.
 
