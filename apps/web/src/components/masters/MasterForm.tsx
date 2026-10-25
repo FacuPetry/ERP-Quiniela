@@ -1,8 +1,7 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { MasterDefinition, MasterDetail, MasterRecord } from "@erp/shared";
 import { saveMaster } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
-import { Modal } from "../ui/Modal";
 import { ReferenceSelect } from "./ReferenceSelect";
 
 export function MasterForm({
@@ -19,7 +18,7 @@ export function MasterForm({
   csrf: string;
   readOnly: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (detail: MasterDetail) => void;
   onExpired: () => void;
 }) {
   const [record, setRecord] = useState<MasterRecord>(
@@ -33,6 +32,19 @@ export function MasterForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const heading = useRef<HTMLHeadingElement>(null);
+  const summary = useRef<HTMLDivElement>(null);
+  const automatic = Boolean(master.automaticCode && !previous);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+  function focusError(fields: Record<string, string>) {
+    requestAnimationFrame(() => {
+      const first = master.fields.find((field) => fields[field.name]);
+      if (first) document.getElementById(`master-${first.name}`)?.focus();
+      else summary.current?.focus();
+    });
+  }
   function change(name: string, value: string | boolean) {
     setRecord((current) => ({ ...current, [name]: value }));
     setErrors((current) => ({ ...current, [name]: "" }));
@@ -40,12 +52,34 @@ export function MasterForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || readOnly) return;
+    const invalid: Record<string, string> = {};
+    for (const field of master.fields) {
+      if (automatic && field.name === "Codigo") continue;
+      const text = String(record[field.name] ?? "").trim();
+      if (field.required && !text) invalid[field.name] = "Completá este campo.";
+      else if (text.length > field.maxLength)
+        invalid[field.name] = `Hasta ${field.maxLength} caracteres.`;
+      else if (
+        field.kind === "email" &&
+        text &&
+        event.currentTarget.querySelector<HTMLInputElement>(
+          `#master-${field.name}`,
+        )?.validity.typeMismatch
+      )
+        invalid[field.name] = "Ingresá un correo válido.";
+    }
+    if (Object.keys(invalid).length) {
+      setErrors(invalid);
+      setError("Revisá los campos indicados.");
+      focusError(invalid);
+      return;
+    }
     setBusy(true);
     setError("");
     setErrors({});
     try {
-      await saveMaster(master.key, record, csrf, previous);
-      onSaved();
+      const saved = await saveMaster(master.key, record, csrf, previous);
+      onSaved(saved);
     } catch (error) {
       if (error instanceof ApiRequestError && error.status === 401) {
         onExpired();
@@ -57,31 +91,56 @@ export function MasterForm({
           : "No se pudo guardar el registro.",
       );
       if (error instanceof ApiRequestError) setErrors(error.campos);
+      focusError(error instanceof ApiRequestError ? error.campos : {});
     } finally {
       setBusy(false);
     }
   }
   return (
-    <Modal
-      title={`${readOnly ? "Consultar" : previous ? "Modificar" : master.feminine ? "Nueva" : "Nuevo"} ${master.singular}`}
-      onClose={onClose}
-      busy={busy}
+    <section
+      className="panel record-form"
+      aria-labelledby="record-form-title"
+      aria-busy={busy}
     >
+      <div className="form-heading">
+        <h2
+          id="record-form-title"
+          ref={heading}
+          tabIndex={-1}
+        >{`${readOnly ? "Consultar" : previous ? "Modificar" : master.feminine ? "Nueva" : "Nuevo"} ${master.singular}`}</h2>
+      </div>
       <form
+        noValidate
         onSubmit={(event) => {
           void submit(event);
         }}
       >
-        <div className="modal-body">
+        <div className="form-body">
           <p className="muted small">
             {readOnly
               ? "Datos del registro seleccionado."
               : "Los campos con * son obligatorios."}
           </p>
           {error && (
-            <p className="notice error" role="alert">
+            <div
+              ref={summary}
+              tabIndex={-1}
+              className="notice error"
+              role="alert"
+            >
               {error}
-            </p>
+              {Object.values(errors).some(Boolean) && (
+                <ul>
+                  {master.fields
+                    .filter((field) => errors[field.name])
+                    .map((field) => (
+                      <li key={field.name}>
+                        {field.label}: {errors[field.name]}
+                      </li>
+                    ))}
+                </ul>
+              )}
+            </div>
           )}
           <div className="form-grid">
             {master.fields.map((field) => {
@@ -94,7 +153,11 @@ export function MasterForm({
                 >
                   <label htmlFor={id}>
                     {field.label}
-                    {field.required && !readOnly ? " *" : ""}
+                    {field.required &&
+                    !readOnly &&
+                    !(automatic && field.name === "Codigo")
+                      ? " *"
+                      : ""}
                   </label>
                   {field.kind === "relation" ? (
                     <ReferenceSelect
@@ -126,10 +189,21 @@ export function MasterForm({
                       id={id}
                       type={field.kind === "email" ? "email" : "text"}
                       value={String(record[field.name] ?? "")}
-                      required={Boolean(field.required)}
+                      required={Boolean(
+                        field.required &&
+                          !(automatic && field.name === "Codigo"),
+                      )}
                       maxLength={field.maxLength}
                       disabled={disabled}
-                      readOnly={field.name === "Codigo" && Boolean(previous)}
+                      readOnly={
+                        field.name === "Codigo" &&
+                        (Boolean(previous) || automatic)
+                      }
+                      placeholder={
+                        automatic && field.name === "Codigo"
+                          ? "Se asignará al guardar"
+                          : undefined
+                      }
                       aria-invalid={Boolean(errors[field.name])}
                       aria-describedby={
                         errors[field.name] ? `${id}-error` : undefined
@@ -142,6 +216,11 @@ export function MasterForm({
                   {field.name === "Codigo" && previous && !readOnly && (
                     <span className="field-hint">
                       El código se conserva para mantener sus relaciones.
+                    </span>
+                  )}
+                  {field.name === "Codigo" && automatic && (
+                    <span className="field-hint">
+                      El código se asignará automáticamente al guardar.
                     </span>
                   )}
                   {errors[field.name] && (
@@ -163,7 +242,7 @@ export function MasterForm({
             </label>
           </div>
         </div>
-        <div className="modal-actions">
+        <div className="form-actions">
           <button
             className="button secondary"
             type="button"
@@ -179,6 +258,6 @@ export function MasterForm({
           )}
         </div>
       </form>
-    </Modal>
+    </section>
   );
 }

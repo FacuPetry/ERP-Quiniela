@@ -1,5 +1,7 @@
 # Etapa 3: primeros maestros y componentes de ABM
 
+Los ajustes posteriores de interfaz y la numeración automática de CLIENTE se describen en [componentes y correlativo](ajustes-componentes.md). La interfaz actual utiliza barra de íconos con selección de fila, filtros en ventana y formularios integrados; para altas nuevas de clientes, Codigo lo asigna el backend.
+
 ## Alcance
 
 Se habilitan seis maestros con datos reales de la base existente:

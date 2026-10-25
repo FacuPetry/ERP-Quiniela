@@ -36,7 +36,7 @@ export function masterRouter(auth: AuthService, store: MasterStore) {
   });
   router.post("/:master", ...requireMasterWrite, async (req, res) => {
     const master = definition(param(req, "master"));
-    const input = parseBody(master.key, req.body);
+    const input = parseBody(master.key, req.body, true);
     const user = (res.locals.session as SessionResponse).usuario;
     sendDetail(
       res,
@@ -78,12 +78,10 @@ export function masterRouter(auth: AuthService, store: MasterStore) {
       next(error);
       return;
     }
-    res
-      .status(error.status)
-      .json({
-        error: error.message,
-        ...(error.campos ? { campos: error.campos } : {}),
-      });
+    res.status(error.status).json({
+      error: error.message,
+      ...(error.campos ? { campos: error.campos } : {}),
+    });
   };
   router.use(errors);
   return router;
@@ -103,8 +101,8 @@ function sendDetail(res: Response, detail: MasterDetail, status = 200) {
   res.status(status).json(detail);
 }
 
-function parseBody(key: string, body: unknown): MasterRecord {
-  const result = recordSchema(definition(key)).safeParse(body);
+function parseBody(key: string, body: unknown, creation = false): MasterRecord {
+  const result = recordSchema(definition(key), creation).safeParse(body);
   if (!result.success) {
     const fields: Record<string, string> = {};
     for (const issue of result.error.issues)

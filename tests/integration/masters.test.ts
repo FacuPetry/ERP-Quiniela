@@ -17,6 +17,7 @@ import { hashPassword } from "../../apps/api/src/auth/crypto.js";
 import { createAuthService } from "../../apps/api/src/auth/service.js";
 import { createAuthStore } from "../../apps/api/src/auth/store.js";
 import { createMasterStore } from "../../apps/api/src/masters/store.js";
+import { masterDefinitions } from "@erp/shared";
 
 test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
   assert.equal(process.env.TEST_DATABASE_ISOLATED, "1");
@@ -218,13 +219,13 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
   await t.test(
     "clientes y cuentas guardan referencias y datos opcionales, preservando ceros del CBU",
     async () => {
-      await create("clientes", {
-        Codigo: "M_CLIENTE",
+      const firstClient = await create("clientes", {
         ClienteTipo: "M_SIMPLE",
         Nombre: "Cliente de prueba",
         Documento: "00123456",
         Email: "cliente@example.invalid",
       });
+      assert.equal(firstClient.registro.Codigo, "00001");
       const account = await create("cuentas-bancarias", {
         Codigo: "M_CUENTA",
         Banco: "M_SIMPLE",
@@ -235,7 +236,7 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       assert.equal(account.registro.CBU, "0000000000000000000001");
       assert.equal(account.registro.Alias, null);
       assert.equal(
-        (await get("clientes/M_CLIENTE")).registro.Documento,
+        (await get("clientes/00001")).registro.Documento,
         "00123456",
       );
       const filtered = (await (
@@ -243,7 +244,6 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       ).json()) as MasterList;
       assert.equal(filtered.total, 1);
       const invalid = await request("clientes", "POST", {
-        Codigo: "M_INVALIDO",
         ClienteTipo: "NOEXISTE",
         Nombre: "Inválido",
         Activo: true,
@@ -251,7 +251,6 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       assert.equal(invalid.status, 400);
       assert.ok(((await invalid.json()) as { campos: object }).campos);
       const badEmail = await request("clientes", "POST", {
-        Codigo: "M_INVALIDO",
         ClienteTipo: "M_SIMPLE",
         Nombre: "Inválido",
         Email: "no-es-correo",
@@ -310,7 +309,6 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       assert.equal(
         (
           await request("clientes", "POST", {
-            Codigo: "M_NUEVO",
             Nombre: "Nuevo",
             ClienteTipo: "M_SIMPLE",
             Activo: true,
@@ -318,9 +316,9 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         ).status,
         400,
       );
-      const client = await get("clientes/M_CLIENTE");
+      const client = await get("clientes/00001");
       const changed = await update(
-        "clientes/M_CLIENTE",
+        "clientes/00001",
         { ...client.registro, Telefono: "11223344" },
         client.version,
       );
@@ -427,6 +425,183 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         (await get("cajas/M_SIMPLE")).registro.Nombre,
         "Registro de prueba",
       );
+    },
+  );
+
+  await t.test(
+    "CLIENTE asigna códigos consecutivos en altas simultáneas desde dos pools independientes",
+    async () => {
+      await create("tipos-cliente", {
+        Codigo: "CORR",
+        Descripcion: "Prueba de correlativo",
+      });
+      const other = createDatabase(config);
+      const second = createApp({
+        checkDatabase: async () => {},
+        auth: createAuthService(createAuthStore(other.pool)),
+        masters: createMasterStore(other.pool),
+      }).listen(0, "127.0.0.1");
+      await once(second, "listening");
+      try {
+        const address = second.address();
+        assert.ok(address && typeof address !== "string");
+        const bases = [base, `http://127.0.0.1:${address.port}`];
+        const results = await Promise.all(
+          Array.from({ length: 16 }, async (_, i) => {
+            const response = await fetch(
+              `${bases[i % 2]}/api/maestros/clientes`,
+              {
+                method: "POST",
+                headers: {
+                  Cookie: admin.cookie,
+                  "Content-Type": "application/json",
+                  "X-ERP-Request": "1",
+                  "X-CSRF-Token": admin.session.csrfToken,
+                },
+                body: JSON.stringify({
+                  Nombre: `Cliente simultáneo ${i}`,
+                  ClienteTipo: "CORR",
+                  Activo: true,
+                }),
+              },
+            );
+            assert.equal(response.status, 201, await response.clone().text());
+            return ((await response.json()) as MasterDetail).registro.Codigo;
+          }),
+        );
+        assert.equal(new Set(results).size, 16);
+        assert.deepEqual(
+          results.sort(),
+          Array.from({ length: 16 }, (_, i) => String(i + 2).padStart(5, "0")),
+        );
+        const [rows] = await pool.query<RowDataPacket[]>(
+          "SELECT COUNT(*) AS total FROM AUDITORIA WHERE Tabla = 'CLIENTE' AND Accion = 'ALTA'",
+        );
+        assert.equal(Number(rows[0]?.total), 17);
+      } finally {
+        await new Promise<void>((resolve, reject) =>
+          second.close((error) => (error ? reject(error) : resolve())),
+        );
+        await other.pool.end();
+      }
+    },
+  );
+
+  await t.test(
+    "el código no se admite manualmente y un alta revertida libera el bloqueo sin consumir número",
+    async () => {
+      const manual = await request("clientes", "POST", {
+        Codigo: "00999",
+        Nombre: "No insertar",
+        ClienteTipo: "CORR",
+        Activo: true,
+      });
+      assert.equal(manual.status, 400);
+      assert.ok(
+        ((await manual.json()) as { campos: Record<string, string> }).campos
+          .Codigo,
+      );
+      await assert.rejects(
+        createMasterStore(pool).write(
+          masterDefinitions.clientes,
+          "ALTA",
+          { Codigo: "", Nombre: "Revertir", ClienteTipo: "CORR", Activo: true },
+          "",
+          "999999999999",
+        ),
+      );
+      const other = createDatabase(config);
+      try {
+        const saved = await createMasterStore(other.pool).write(
+          masterDefinitions.clientes,
+          "ALTA",
+          {
+            Codigo: "",
+            Nombre: "Luego de rollback",
+            ClienteTipo: "CORR",
+            Activo: true,
+          },
+          "",
+          admin.session.usuario.id,
+        );
+        assert.equal(saved?.registro.Codigo, "00018");
+      } finally {
+        await other.pool.end();
+      }
+    },
+  );
+
+  await t.test(
+    "se conservan códigos anteriores, se toma el máximo numérico y las bajas permiten reutilizar el último",
+    async () => {
+      const legacy = ["9", "900", "1000", "CLI_ANTIGUO", "123456"];
+      for (const code of legacy)
+        await pool.execute(
+          "INSERT INTO CLIENTE (Codigo, Nombre, ClienteTipo) VALUES (?, ?, ?)",
+          [code, "Cliente anterior " + code, "CORR"],
+        );
+      const generated = await create("clientes", {
+        Nombre: "Nuevo cliente",
+        ClienteTipo: "CORR",
+      });
+      assert.equal(generated.registro.Codigo, "01001");
+      for (const code of legacy)
+        assert.equal(
+          (await get("clientes/" + code)).registro.Nombre,
+          "Cliente anterior " + code,
+        );
+      assert.equal(
+        (await request("clientes/01001", "DELETE", {}, generated.version))
+          .status,
+        204,
+      );
+      const reused = await create("clientes", {
+        Nombre: "Luego de la baja",
+        ClienteTipo: "CORR",
+      });
+      assert.equal(reused.registro.Codigo, "01001");
+      await update(
+        "clientes/01001",
+        { ...reused.registro, Activo: false },
+        reused.version,
+      );
+      const next = await create("clientes", {
+        Nombre: "Luego de desactivar",
+        ClienteTipo: "CORR",
+      });
+      assert.equal(next.registro.Codigo, "01002");
+    },
+  );
+
+  await t.test(
+    "99999 detiene la numeración sin escribir ni agregar tablas",
+    async () => {
+      await pool.execute(
+        "INSERT INTO CLIENTE (Codigo, Nombre, ClienteTipo) VALUES (?, ?, ?)",
+        ["99999", "Límite de prueba", "CORR"],
+      );
+      const [before] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM CLIENTE",
+      );
+      const response = await request("clientes", "POST", {
+        Nombre: "No crear",
+        ClienteTipo: "CORR",
+        Activo: true,
+      });
+      assert.equal(response.status, 409);
+      assert.match(
+        ((await response.json()) as { error: string }).error,
+        /agotó/,
+      );
+      const [after] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM CLIENTE",
+      );
+      assert.equal(Number(after[0]?.total), Number(before[0]?.total));
+      const [tables] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> '__drizzle_migrations'",
+      );
+      assert.equal(Number(tables[0]?.total), 21);
+      await pool.execute("DELETE FROM CLIENTE WHERE Codigo = ?", ["99999"]);
     },
   );
 });

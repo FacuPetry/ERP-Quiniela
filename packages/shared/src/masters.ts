@@ -19,6 +19,7 @@ export interface MasterDefinition {
   title: string;
   singular: string;
   feminine?: boolean;
+  automaticCode?: boolean;
   description: string;
   fields: readonly MasterField[];
   columns: readonly string[];
@@ -56,6 +57,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
     key: "clientes",
     title: "Clientes",
     singular: "cliente",
+    automaticCode: true,
     description: "Consultá y administrá los datos de tus clientes.",
     fields: [
       codigo,

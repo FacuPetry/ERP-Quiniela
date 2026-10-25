@@ -17,9 +17,17 @@ export function definition(key: string): MasterDefinition {
   return masterDefinitions[key as keyof typeof masterDefinitions];
 }
 
-export function recordSchema(master: MasterDefinition) {
+export function recordSchema(master: MasterDefinition, creation = false) {
   const fields: Record<string, z.ZodType> = { Activo: z.boolean() };
   for (const field of master.fields) {
+    if (field.name === "Codigo" && master.automaticCode && creation) {
+      fields.Codigo = z
+        .string()
+        .max(0, "El código se asigna automáticamente al guardar.")
+        .optional()
+        .transform(() => "");
+      continue;
+    }
     let value = z
       .string()
       .trim()
