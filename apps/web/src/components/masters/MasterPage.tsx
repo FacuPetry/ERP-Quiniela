@@ -41,6 +41,7 @@ export function MasterPage({
   const [filterOpen, setFilterOpen] = useState(false);
   const listHeading = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(true);
+  const opening = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -129,12 +130,14 @@ export function MasterPage({
       });
     return () => request.abort();
   }, [master.key, filters, page, revision, expired]);
-  async function open(action: "form" | "delete") {
-    if (!selectedRecord || busy) return;
+  async function open(action: "form" | "delete", record = selectedRecord) {
+    if (!record || busy || opening.current || listBusy || error) return;
+    opening.current = true;
+    setSelected(record.Codigo);
     setBusy(true);
     setError("");
     try {
-      const detail = await getMaster(master.key, selectedRecord.Codigo);
+      const detail = await getMaster(master.key, record.Codigo);
       if (!mounted.current) return;
       if (action === "form") setView({ detail });
       else setDeleting(detail);
@@ -148,6 +151,7 @@ export function MasterPage({
             : "No se pudo abrir el registro.",
         );
     } finally {
+      opening.current = false;
       if (mounted.current) setBusy(false);
     }
   }
@@ -204,8 +208,8 @@ export function MasterPage({
           </h2>
           <p className="muted small">
             {canWrite
-              ? "Seleccioná un registro para modificarlo o eliminarlo."
-              : "Seleccioná un registro para consultar sus datos."}
+              ? "Seleccioná un registro para usar las acciones o hacé doble clic para modificarlo."
+              : "Seleccioná un registro o hacé doble clic para consultar sus datos."}
           </p>
         </div>
         <ActionToolbar
@@ -248,6 +252,9 @@ export function MasterPage({
         selectionDisabled={busy}
         selectedKey={selected}
         onSelectionChange={setSelected}
+        onRowActivate={(row) => {
+          void open("form", row);
+        }}
       />
       <span className="sr-only" role="status">
         {selectedRecord

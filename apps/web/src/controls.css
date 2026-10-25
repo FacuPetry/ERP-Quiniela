@@ -5,16 +5,20 @@
   --control-focus: #6d9b80;
   --control-radius: 7px;
   --control-height: 40px;
+  --control-label-font-size: 11px;
+  --control-label-line-height: 1.5;
+  --control-label-gap: 8px;
 }
 .base-field {
   min-width: 0;
 }
 .base-field > label {
   display: block;
-  font-size: 11px;
+  font-size: var(--control-label-font-size);
+  line-height: var(--control-label-line-height);
   font-weight: 600;
   color: #546b51;
-  margin-bottom: 8px;
+  margin-bottom: var(--control-label-gap);
 }
 .base-control {
   width: 100%;
