@@ -10,7 +10,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const require = createRequire(new URL('../apps/api/package.json', import.meta.url));
 const mysql = require('mysql2/promise');
-const image = (await readFile(join(root, 'compose.yaml'), 'utf8')).match(/image: (mysql:[^\s]+)/)?.[1];
+const maria = process.argv.includes('--mariadb');
+const image = maria ? 'mariadb:11.8.9@sha256:f16d7a344413e519dff518f27bdb221388f84b0d274c97c4fb5f2cb0dc1b34fa'
+  : (await readFile(join(root, 'compose.yaml'), 'utf8')).match(/image: (mysql:[^\s]+)/)?.[1];
 if (!image) throw new Error('No se encontró la imagen MySQL fijada en compose.yaml.');
 const name = `erp-quiniela-test-${randomUUID()}`;
 const directory = await mkdtemp(join(tmpdir(), 'erp-quiniela-test-'));
@@ -23,11 +25,12 @@ function docker(args) {
 
 try {
   const environmentFile = join(directory, 'mysql.env');
+  const prefix = maria ? 'MARIADB' : 'MYSQL';
   await writeFile(environmentFile, [
-    'MYSQL_DATABASE=erp_quiniela_test', 'MYSQL_USER=erp',
-    `MYSQL_PASSWORD=${password}`, `MYSQL_ROOT_PASSWORD=${randomBytes(24).toString('hex')}`, '',
+    `${prefix}_DATABASE=erp_quiniela_test`, `${prefix}_USER=erp`,
+    `${prefix}_PASSWORD=${password}`, `${prefix}_ROOT_PASSWORD=${randomBytes(24).toString('hex')}`, '',
   ].join('\n'), { mode: 0o600 });
-  console.log('Iniciando MySQL aislado para integración; no se utilizará la base de desarrollo o producción.');
+  console.log(`Iniciando ${maria ? 'MariaDB 11.8.9' : 'MySQL 8.4'} aislado para integración; no se utilizará la base de desarrollo o producción.`);
   docker(['run', '--detach', '--rm', '--name', name, '--env-file', environmentFile,
     '--publish', '127.0.0.1::3306', image]);
   started = true;

@@ -17,7 +17,7 @@ Los servicios de negocio se agregarán por módulo en etapas posteriores. Solo e
 
 ## Persistencia
 
-- MySQL 8/InnoDB, UTF-8 completo (`utf8mb4`).
+- MySQL 8 o MariaDB 11.8.9/InnoDB, UTF-8 completo (`utf8mb4`).
 - Pool limitado a cinco conexiones por proceso.
 - `DECIMAL(18,2)` recibido como cadena; `BIGINT` preservado como bigint en Drizzle y como texto al transportarse por HTTP.
 - Fechas comerciales separadas de instantes UTC de registro. La interfaz utilizará formatos argentinos.
@@ -37,4 +37,6 @@ Ninguna variable DB tiene prefijo `VITE_`: las variables de base no deben incorp
 - `GET /api/ready`: una consulta MySQL real funciona; devuelve 503 si falla. No expone credenciales, host ni errores internos. No sustituye la comprobación de migraciones.
 - Las rutas de API inexistentes devuelven JSON 404, no el HTML de React.
 
-Estos endpoints todavía no implementan autenticación ni operaciones de negocio. La etapa siguiente incorporará acceso, roles y layout; no publicar datos financieros antes de completar esa etapa.
+Estos dos endpoints de disponibilidad son públicos y no exponen datos financieros. La etapa 2 agrega `POST /api/auth/login`, `GET /api/auth/me` y `POST /api/auth/logout`. El servidor consulta SESION, USUARIO y ROL; las sesiones duran ocho horas y se transportan en una cookie HttpOnly, Secure en producción y SameSite=Lax. No se habilita CORS ni se guardan credenciales en localStorage. Ver [etapa 2](etapa-2.md).
+
+El límite de ingresos vive en memoria por proceso; reiniciar lo restablece. Sin confiar en encabezados de proxy arbitrarios, la dirección de conexión puede agrupar usuarios del mismo proxy. Si se escala a múltiples procesos, revisar límites compartidos y la topología del proxy. Los permisos por operación se implementarán con cada módulo; todavía no existen endpoints de datos de negocio.

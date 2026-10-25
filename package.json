@@ -24,8 +24,12 @@
     "env:local": "node scripts/local-env.mjs",
     "test": "tsx --test tests/*.test.ts",
     "test:integration": "node scripts/integration.mjs",
+    "test:integration:mariadb": "node scripts/integration.mjs --mariadb",
     "check": "npm run typecheck && npm test && npm run build",
-    "db:migrate:prod": "node apps/api/dist/database/migrate.js"
+    "db:migrate:prod": "node apps/api/dist/database/migrate.js",
+    "db:check:prod": "node apps/api/dist/database/check.js",
+    "admin:create": "tsx apps/api/src/auth/create-admin.ts",
+    "admin:create:prod": "node apps/api/dist/auth/create-admin.js"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
