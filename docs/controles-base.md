@@ -17,6 +17,8 @@ Los seis ABM actuales (Tipos de cliente, Clientes, Conceptos, Cajas, Bancos y Cu
 
 Los labels permanecen arriba para conservar la distribución actual en escritorio y móvil. El CheckBox conserva su label al lado. Los controles no consultan tablas ni conocen clientes, bancos o comprobantes.
 
+MasterForm agrupa Código y Registro activo en la fila superior y enfoca Código al abrir un alta, modificación o consulta. El orden de Tab sigue la disposición visual. Ver [apertura y navegación de los ABM](navegacion-abm.md), incluida la propuesta pendiente de carga manual de listados.
+
 Todos reciben `label`, `id` opcional, `value`, `onValueChange`, `required`, `disabled`, `invalid`, `error`, `hint` y `wide`. Si no se proporciona `id`, Field genera uno; los ABM conservan sus identificadores para enfocar el primer campo incorrecto. `wide` ocupa las dos columnas del formulario en escritorio y una en móvil.
 
 TextBox y TextArea admiten las propiedades nativas correspondientes, como `name`, `maxLength` y `ref`; TextBox también admite `type` y `readOnly`. No se utilizan para definir reglas de negocio: MasterForm mantiene sus validaciones actuales y la API conserva las suyas. La presentación de errores sigue siendo inline y mediante el resumen existente.
@@ -53,7 +55,7 @@ Se conserva un `input type="checkbox"` real. Clic sobre la casilla o su label ca
 1. **TextBox:** abrir altas y modificaciones en los seis maestros. Comprobar labels arriba, campos obligatorios, límites de caracteres, email inválido y foco en el primer error. Cancelar debe descartar cambios; Guardar debe volver al listado actualizado sin recargar la página ni mostrar un aviso de éxito.
 2. **TextArea:** en Clientes, escribir varias líneas en Observaciones. Debe conservar su altura, mostrar scroll interno y persistir el texto al guardar y volver a editar.
 3. **DropDown:** en Clientes y Cuentas bancarias, elegir un tipo o banco activo por clic y teclado. Comprobar estilo y marca de selección, ausencia de buscador e inactivos y opciones completas cuando existan más de cien. Abrir Filtrar y repetir allí; probar Escape, Limpiar, Cancelar y Aplicar.
-4. **CheckBox:** alternar Registro activo con la casilla, con su label y con espacio. Guardar, volver a editar y comprobar el estado. Probar también con un perfil de consulta: los controles deben estar deshabilitados.
+4. **CheckBox:** alternar Registro activo con la casilla, con su label y con espacio. Guardar, volver a editar y comprobar el estado. Probar también con un perfil de consulta: Código es enfocable y de solo lectura; los demás controles están deshabilitados.
 5. Revisar los mismos formularios y desplegables en escritorio y móvil, incluyendo una pantalla de 320 px.
 
 Durante esta entrega pasaron `npm run check` (TypeScript, las 18 pruebas existentes y build de producción) y pruebas en Chromium contra una MariaDB 11.8.9 aislada: los seis ABM, validaciones, persistencia, opciones activas en varias páginas, referencia histórica, selección por teclado/clic, scroll y selección táctiles, filtros en modal, CheckBox y vistas de 320/375/768/1280 px. No se accedió a la base de Hostinger.

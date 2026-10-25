@@ -8,6 +8,8 @@ La búsqueda general, estado, referencias y otros filtros se configuran exclusiv
 
 DataTable conserva selección única por clic en cualquier celda no interactiva y por teclado. Los radios se mantienen visualmente ocultos dentro de la primera celda para conservar su semántica y navegación, sin una columna adicional. La fila se resalta y muestra un contorno al navegar con teclado. Modificar y Eliminar se habilitan según selección y permisos.
 
+El doble clic sobre una fila abre Modificar/Consultar mediante la misma función del toolbar. El foco inicial de los formularios pasa a Código y el estado se agrupa en la fila superior. Ver [apertura y navegación](navegacion-abm.md) para los permisos, orden de Tab y pruebas.
+
 La selección se mantiene durante la comprobación de sesión, al cancelar un formulario y al actualizar manualmente si el registro sigue en la página. Se limpia al cambiar de página, aplicar filtros, guardar o eliminar; si una actualización confirma que la fila ya no está visible, también se limpia.
 
 ## Por qué se perdía la selección
