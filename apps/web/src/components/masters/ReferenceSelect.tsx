@@ -93,7 +93,7 @@ export function ReferenceSelect({
             ]
           : []),
         ...available.map((row) => ({
-          value: row.Codigo,
+          value: String(row.Codigo),
           label: `${row.Codigo} · ${String(row.Descripcion ?? row.Nombre)}`,
         })),
       ]}

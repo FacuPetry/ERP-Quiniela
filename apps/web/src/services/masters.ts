@@ -5,7 +5,7 @@ import type {
   MasterRecord,
   ClientCodeSuggestion,
 } from "@erp/shared";
-import { masterDefinitions } from "@erp/shared";
+import { masterDefinitions, masterRecordKey } from "@erp/shared";
 import { apiRequest } from "./http";
 
 export function suggestClientCode(signal?: AbortSignal) {
@@ -30,7 +30,7 @@ export async function referenceOptions(
     );
     result.registros
       .filter((row) => row.Activo)
-      .forEach((row) => options.set(row.Codigo, row));
+      .forEach((row) => options.set(String(row.Codigo), row));
     if (!result.registros.length || page * result.limite >= result.total) break;
   }
   return [...options.values()];
@@ -58,7 +58,7 @@ export function saveMaster(
   previous?: MasterDetail,
 ) {
   return apiRequest<MasterDetail>(
-    `/maestros/${key}${previous ? "/" + encodeURIComponent(previous.registro.Codigo) : ""}`,
+    `/maestros/${key}${previous ? "/" + encodeURIComponent(masterRecordKey(masterDefinitions[key], previous.registro)) : ""}`,
     {
       method: previous ? "PUT" : "POST",
       headers: {
@@ -68,9 +68,14 @@ export function saveMaster(
         ...(previous ? { "If-Match": '"' + previous.version + '"' } : {}),
       },
       body: JSON.stringify(
-        !previous && masterDefinitions[key].automaticCode
+        !previous &&
+          (masterDefinitions[key].automaticCode ||
+            masterDefinitions[key].primaryKey === "IDTabla")
           ? Object.fromEntries(
-              Object.entries(record).filter(([field]) => field !== "Codigo"),
+              Object.entries(record).filter(
+                ([field]) =>
+                  field !== (masterDefinitions[key].primaryKey ?? "Codigo"),
+              ),
             )
           : record,
       ),
@@ -83,7 +88,7 @@ export function deleteMaster(
   csrf: string,
 ) {
   return apiRequest<void>(
-    `/maestros/${key}/${encodeURIComponent(previous.registro.Codigo)}`,
+    `/maestros/${key}/${encodeURIComponent(masterRecordKey(masterDefinitions[key], previous.registro))}`,
     {
       method: "DELETE",
       headers: {

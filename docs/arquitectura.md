@@ -52,3 +52,9 @@ Estos dos endpoints de disponibilidad son públicos y no exponen datos financier
 El límite de ingresos vive en memoria por proceso; reiniciar lo restablece. Sin confiar en encabezados de proxy arbitrarios, la dirección de conexión puede agrupar usuarios del mismo proxy. Si se escala a múltiples procesos, revisar límites compartidos y la topología del proxy.
 
 La etapa 3 agrega `/api/maestros` para seis tablas existentes. Los servicios se organizan en rutas/validación y un repositorio que concentra SQL parametrizado, transacciones y auditoría. Los usuarios activos consultan; ADMIN puede escribir, con CSRF. El cliente comparte tabla, paginación, modal y formularios, y un único cliente HTTP. Ver [etapa 3](etapa-3.md). No existen todavía endpoints financieros.
+
+## Comprobantes y Numeración
+
+La etapa 4 amplía `/api/maestros` con `comprobantes` y `numeraciones`, manteniendo dos pantallas independientes. MasterDefinition configura opciones de enums compartidos, campos enteros y PK Codigo o IDTabla; MasterRecord conserva los nombres reales de los campos. Los enteros y BIGINT viajan como texto, con validación de rango sin pérdida de precisión. Los enums viven en `packages/shared/src/comprobantes.ts`, no son tipos ENUM de SQL.
+
+NUMERACION usa la FK Comprobante y su índice único de comprobante–serie. Las modificaciones bloquean su fila y comprueban uso en CUENTACORRIENTE y CAJAMOVIMIENTO, incluidos anulados, antes de modificar o eliminar. Las futuras operaciones deberán usar ese mismo bloqueo y actualizar el correlativo dentro de su transacción de emisión. Configurar la numeración no emite ni consume números. Ver [alcance, reglas y pruebas](etapa-4.md).

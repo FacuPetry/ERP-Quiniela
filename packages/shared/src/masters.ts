@@ -1,17 +1,31 @@
-/** Descripción pública de los formularios y contratos de los primeros maestros. */
+import {
+  modulosComprobante,
+  cuentasComprobante,
+  naturalezasComprobante,
+  sentidosFondosComprobante,
+} from "./comprobantes.js";
+
+/** Descripción pública de los formularios y contratos de los maestros. */
 export type MasterKey =
   | "tipos-cliente"
   | "clientes"
   | "conceptos"
   | "cajas"
   | "bancos"
-  | "cuentas-bancarias";
+  | "cuentas-bancarias"
+  | "comprobantes"
+  | "numeraciones";
 export interface MasterField {
   name: string;
   label: string;
   maxLength: number;
   required?: boolean;
-  kind?: "email" | "textarea" | "relation";
+  kind?: "email" | "textarea" | "relation" | "select" | "integer";
+  options?: readonly { value: string; label: string }[];
+  minimum?: string;
+  maximum?: string;
+  defaultValue?: string;
+  hint?: string;
   relation?: MasterKey;
   /** Texto de la entidad relacionada. Definirlo para toda relación mostrada en una grilla. */
   relationLabelField?: string;
@@ -22,6 +36,8 @@ export interface MasterDefinition {
   singular: string;
   feminine?: boolean;
   automaticCode?: boolean;
+  /** Los maestros con IDTabla conservan su PK autoincremental, sin inventar Codigo. */
+  primaryKey?: "Codigo" | "IDTabla";
   description: string;
   fields: readonly MasterField[];
   columns: readonly string[];
@@ -47,6 +63,108 @@ const nombre: MasterField = {
 };
 
 export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
+  comprobantes: {
+    key: "comprobantes",
+    title: "Comprobantes",
+    singular: "comprobante",
+    description: "Configurá los comprobantes reutilizables del sistema.",
+    fields: [
+      codigo,
+      descripcion,
+      {
+        name: "ModuloOrigen",
+        label: "Módulo de origen",
+        required: true,
+        maxLength: 30,
+        kind: "select",
+        options: modulosComprobante,
+      },
+      {
+        name: "Cuenta",
+        label: "Cuenta",
+        required: true,
+        maxLength: 10,
+        kind: "select",
+        options: cuentasComprobante,
+      },
+      {
+        name: "Naturaleza",
+        label: "Naturaleza",
+        required: true,
+        maxLength: 10,
+        kind: "select",
+        options: naturalezasComprobante,
+        hint: "Deuda aumenta lo pendiente; Crédito lo reduce en la cuenta elegida.",
+      },
+      {
+        name: "SentidoFondos",
+        label: "Sentido de fondos",
+        required: true,
+        maxLength: 20,
+        kind: "select",
+        options: sentidosFondosComprobante,
+      },
+      {
+        name: "Orden",
+        label: "Orden",
+        maxLength: 11,
+        kind: "integer",
+        minimum: "-2147483648",
+        maximum: "2147483647",
+      },
+    ],
+    columns: [
+      "Codigo",
+      "Descripcion",
+      "ModuloOrigen",
+      "Cuenta",
+      "Naturaleza",
+      "SentidoFondos",
+      "Orden",
+    ],
+  },
+  numeraciones: {
+    key: "numeraciones",
+    title: "Numeración por comprobante",
+    singular: "numeración",
+    feminine: true,
+    primaryKey: "IDTabla",
+    description:
+      "Administrá las series y el próximo número de cada comprobante.",
+    fields: [
+      {
+        name: "IDTabla",
+        label: "Identificador",
+        required: true,
+        kind: "integer",
+        maxLength: 19,
+        minimum: "1",
+        maximum: "9223372036854775807",
+      },
+      {
+        name: "Comprobante",
+        label: "Comprobante",
+        required: true,
+        maxLength: 20,
+        kind: "relation",
+        relation: "comprobantes",
+        relationLabelField: "Descripcion",
+      },
+      { name: "Serie", label: "Serie", required: true, maxLength: 10 },
+      {
+        name: "ProximoNumero",
+        label: "Próximo número",
+        required: true,
+        maxLength: 19,
+        kind: "integer",
+        minimum: "1",
+        maximum: "9223372036854775807",
+        defaultValue: "1",
+        hint: "Guardar la configuración no consume números. Debe superar los números ya utilizados.",
+      },
+    ],
+    columns: ["IDTabla", "Comprobante", "Serie", "ProximoNumero"],
+  },
   "tipos-cliente": {
     key: "tipos-cliente",
     title: "Tipos de cliente",
@@ -149,9 +267,30 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
 };
 
 export interface MasterRecord {
-  Codigo: string;
   Activo: boolean;
   [field: string]: string | boolean | null;
+}
+
+export function masterRecordKey(
+  master: MasterDefinition,
+  record: MasterRecord,
+): string {
+  return String(record[master.primaryKey ?? "Codigo"]);
+}
+
+/** Valida enteros como texto, sin redondear BIGINT mediante Number. */
+export function integerFieldError(
+  field: MasterField,
+  value: string,
+): string | undefined {
+  if (!value && !field.required) return undefined;
+  if (!/^-?[0-9]+$/.test(value)) return "Ingresá un número entero.";
+  const number = BigInt(value);
+  if (field.minimum !== undefined && number < BigInt(field.minimum))
+    return `El valor mínimo es ${field.minimum}.`;
+  if (field.maximum !== undefined && number > BigInt(field.maximum))
+    return `El valor máximo es ${field.maximum}.`;
+  return undefined;
 }
 export interface MasterList {
   registros: MasterRecord[];
@@ -164,6 +303,8 @@ export interface MasterList {
 export interface MasterDetail {
   registro: MasterRecord;
   version: string;
+  /** Restricciones del registro actual; el servidor vuelve a comprobarlas al escribir. */
+  camposSoloLectura?: string[];
 }
 export interface ClientCodeSuggestion {
   codigo: string;

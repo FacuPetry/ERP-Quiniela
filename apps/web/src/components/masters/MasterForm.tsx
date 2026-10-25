@@ -5,10 +5,11 @@ import type {
   MasterRecord,
   MasterField,
 } from "@erp/shared";
+import { integerFieldError } from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
-import { TextBox, TextArea, CheckBox } from "../controls";
+import { TextBox, TextArea, CheckBox, DropDown } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 
 export function MasterForm({
@@ -32,7 +33,7 @@ export function MasterForm({
     () =>
       previous?.registro ??
       (Object.fromEntries([
-        ...master.fields.map((field) => [field.name, ""]),
+        ...master.fields.map((field) => [field.name, field.defaultValue ?? ""]),
         ["Activo", true],
       ]) as MasterRecord),
   );
@@ -42,6 +43,8 @@ export function MasterForm({
   const heading = useRef<HTMLHeadingElement>(null);
   const form = useRef<HTMLFormElement>(null);
   const summary = useRef<HTMLDivElement>(null);
+  const identity = master.primaryKey ?? "Codigo";
+  const generatedId = master.primaryKey === "IDTabla";
   const automatic = Boolean(master.automaticCode && !previous);
   const formId = useId();
   const [suggestionLoading, setSuggestionLoading] = useState(automatic);
@@ -90,11 +93,20 @@ export function MasterForm({
     if (busy || readOnly) return;
     const invalid: Record<string, string> = {};
     for (const field of master.fields) {
-      if (automatic && field.name === "Codigo") continue;
+      if ((automatic || generatedId) && field.name === identity && !previous)
+        continue;
       const text = String(record[field.name] ?? "").trim();
       if (field.required && !text) invalid[field.name] = "Completá este campo.";
       else if (text.length > field.maxLength)
         invalid[field.name] = `Hasta ${field.maxLength} caracteres.`;
+      else if (field.kind === "integer") {
+        const message = integerFieldError(field, text);
+        if (message) invalid[field.name] = message;
+      } else if (
+        field.kind === "select" &&
+        !field.options?.some((option) => option.value === text)
+      )
+        invalid[field.name] = "Seleccioná una opción válida.";
       else if (
         field.kind === "email" &&
         text &&
@@ -134,13 +146,27 @@ export function MasterForm({
   }
   function renderField(field: MasterField) {
     const id = `master-${field.name}`;
-    const disabled = busy || (readOnly && field.name !== "Codigo");
+    const locked = Boolean(previous?.camposSoloLectura?.includes(field.name));
+    const disabled =
+      busy ||
+      (readOnly && field.name !== identity) ||
+      (locked && field.kind === "relation");
     const required = Boolean(
-      field.required && !readOnly && !(automatic && field.name === "Codigo"),
+      field.required &&
+        !readOnly &&
+        !((automatic || generatedId) && field.name === identity && !previous),
     );
     const value = String(record[field.name] ?? "");
     const hint =
-      field.name !== "Codigo" ? undefined : automatic ? (
+      field.name !== identity ? (
+        locked ? (
+          "La serie ya fue utilizada; este dato se conserva."
+        ) : (
+          field.hint
+        )
+      ) : generatedId ? (
+        "Identificador asignado automáticamente; no es el número del comprobante."
+      ) : automatic ? (
         <>
           Código sugerido. El definitivo se confirma al guardar y puede cambiar
           si otro usuario registra un cliente antes.
@@ -168,6 +194,20 @@ export function MasterForm({
       hint,
       wide: field.kind === "textarea",
     };
+    if (field.kind === "select")
+      return (
+        <DropDown
+          key={field.name}
+          {...presentation}
+          value={value}
+          options={[
+            { value: "", label: "Seleccioná una opción" },
+            ...(field.options ?? []),
+          ]}
+          disabled={disabled}
+          onValueChange={(next) => change(field.name, next)}
+        />
+      );
     if (field.kind === "relation")
       return (
         <ReferenceSelect
@@ -199,13 +239,20 @@ export function MasterForm({
         value={value}
         maxLength={field.maxLength}
         disabled={disabled}
-        readOnly={field.name === "Codigo" && (Boolean(previous) || automatic)}
+        readOnly={
+          locked ||
+          (field.name === identity &&
+            (Boolean(previous) || automatic || generatedId))
+        }
+        inputMode={field.kind === "integer" ? "numeric" : undefined}
         placeholder={
-          automatic && field.name === "Codigo"
-            ? suggestionLoading
-              ? "Consultando código…"
-              : "Código no disponible"
-            : undefined
+          generatedId && field.name === identity && !previous
+            ? "Se asignará al guardar"
+            : automatic && field.name === "Codigo"
+              ? suggestionLoading
+                ? "Consultando código…"
+                : "Código no disponible"
+              : undefined
         }
         onValueChange={(next) => change(field.name, next)}
       />

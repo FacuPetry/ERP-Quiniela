@@ -221,7 +221,7 @@ export function Workspace({
         </nav>
         <div className="sidebar-footer">
           <span className="status-dot online" />
-          <span className="nav-label">Etapa 3 · Tablas maestras</span>
+          <span className="nav-label">Etapa 4 · Comprobantes y numeración</span>
         </div>
       </aside>
       <div className="workspace-body" inert={mobileOpen}>
@@ -475,7 +475,7 @@ export function Workspace({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 3 · Tablas maestras</span>
+            <span>Etapa 4 · Comprobantes y numeración</span>
           </footer>
         </main>
       </div>

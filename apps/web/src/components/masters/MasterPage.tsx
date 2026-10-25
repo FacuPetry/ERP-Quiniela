@@ -6,6 +6,7 @@ import type {
   MasterRecord,
   SessionResponse,
 } from "@erp/shared";
+import { masterRecordKey } from "@erp/shared";
 import { deleteMaster, getMaster, listMasters } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { DataTable, type TableColumn } from "../ui/DataTable";
@@ -59,7 +60,7 @@ export function MasterPage({
   const listBusy = loading;
   const selectedRecord =
     !listBusy && !error
-      ? data?.registros.find((row) => row.Codigo === selected)
+      ? data?.registros.find((row) => masterRecordKey(master, row) === selected)
       : undefined;
   const filterFields: FilterField[] = [
     { key: "q", label: "Búsqueda general", kind: "text" },
@@ -111,7 +112,9 @@ export function MasterPage({
         }
         setData(result);
         setSelected((current) =>
-          result.registros.some((row) => row.Codigo === current)
+          result.registros.some(
+            (row) => masterRecordKey(master, row) === current,
+          )
             ? current
             : null,
         );
@@ -140,11 +143,14 @@ export function MasterPage({
   async function open(action: "form" | "delete", record = selectedRecord) {
     if (!record || busy || opening.current || listBusy || error) return;
     opening.current = true;
-    setSelected(record.Codigo);
+    setSelected(masterRecordKey(master, record));
     setBusy(true);
     setError("");
     try {
-      const detail = await getMaster(master.key, record.Codigo);
+      const detail = await getMaster(
+        master.key,
+        masterRecordKey(master, record),
+      );
       if (!mounted.current) return;
       if (action === "form") setView({ detail });
       else setDeleting(detail);
@@ -177,12 +183,19 @@ export function MasterPage({
       label: master.fields.find((field) => field.name === key)!.label,
       render: (row: MasterRecord) => {
         const description = data?.descripciones?.[key]?.[String(row[key])];
+        const option = master.fields
+          .find((field) => field.name === key)
+          ?.options?.find((item) => item.value === row[key]);
         const value =
           typeof description === "string" && description
             ? description
-            : row[key];
+            : (option?.label ?? row[key]);
         return (
-          <span className={key === "Codigo" ? "record-code" : ""}>
+          <span
+            className={
+              key === (master.primaryKey ?? "Codigo") ? "record-code" : ""
+            }
+          >
             {value ? String(value) : "—"}
           </span>
         );
@@ -261,7 +274,7 @@ export function MasterPage({
         caption={`Listado de ${master.title.toLocaleLowerCase("es-AR")}`}
         columns={columns}
         rows={error ? [] : (data?.registros ?? [])}
-        rowKey={(row) => row.Codigo}
+        rowKey={(row) => masterRecordKey(master, row)}
         loading={listBusy}
         emptyMessage={
           !hasRequestedList
@@ -279,7 +292,7 @@ export function MasterPage({
       />
       <span className="sr-only" role="status">
         {selectedRecord
-          ? `Registro seleccionado: ${selectedRecord.Codigo}.`
+          ? `Registro seleccionado: ${masterRecordKey(master, selectedRecord)}.`
           : "Ningún registro seleccionado."}
       </span>
       {hasRequestedList && data && (
@@ -364,8 +377,15 @@ function DeleteDialog({
     <Modal title={`Eliminar ${master.singular}`} onClose={onClose} busy={busy}>
       <div className="modal-body">
         <p>
-          Vas a eliminar el registro <strong>{detail.registro.Codigo}</strong> ·{" "}
-          {String(detail.registro.Nombre ?? detail.registro.Descripcion)}.
+          Vas a eliminar el registro{" "}
+          <strong>{masterRecordKey(master, detail.registro)}</strong> ·{" "}
+          {String(
+            detail.registro.Nombre ??
+              detail.registro.Descripcion ??
+              detail.registro.Serie ??
+              "",
+          )}
+          .
         </p>
         <p className="muted small">
           La eliminación es permanente. Si el registro está utilizado por otros

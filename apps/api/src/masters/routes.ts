@@ -4,7 +4,12 @@ import {
   type Response,
   type Request,
 } from "express";
-import type { MasterDetail, MasterRecord, SessionResponse } from "@erp/shared";
+import {
+  masterRecordKey,
+  type MasterDetail,
+  type MasterRecord,
+  type SessionResponse,
+} from "@erp/shared";
 import type { AuthService } from "../auth/service.js";
 import { requireMasterWrite, requireSession } from "../auth/middleware.js";
 import {
@@ -43,7 +48,13 @@ export function masterRouter(auth: AuthService, store: MasterStore) {
     const user = (res.locals.session as SessionResponse).usuario;
     sendDetail(
       res,
-      (await store.write(master, "ALTA", input, input.Codigo, user.id))!,
+      (await store.write(
+        master,
+        "ALTA",
+        input,
+        masterRecordKey(master, input),
+        user.id,
+      ))!,
       201,
     );
   });

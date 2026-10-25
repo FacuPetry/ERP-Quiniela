@@ -54,3 +54,7 @@ La [etapa 3](etapa-3.md) utiliza las tablas existentes. No agrega migraciones ni
 Comprobar pruebas y build antes de publicar. Respaldar la base antes de migraciones sobre datos reales, aplicar cambios pendientes y reiniciar. Un rollback de código no revierte automáticamente una migración de MySQL: revisar compatibilidad y procedimiento de recuperación antes del cambio.
 
 El ERP se publica como aplicación independiente y puede usar un subdominio. Sus archivos no deben reemplazar los de los sitios existentes.
+
+## Comprobantes y numeración (etapa 4)
+
+Desplegar el código tras fusionar el PR a main. Esta entrega utiliza COMPROBANTE y NUMERACION existentes: no agrega migraciones ni variables de entorno y no requiere crear otro administrador. Los dos ABM aparecen en Maestros. Ver [prueba paso a paso](etapa-4.md#cómo-probar). La generación de movimientos y el consumo de correlativos siguen pendientes.
