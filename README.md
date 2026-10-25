@@ -6,7 +6,7 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Dispone de acceso de usuarios, sesiones persistentes, menú adaptable y ABM de tipos de cliente, clientes, conceptos, cajas, bancos y cuentas bancarias. La configuración de comprobantes, sus series de numeración y las operaciones financieras se incorporarán en próximas entregas.
 
-Los maestros utilizan selección de fila, acciones con íconos, filtros en ventana y formularios dentro del módulo. Los códigos de clientes se asignan automáticamente con cinco dígitos al guardar, sin tabla adicional. Ver [ajustes de componentes y correlativo](docs/ajustes-componentes.md), incluidos el tratamiento de códigos anteriores y la posible reutilización del último eliminado.
+Los maestros utilizan selección de fila sin radio visible, acciones con íconos, búsqueda y filtros en ventana, combos activos sin buscador y formularios con Guardar/Cancelar en el encabezado. El alta de clientes muestra un código sugerido; el definitivo se asigna con cinco dígitos al guardar, sin tabla adicional. Ver [componentes y correlativo](docs/ajustes-componentes.md), incluidas la conservación de selección, los códigos anteriores y la posible reutilización del último eliminado.
 
 ## Requisitos
 

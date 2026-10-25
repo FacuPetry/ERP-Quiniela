@@ -1,69 +1,70 @@
-# Ajustes de los componentes compartidos y código automático de clientes
+# Componentes compartidos de listados y ABM
 
-## Listados
+## Listados, filtros y selección
 
-La barra compartida muestra, en este orden: Agregar, Modificar, Eliminar y Filtrar. Los botones contienen íconos; sus etiquetas y tooltips se proporcionan mediante las propiedades de ActionToolbar. Los tooltips aparecen con ratón o foco de teclado. Los perfiles de consulta conservan Consultar y Filtrar, sin habilitar escrituras.
+La barra muestra Agregar, Modificar/Consultar, Eliminar y Filtrar, seguidos de Actualizar listado. Las acciones son íconos con etiquetas y tooltips configurables. Los permisos de consulta y edición se mantienen.
 
-DataTable permite seleccionar una sola fila mediante clic o el control de selección, también operable con teclado. La fila se resalta y se habilitan Modificar y Eliminar cuando corresponde al perfil. La selección se limpia al cambiar la búsqueda, aplicar filtros, paginar o actualizar el listado. Las acciones se bloquean brevemente mientras se obtiene un registro para abrirlo.
+La búsqueda general, estado, referencias y otros filtros se configuran exclusivamente en FilterDialog. El listado no muestra campos de búsqueda externos. Aplicar usa el borrador y vuelve a la primera página; Cancelar lo descarta; Limpiar restablece todos los criterios, incluida la búsqueda general, y requiere Aplicar para hacerlos efectivos. El ícono indica si hay filtros aplicados.
 
-El buscador general permanece visible. Filtrar abre una ventana que reutiliza Modal y ReferenceSelect. FilterDialog recibe los campos y opciones desde el módulo: actualmente, estado y tipo de cliente o banco cuando corresponde. Aplicar modifica el listado y vuelve a la primera página; Cancelar descarta el borrador. Limpiar restablece el borrador y hay que presionar Aplicar para hacerlo efectivo. Limpiar los filtros avanzados conserva la búsqueda general. El ícono indica si existen filtros avanzados aplicados.
+DataTable conserva selección única por clic en cualquier celda no interactiva y por teclado. Los radios se mantienen visualmente ocultos dentro de la primera celda para conservar su semántica y navegación, sin una columna adicional. La fila se resalta y muestra un contorno al navegar con teclado. Modificar y Eliminar se habilitan según selección y permisos.
 
-## Formularios dentro del módulo
+La selección se mantiene durante la comprobación de sesión, al cancelar un formulario y al actualizar manualmente si el registro sigue en la página. Se limpia al cambiar de página, aplicar filtros, guardar o eliminar; si una actualización confirma que la fila ya no está visible, también se limpia.
 
-MasterForm reemplaza temporalmente al listado dentro del área principal. Agregar abre un formulario vacío; Modificar o Consultar obtienen los datos actuales del registro seleccionado. No se abre una pestaña nueva ni un modal de alta/modificación.
+## Por qué se perdía la selección
 
-Guardar correctamente devuelve al listado y lo actualiza. Cancelar vuelve sin guardar. Se conservan la búsqueda, los filtros y la página (si una eliminación dejó la página fuera de rango, se ajusta a la última disponible). El código de los registros existentes sigue siendo inmutable.
+El listado no tenía un temporizador propio. App comprueba la sesión cada minuto y al volver a la pestaña; esa respuesta recreaba el callback de cierre de sesión. MasterPage lo utilizaba como dependencia de su efecto de carga, por lo que consultaba otra vez la lista y borraba la selección.
 
-Las validaciones se muestran junto a los campos y en un resumen dentro del formulario. El foco pasa al primer campo incorrecto; si el error es general, al resumen. Se conservan los valores escritos, incluso ante conflictos de edición. No se agregan ventanas para errores habituales: las ventanas quedan para filtros y confirmación de eliminación.
+Ahora el callback de App es estable y MasterPage mantiene una referencia al manejador vigente sin convertir su identidad en una dependencia de carga. Se conserva la comprobación de sesión para reflejar vencimientos, revocaciones y desactivaciones, pero esa comprobación no recarga datos del listado. Solo cambian los datos por una acción explícita de filtros, paginación o refresco, o después de una escritura propia.
 
-## Numeración de CLIENTE sin tabla adicional
+## Combos sencillos y filtrado por contexto
 
-Las nuevas altas de CLIENTE reciben un Codigo de cinco dígitos generado por el backend al guardar: 00001, 00002, etc. El formulario indica que se asignará al guardar y la respuesta informa el código real. La API no permite elegir manualmente el código de una nueva alta; el dato se omite del POST. Los demás maestros conservan sus códigos manuales.
+ReferenceSelect muestra un select nativo sin buscador interno. Carga todas las páginas de opciones activas, sin truncar a las primeras cien, y no ofrece registros inactivos. El modelo actual utiliza Activo; no se agregan campos de visibilidad.
 
-Se conserva CLIENTE.Codigo como VARCHAR(20) y PK, por lo que las relaciones y los códigos anteriores no se renumeran. No se agrega SECUENCIA ni se utiliza NUMERACION, que continúa vinculada a comprobantes.
+El componente admite `query` para filtros soportados por la fuente y `optionFilter` para restringir las opciones desde el código del módulo. Ambos respetan la condición de activo. Esto prepara el filtrado por contexto de futuros comprobantes, sin implementar todavía ese módulo ni sus reglas.
 
-El correlativo toma el mayor valor numérico entre los códigos existentes compuestos por uno a cinco dígitos, incluyendo clientes inactivos. Por ejemplo, si existe 37, el siguiente será 00038. Los códigos alfanuméricos o numéricos de más de cinco caracteres se conservan como códigos anteriores y no participan del cálculo. Si no hay códigos numéricos compatibles, comienza en 00001.
+Si una referencia de un registro existente fue desactivada o queda fuera del contexto, se conserva su valor mediante una opción actual oculta y deshabilitada, acompañada de una explicación. No se ofrece para nuevas selecciones. Así no se cambian relaciones existentes ni se obliga a reasignarlas al editar otros campos.
 
-La asignación utiliza una conexión dedicada del pool y un bloqueo GET_LOCK cuyo nombre identifica la base de datos:
+## Formularios y botones superiores
 
-1. Obtener el bloqueo antes de iniciar la transacción y su primera lectura.
-2. Consultar MAX numérico y formar el siguiente código con ceros.
-3. Insertar el cliente y su auditoría dentro de esa transacción.
-4. Confirmar o revertir y, después, liberar el bloqueo en la misma conexión.
+MasterForm sigue reemplazando al listado dentro del módulo. Su toolbar superior muestra el título a la izquierda y Cancelar/Guardar a la derecha, en todos los maestros. Guardar está asociado al formulario mediante su identificador, aunque el botón esté en el encabezado. Los perfiles de consulta muestran Cerrar.
 
-El tiempo de espera del bloqueo es de diez segundos. Si no se obtiene, no se asigna un número ni se inserta el cliente. Si la liberación no puede verificarse, se cierra la conexión para no devolverla bloqueada al pool. La PK mantiene la protección final contra duplicados. Las altas de clientes desde la aplicación pasan por este mismo mecanismo.
+Guardar correctamente actualiza la lista. Cancelar vuelve sin escribir y conserva búsqueda, filtros, página y selección si siguen siendo válidos. Las validaciones permanecen junto a los campos y en un resumen con foco; no abren modales ni borran los valores ingresados. Los modales se reservan para filtros y confirmación de baja.
 
-Si la transacción se revierte, el número no queda reservado. Al llegar a 99999, la siguiente alta se rechaza con un mensaje y sin crear datos.
+Los botones habilitados utilizan cursor de puntero. Los deshabilitados indican que la acción no está disponible, sin cursor de espera. Esto corrige Anterior/Siguiente en los límites de paginación; los límites y el bloqueo durante una carga se mantienen.
 
-**Limitación acordada del mecanismo sin contador persistente:** eliminar el cliente con el mayor código puede hacer que ese número se reutilice. Desactivar conserva el registro y su número. El historial de auditoría se mantiene, pero no se usa como contador.
+## Código sugerido y definitivo de CLIENTE
+
+Al abrir el alta, se consulta `GET /api/maestros/clientes/meta/siguiente-codigo`, con sesión y sin caché. Es una lectura del mismo cálculo que utiliza el guardado: no reserva números, no toma el bloqueo de asignación y no crea auditoría. El campo muestra la sugerencia de cinco dígitos y avisa que puede cambiar si otra persona registra antes. Si la consulta falla, se ofrece reintentar.
+
+Al guardar, el frontend omite Codigo en el POST, aunque haya mostrado una sugerencia. El backend sigue obteniendo GET_LOCK por base, inicia la transacción después de adquirirlo, calcula el máximo numérico e inserta cliente y auditoría en la misma conexión. Confirma o revierte y luego libera el bloqueo. Si no puede verificar su liberación, cierra la conexión antes de devolverla al pool. La respuesta informa el código definitivo.
+
+Los nuevos códigos siguen siendo textos de cinco dígitos desde 00001, sin SECUENCIA ni cambios a CLIENTE.Codigo (VARCHAR(20), PK). Los códigos anteriores se conservan y no se renumeran. Participan del máximo los códigos de uno a cinco dígitos, incluidos los inactivos; los alfanuméricos o más largos se conservan fuera de ese cálculo. El límite 99999 detiene nuevas altas. Eliminar el mayor código puede permitir reutilizarlo; desactivar lo conserva. La sugerencia no modifica ninguna de estas reglas.
 
 ## Archivos principales
 
-- Se adaptan DataTable, MasterPage y MasterForm existentes.
-- ActionToolbar concentra la nueva barra; FilterDialog reutiliza Modal para los filtros y recibe su configuración, sin duplicar listados o formularios por módulo.
-- Icon y masters.css incorporan los íconos y estilos, conservando la apariencia general.
-- La descripción compartida de maestros identifica el código automático de CLIENTE.
-- Las rutas, validación y repositorio de maestros implementan la asignación en el backend; el cliente HTTP omite Codigo únicamente al dar de alta clientes.
-- La integración de maestros verifica la generación concurrente, rollback, códigos anteriores, inactivos y agotamiento.
+- `App.tsx`: callback estable; se conserva la validación de sesión.
+- `MasterPage.tsx`: filtros centralizados, refresco explícito y conservación de selección.
+- `ReferenceSelect.tsx` y el servicio de maestros: opciones completas, activas y filtrables desde código.
+- `MasterForm.tsx`: toolbar superior y sugerencia de código; validaciones existentes.
+- `DataTable.tsx`: selección accesible sin radio visible ni columna adicional.
+- `ActionToolbar.tsx`, `FilterDialog.tsx`, `Icon.tsx` y estilos: acción de refresco, búsqueda en modal, distribución y cursores.
+- API de maestros y contratos compartidos: endpoint de sugerencia y cálculo compartido con la asignación definitiva.
+- Pruebas de integración y `reference-options.test.ts`: lectura sin reserva, concurrencia, paginación de opciones y filtros de contexto.
 
-## Cómo revisar
+## Cómo probar
 
-1. En Tipos de cliente, comprobar el orden de los cuatro íconos y sus tooltips. Sin selección, Modificar y Eliminar deben estar deshabilitados.
-2. Seleccionar filas con clic y teclado y comprobar el resaltado y la selección única.
-3. Abrir Filtrar, probar Estado, Cancelar, Limpiar y Aplicar; repetir con Tipo de cliente en Clientes y Banco en Cuentas bancarias.
-4. Agregar un registro y cancelar: el listado debe volver con su contexto. Repetir guardando correctamente y modificando una fila seleccionada.
-5. Intentar guardar campos obligatorios vacíos y comprobar mensajes, foco y conservación del formulario.
-6. Crear un cliente sin ingresar código. Verificar los cinco dígitos asignados y que los clientes anteriores conserven su código.
-7. Revisar las acciones en móvil y con un perfil de consulta.
+1. En Tipos de cliente, seleccionar una fila haciendo clic o usando teclado. No debe verse un radio. Esperar una comprobación de sesión o cambiar de pestaña y volver: la selección debe mantenerse.
+2. Usar Actualizar listado: la fila debe seguir seleccionada si permanece en la página. Cambiar de página o aplicar otros filtros limpia la selección cuando corresponde.
+3. Abrir Filtrar: allí deben estar Búsqueda general y Estado, más Tipo de cliente o Banco en los módulos correspondientes. Probar Aplicar, Cancelar y Limpiar. No debe quedar un buscador externo.
+4. Abrir un alta: Cancelar y Guardar deben estar junto al título. Comprobar errores de campos obligatorios y que Cancelar no escriba datos.
+5. En Clientes, comprobar el código sugerido y que el combo muestre todos los tipos activos, sin textbox de búsqueda. Repetir con Banco en Cuentas bancarias.
+6. Abrir dos altas de cliente antes de guardar: pueden mostrar la misma sugerencia. Guardarlas sucesivamente debe producir códigos definitivos distintos, informados al volver al listado.
+7. Revisar Anterior/Siguiente: puntero cuando están habilitados, sin cursor de espera cuando se llega a un límite. Revisar también la vista móvil.
 
-## Publicación
+## Publicación y verificación
 
-Incorporar el PR a main y desplegar en Hostinger con la configuración actual. No hay migraciones, tablas, dependencias ni variables de entorno nuevas. No repetir la creación del administrador. Recargar la aplicación para utilizar el frontend actualizado e ingresar con la cuenta existente.
+Incorporar el PR a main y desplegar con la configuración actual de Hostinger. No ejecutar migraciones ni volver a crear el administrador; no hay tablas, dependencias ni variables de entorno nuevas. Recargar la aplicación e ingresar con la cuenta existente.
 
-## Comprobaciones
+Pasaron `npm run check` y las integraciones aisladas con MySQL 8.4 y MariaDB 11.8.9: 62 comprobaciones del runner contando sus pruebas contenedoras (18 de HTTP/criptografía/opciones y 22 de integración por motor). Se conservan las pruebas de altas simultáneas, rollback, referencias, agotamiento y esquema de 21 tablas. La nueva lectura de sugerencia no reserva ni escribe.
 
-Ejecutar `npm run check`, `npm run test:integration` y `npm run test:integration:mariadb`. La integración usa únicamente bases efímeras y mantiene el esquema de 21 tablas.
-
-Pasaron tipos, construcción y 59 comprobaciones del runner (incluidas sus pruebas contenedoras): 17 HTTP/criptografía y 21 de integración en cada motor, MySQL 8.4 y MariaDB 11.8.9. Se comprobaron 16 altas simultáneas desde dos instancias con pools independientes, los códigos 00002–00017, la liberación tras rollback, la conservación de códigos anteriores, el límite y la reutilización posible tras eliminar el último.
-
-Chromium verificó los seis maestros, orden de botones y tooltips, selección y teclado, filtros y borradores, formularios integrados, errores y foco, contexto de paginación, códigos 00001–00003, cancelación, persistencia, conflictos, permisos de consulta y vistas de 320, 375, 768 y 1280 píxeles sin desbordamiento de página ni errores de JavaScript. No se accedió a la base de Hostinger.
+Chromium verificó combos con más de cien opciones activas y sin buscador, exclusión de inactivos, conservación de una referencia anterior desactivada, toolbar superior, dos formularios con la misma sugerencia y códigos finales distintos, radios ocultos y teclado, filtros solo en modal, cursores, selección estable tras sesión/visibilidad/refresco manual y Cancelar, validaciones y vistas de 320/375/768/1280 píxeles sin desbordamiento de página ni errores de JavaScript. No se accedió a la base de Hostinger.

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import type { MasterDefinition, MasterDetail, MasterRecord } from "@erp/shared";
-import { saveMaster } from "../../services/masters";
+import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
 
@@ -35,6 +35,36 @@ export function MasterForm({
   const heading = useRef<HTMLHeadingElement>(null);
   const summary = useRef<HTMLDivElement>(null);
   const automatic = Boolean(master.automaticCode && !previous);
+  const formId = useId();
+  const [suggestionLoading, setSuggestionLoading] = useState(automatic);
+  const [suggestionError, setSuggestionError] = useState("");
+  const [suggestionRevision, setSuggestionRevision] = useState(0);
+  useEffect(() => {
+    if (!automatic) return;
+    const request = new AbortController();
+    setSuggestionLoading(true);
+    setSuggestionError("");
+    void suggestClientCode(request.signal)
+      .then((result) => {
+        if (!request.signal.aborted)
+          setRecord((current) => ({ ...current, Codigo: result.codigo }));
+      })
+      .catch((error) => {
+        if (request.signal.aborted) return;
+        if (error instanceof ApiRequestError && error.status === 401)
+          onExpired();
+        else
+          setSuggestionError(
+            error instanceof Error
+              ? error.message
+              : "No se pudo consultar el código sugerido.",
+          );
+      })
+      .finally(() => {
+        if (!request.signal.aborted) setSuggestionLoading(false);
+      });
+    return () => request.abort();
+  }, [automatic, suggestionRevision, onExpired]);
   useEffect(() => {
     heading.current?.focus();
   }, []);
@@ -108,8 +138,33 @@ export function MasterForm({
           ref={heading}
           tabIndex={-1}
         >{`${readOnly ? "Consultar" : previous ? "Modificar" : master.feminine ? "Nueva" : "Nuevo"} ${master.singular}`}</h2>
+        <div
+          className="form-toolbar-actions"
+          role="group"
+          aria-label="Acciones del formulario"
+        >
+          <button
+            className="button secondary"
+            type="button"
+            disabled={busy}
+            onClick={onClose}
+          >
+            {readOnly ? "Cerrar" : "Cancelar"}
+          </button>
+          {!readOnly && (
+            <button
+              className="button primary"
+              type="submit"
+              form={formId}
+              disabled={busy}
+            >
+              {busy ? "Guardando…" : "Guardar"}
+            </button>
+          )}
+        </div>
       </div>
       <form
+        id={formId}
         noValidate
         onSubmit={(event) => {
           void submit(event);
@@ -201,7 +256,9 @@ export function MasterForm({
                       }
                       placeholder={
                         automatic && field.name === "Codigo"
-                          ? "Se asignará al guardar"
+                          ? suggestionLoading
+                            ? "Consultando código…"
+                            : "Código no disponible"
                           : undefined
                       }
                       aria-invalid={Boolean(errors[field.name])}
@@ -220,8 +277,22 @@ export function MasterForm({
                   )}
                   {field.name === "Codigo" && automatic && (
                     <span className="field-hint">
-                      El código se asignará automáticamente al guardar.
+                      Código sugerido. El definitivo se confirma al guardar y
+                      puede cambiar si otro usuario registra un cliente antes.
                     </span>
+                  )}
+                  {field.name === "Codigo" && automatic && suggestionError && (
+                    <div className="reference-error">
+                      <span role="alert">{suggestionError}</span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSuggestionRevision((value) => value + 1)
+                        }
+                      >
+                        Reintentar sugerencia
+                      </button>
+                    </div>
                   )}
                   {errors[field.name] && (
                     <p id={`${id}-error`} className="field-error">
@@ -241,21 +312,6 @@ export function MasterForm({
               Registro activo
             </label>
           </div>
-        </div>
-        <div className="form-actions">
-          <button
-            className="button secondary"
-            type="button"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {readOnly ? "Cerrar" : "Cancelar"}
-          </button>
-          {!readOnly && (
-            <button className="button primary" type="submit" disabled={busy}>
-              {busy ? "Guardando…" : "Guardar"}
-            </button>
-          )}
         </div>
       </form>
     </section>

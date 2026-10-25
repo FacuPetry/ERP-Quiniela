@@ -59,8 +59,16 @@ export function ActionToolbar({
   onEdit,
   onDelete,
   onFilter,
+  onRefresh,
+  refreshing = false,
 }: {
-  labels: { add: string; edit: string; remove: string; filter: string };
+  labels: {
+    add: string;
+    edit: string;
+    remove: string;
+    filter: string;
+    refresh?: string;
+  };
   selected: boolean;
   busy: boolean;
   readOnly: boolean;
@@ -69,6 +77,8 @@ export function ActionToolbar({
   onEdit: () => void;
   onDelete: () => void;
   onFilter: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }) {
   return (
     <div
@@ -105,6 +115,14 @@ export function ActionToolbar({
         active={filtersActive}
         onClick={onFilter}
       />
+      {onRefresh && (
+        <IconAction
+          icon="refresh"
+          label={labels.refresh ?? "Actualizar listado"}
+          disabled={busy || refreshing}
+          onClick={onRefresh}
+        />
+      )}
     </div>
   );
 }

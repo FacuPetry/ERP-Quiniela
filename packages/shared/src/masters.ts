@@ -159,6 +159,9 @@ export interface MasterDetail {
   registro: MasterRecord;
   version: string;
 }
+export interface ClientCodeSuggestion {
+  codigo: string;
+}
 export interface MasterError {
   error: string;
   campos?: Record<string, string>;

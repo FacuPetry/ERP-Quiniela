@@ -9,6 +9,12 @@ export function App() {
   const [session, setSession] = useState<SessionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // Una nueva respuesta de sesión no debe cambiar la identidad del callback
+  // que usan los listados, ni disparar otra carga de sus datos.
+  const handleLogout = useCallback(() => {
+    setSession(null);
+    setError("");
+  }, []);
   const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -91,13 +97,7 @@ export function App() {
           {error}
         </div>
       )}
-      <Workspace
-        session={session}
-        onLogout={() => {
-          setSession(null);
-          setError("");
-        }}
-      />
+      <Workspace session={session} onLogout={handleLogout} />
     </>
   );
 }

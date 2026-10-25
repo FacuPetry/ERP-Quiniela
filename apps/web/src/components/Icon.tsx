@@ -20,8 +20,11 @@ export type IconName =
   | "plus"
   | "edit"
   | "trash"
-  | "filter";
+  | "filter"
+  | "refresh";
 const paths: Record<IconName, string> = {
+  refresh:
+    "M20 7v5h-5M4 17v-5h5M6 7a7 7 0 0 1 12-2l2 2M4 17l2 2a7 7 0 0 0 12-2",
   plus: "M12 5v14M5 12h14",
   edit: "m15 4 5 5M4 20l4-1L21 6a2 2 0 0 0-4-4L4 15Zm0 0 4 4",
   trash: "M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7",

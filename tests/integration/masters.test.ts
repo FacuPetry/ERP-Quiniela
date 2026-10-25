@@ -217,6 +217,32 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
   );
 
   await t.test(
+    "el código sugerido requiere sesión, es de lectura y no reserva números",
+    async () => {
+      assert.equal(
+        (await fetch(`${base}/api/maestros/clientes/meta/siguiente-codigo`))
+          .status,
+        401,
+      );
+      for (let i = 0; i < 2; i++) {
+        const response = await request("clientes/meta/siguiente-codigo");
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get("cache-control"), "no-store");
+        assert.deepEqual(await response.json(), { codigo: "00001" });
+      }
+      const [clients] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM CLIENTE",
+      );
+      assert.equal(Number(clients[0]?.total), 0);
+      const [audit] = await pool.execute<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM AUDITORIA WHERE Usuario = ?",
+        [admin.session.usuario.id],
+      );
+      assert.equal(Number(audit[0]?.total), 5);
+    },
+  );
+
+  await t.test(
     "clientes y cuentas guardan referencias y datos opcionales, preservando ceros del CBU",
     async () => {
       const firstClient = await create("clientes", {
@@ -446,6 +472,13 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         const address = second.address();
         assert.ok(address && typeof address !== "string");
         const bases = [base, `http://127.0.0.1:${address.port}`];
+        for (const url of bases) {
+          const suggestion = await fetch(
+            `${url}/api/maestros/clientes/meta/siguiente-codigo`,
+            { headers: { Cookie: admin.cookie } },
+          );
+          assert.deepEqual(await suggestion.json(), { codigo: "00002" });
+        }
         const results = await Promise.all(
           Array.from({ length: 16 }, async (_, i) => {
             const response = await fetch(
@@ -582,6 +615,10 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       );
       const [before] = await pool.query<RowDataPacket[]>(
         "SELECT COUNT(*) AS total FROM CLIENTE",
+      );
+      assert.equal(
+        (await request("clientes/meta/siguiente-codigo")).status,
+        409,
       );
       const response = await request("clientes", "POST", {
         Nombre: "No crear",

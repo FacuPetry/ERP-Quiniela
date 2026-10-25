@@ -39,8 +39,7 @@ export function FilterDialog({
       >
         <div className="modal-body">
           <p className="muted small">
-            Configurá los filtros y presioná Aplicar. La búsqueda general se
-            conserva.
+            Configurá la búsqueda y los filtros y presioná Aplicar.
           </p>
           <div className="form-grid">
             {fields.map((field) => {

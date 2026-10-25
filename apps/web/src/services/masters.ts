@@ -3,9 +3,38 @@ import type {
   MasterKey,
   MasterList,
   MasterRecord,
+  ClientCodeSuggestion,
 } from "@erp/shared";
 import { masterDefinitions } from "@erp/shared";
 import { apiRequest } from "./http";
+
+export function suggestClientCode(signal?: AbortSignal) {
+  return apiRequest<ClientCodeSuggestion>(
+    "/maestros/clientes/meta/siguiente-codigo",
+    signal ? { signal } : undefined,
+  );
+}
+
+/** Carga completa, sin limitar el combo a la primera página de cien filas. */
+export async function referenceOptions(
+  key: MasterKey,
+  query: Record<string, string>,
+  signal?: AbortSignal,
+) {
+  const options = new Map<string, MasterRecord>();
+  for (let page = 1; ; page++) {
+    const result = await listMasters(
+      key,
+      { ...query, estado: "activo", pagina: String(page), limite: "100" },
+      signal,
+    );
+    result.registros
+      .filter((row) => row.Activo)
+      .forEach((row) => options.set(row.Codigo, row));
+    if (!result.registros.length || page * result.limite >= result.total) break;
+  }
+  return [...options.values()];
+}
 
 export function listMasters(
   key: MasterKey,
