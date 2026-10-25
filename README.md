@@ -8,6 +8,8 @@ Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/Maria
 
 Los maestros utilizan selección de fila sin radio visible, acciones con íconos, búsqueda y filtros en ventana, combos activos sin buscador y formularios con Guardar/Cancelar en el encabezado. El alta de clientes muestra un código sugerido; el definitivo se asigna con cinco dígitos al guardar, sin tabla adicional. Ver [componentes y correlativo](docs/ajustes-componentes.md), incluidas la conservación de selección, los códigos anteriores y la posible reutilización del último eliminado.
 
+Todos los ABM utilizan la biblioteca propia de TextBox, TextArea, DropDown y CheckBox, con labels, ayuda y errores compartidos. Ver [controles base y pruebas por componente](docs/controles-base.md). DatePicker y SF quedan para próximas entregas.
+
 ## Requisitos
 
 - Node.js 24 LTS y npm 11.

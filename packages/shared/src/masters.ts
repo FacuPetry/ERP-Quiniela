@@ -13,6 +13,8 @@ export interface MasterField {
   required?: boolean;
   kind?: "email" | "textarea" | "relation";
   relation?: MasterKey;
+  /** Texto de la entidad relacionada. Definirlo para toda relación mostrada en una grilla. */
+  relationLabelField?: string;
 }
 export interface MasterDefinition {
   key: MasterKey;
@@ -68,6 +70,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 20,
         kind: "relation",
         relation: "tipos-cliente",
+        relationLabelField: "Descripcion",
       },
       { ...nombre, maxLength: 150 },
       { name: "Fantasia", label: "Nombre de fantasía", maxLength: 150 },
@@ -133,6 +136,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 20,
         kind: "relation",
         relation: "bancos",
+        relationLabelField: "Nombre",
       },
       nombre,
       { name: "Titular", label: "Titular", required: true, maxLength: 150 },
@@ -154,6 +158,8 @@ export interface MasterList {
   total: number;
   pagina: number;
   limite: number;
+  /** Campo de referencia → código relacionado → descripción consultada. Solo presentación. */
+  descripciones?: Record<string, Record<string, string>>;
 }
 export interface MasterDetail {
   registro: MasterRecord;

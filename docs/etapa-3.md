@@ -17,6 +17,8 @@ Se habilitan seis maestros con datos reales de la base existente:
 
 Cada pantalla ofrece listado, búsqueda, filtro de estado, paginación de veinte registros, consulta, alta, modificación, desactivación/reactivación y eliminación confirmada. Clientes y cuentas también filtran por su referencia. La búsqueda se procesa en el servidor. En la revisión actual, todos los filtros están dentro de la ventana de filtros y los combos cargan todas las opciones activas sin buscador interno; ver [componentes compartidos](ajustes-componentes.md).
 
+Las columnas relacionadas muestran el texto de su maestro: descripción del tipo en Clientes y nombre del banco en Cuentas bancarias. Las FK siguen utilizando códigos. Los próximos listados deben declarar su campo descriptivo mediante la configuración compartida; una prueba verifica este criterio en todas las referencias visibles.
+
 Los registros se identifican por Codigo (hasta veinte caracteres), conservando los nombres del modelo. El código no se modifica luego del alta. Los datos opcionales vacíos se almacenan como NULL; documentos, números de cuenta y CBU/CVU se conservan como texto para mantener ceros iniciales. Observacion admite hasta 4000 caracteres en este formulario.
 
 La baja elimina únicamente registros sin referencias. Si hay datos asociados, las FK bloquean la eliminación y la interfaz propone desactivar el registro. Desactivar no borra sus relaciones. Las nuevas asignaciones requieren un tipo de cliente o banco activo; al modificar un registro existente puede conservarse una referencia que posteriormente se haya desactivado.

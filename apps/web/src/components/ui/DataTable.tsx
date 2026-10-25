@@ -1,4 +1,10 @@
-import { useId, type ReactNode } from "react";
+import { useId, type ReactNode, type MouseEvent } from "react";
+
+function interactiveTarget(event: MouseEvent<HTMLTableRowElement>) {
+  return (event.target as Element).closest(
+    'a,button,input,select,textarea,label,[role="button"],[role="link"],[contenteditable]:not([contenteditable="false"])',
+  );
+}
 
 export interface TableColumn<T> {
   key: string;
@@ -14,7 +20,9 @@ export function DataTable<T>({
   actions,
   selectedKey = null,
   onSelectionChange,
+  onRowActivate,
   selectionDisabled = false,
+  emptyMessage = "No hay registros para mostrar.",
 }: {
   caption: string;
   columns: readonly TableColumn<T>[];
@@ -24,7 +32,11 @@ export function DataTable<T>({
   actions?: (row: T) => ReactNode;
   selectedKey?: string | null;
   onSelectionChange?: (key: string) => void;
+  /** Acción principal sobre la fila; comparte permisos y carga con el toolbar. */
+  onRowActivate?: (row: T) => void;
   selectionDisabled?: boolean;
+  /** Permite distinguir una grilla sin consultar de una búsqueda sin resultados. */
+  emptyMessage?: ReactNode;
 }) {
   const selectionGroup = useId();
   const selectable = Boolean(onSelectionChange);
@@ -65,15 +77,18 @@ export function DataTable<T>({
                     !selectable ||
                     loading ||
                     selectionDisabled ||
-                    (event.target as HTMLElement).closest(
-                      "a,button,input,select,textarea,label",
-                    )
+                    interactiveTarget(event)
                   )
                     return;
                   onSelectionChange?.(rowKey(row));
                   event.currentTarget
                     .querySelector<HTMLInputElement>(".row-selector")
                     ?.focus({ preventScroll: true });
+                }}
+                onDoubleClick={(event) => {
+                  if (loading || selectionDisabled || interactiveTarget(event))
+                    return;
+                  onRowActivate?.(row);
                 }}
               >
                 {columns.map((column, index) => (
@@ -101,9 +116,7 @@ export function DataTable<T>({
                 colSpan={columns.length + Number(Boolean(actions))}
                 className="table-empty"
               >
-                {loading
-                  ? "Cargando registros…"
-                  : "No hay registros para mostrar."}
+                {loading ? "Cargando registros…" : emptyMessage}
               </td>
             </tr>
           )}

@@ -1,8 +1,15 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
-import type { MasterDefinition, MasterDetail, MasterRecord } from "@erp/shared";
+import type {
+  MasterDefinition,
+  MasterDetail,
+  MasterRecord,
+  MasterField,
+} from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
+import { TextBox, TextArea, CheckBox } from "../controls";
+import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 
 export function MasterForm({
   master,
@@ -33,6 +40,7 @@ export function MasterForm({
   const [error, setError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const heading = useRef<HTMLHeadingElement>(null);
+  const form = useRef<HTMLFormElement>(null);
   const summary = useRef<HTMLDivElement>(null);
   const automatic = Boolean(master.automaticCode && !previous);
   const formId = useId();
@@ -65,9 +73,7 @@ export function MasterForm({
       });
     return () => request.abort();
   }, [automatic, suggestionRevision, onExpired]);
-  useEffect(() => {
-    heading.current?.focus();
-  }, []);
+  useInitialFieldFocus(form, heading);
   function focusError(fields: Record<string, string>) {
     requestAnimationFrame(() => {
       const first = master.fields.find((field) => fields[field.name]);
@@ -126,6 +132,85 @@ export function MasterForm({
       setBusy(false);
     }
   }
+  function renderField(field: MasterField) {
+    const id = `master-${field.name}`;
+    const disabled = busy || (readOnly && field.name !== "Codigo");
+    const required = Boolean(
+      field.required && !readOnly && !(automatic && field.name === "Codigo"),
+    );
+    const value = String(record[field.name] ?? "");
+    const hint =
+      field.name !== "Codigo" ? undefined : automatic ? (
+        <>
+          Código sugerido. El definitivo se confirma al guardar y puede cambiar
+          si otro usuario registra un cliente antes.
+          {suggestionError && (
+            <div className="reference-error">
+              <span role="alert">{suggestionError}</span>
+              <button
+                type="button"
+                onClick={() => setSuggestionRevision((current) => current + 1)}
+              >
+                Reintentar sugerencia
+              </button>
+            </div>
+          )}
+        </>
+      ) : previous && !readOnly ? (
+        "El código se conserva para mantener sus relaciones."
+      ) : undefined;
+    const presentation = {
+      id,
+      label: field.label,
+      required,
+      invalid: Boolean(errors[field.name]),
+      error: errors[field.name],
+      hint,
+      wide: field.kind === "textarea",
+    };
+    if (field.kind === "relation")
+      return (
+        <ReferenceSelect
+          key={field.name}
+          {...presentation}
+          field={field}
+          value={value}
+          disabled={disabled}
+          onChange={(next) => change(field.name, next)}
+          onExpired={onExpired}
+        />
+      );
+    if (field.kind === "textarea")
+      return (
+        <TextArea
+          key={field.name}
+          {...presentation}
+          value={value}
+          maxLength={field.maxLength}
+          disabled={disabled}
+          onValueChange={(next) => change(field.name, next)}
+        />
+      );
+    return (
+      <TextBox
+        key={field.name}
+        {...presentation}
+        type={field.kind === "email" ? "email" : "text"}
+        value={value}
+        maxLength={field.maxLength}
+        disabled={disabled}
+        readOnly={field.name === "Codigo" && (Boolean(previous) || automatic)}
+        placeholder={
+          automatic && field.name === "Codigo"
+            ? suggestionLoading
+              ? "Consultando código…"
+              : "Código no disponible"
+            : undefined
+        }
+        onValueChange={(next) => change(field.name, next)}
+      />
+    );
+  }
   return (
     <section
       className="panel record-form"
@@ -164,6 +249,7 @@ export function MasterForm({
         </div>
       </div>
       <form
+        ref={form}
         id={formId}
         noValidate
         onSubmit={(event) => {
@@ -198,119 +284,24 @@ export function MasterForm({
             </div>
           )}
           <div className="form-grid">
-            {master.fields.map((field) => {
-              const id = `master-${field.name}`;
-              const disabled = busy || readOnly;
-              return (
-                <div
-                  key={field.name}
-                  className={`form-field ${field.kind === "textarea" ? "wide" : ""}`}
-                >
-                  <label htmlFor={id}>
-                    {field.label}
-                    {field.required &&
-                    !readOnly &&
-                    !(automatic && field.name === "Codigo")
-                      ? " *"
-                      : ""}
-                  </label>
-                  {field.kind === "relation" ? (
-                    <ReferenceSelect
-                      field={field}
-                      id={id}
-                      value={String(record[field.name] ?? "")}
-                      disabled={disabled}
-                      invalid={Boolean(errors[field.name])}
-                      onChange={(value) => change(field.name, value)}
-                      onExpired={onExpired}
+            {master.fields.map((field, index) =>
+              index === 0 ? (
+                <div className="form-identity-row" key={field.name}>
+                  {renderField(field)}
+                  <div className="form-status-field">
+                    <CheckBox
+                      id="master-Activo"
+                      label="Registro activo"
+                      value={record.Activo}
+                      disabled={busy || readOnly}
+                      onValueChange={(next) => change("Activo", next)}
                     />
-                  ) : field.kind === "textarea" ? (
-                    <textarea
-                      id={id}
-                      value={String(record[field.name] ?? "")}
-                      disabled={disabled}
-                      maxLength={field.maxLength}
-                      rows={3}
-                      aria-invalid={Boolean(errors[field.name])}
-                      aria-describedby={
-                        errors[field.name] ? `${id}-error` : undefined
-                      }
-                      onChange={(event) =>
-                        change(field.name, event.target.value)
-                      }
-                    />
-                  ) : (
-                    <input
-                      id={id}
-                      type={field.kind === "email" ? "email" : "text"}
-                      value={String(record[field.name] ?? "")}
-                      required={Boolean(
-                        field.required &&
-                          !(automatic && field.name === "Codigo"),
-                      )}
-                      maxLength={field.maxLength}
-                      disabled={disabled}
-                      readOnly={
-                        field.name === "Codigo" &&
-                        (Boolean(previous) || automatic)
-                      }
-                      placeholder={
-                        automatic && field.name === "Codigo"
-                          ? suggestionLoading
-                            ? "Consultando código…"
-                            : "Código no disponible"
-                          : undefined
-                      }
-                      aria-invalid={Boolean(errors[field.name])}
-                      aria-describedby={
-                        errors[field.name] ? `${id}-error` : undefined
-                      }
-                      onChange={(event) =>
-                        change(field.name, event.target.value)
-                      }
-                    />
-                  )}
-                  {field.name === "Codigo" && previous && !readOnly && (
-                    <span className="field-hint">
-                      El código se conserva para mantener sus relaciones.
-                    </span>
-                  )}
-                  {field.name === "Codigo" && automatic && (
-                    <span className="field-hint">
-                      Código sugerido. El definitivo se confirma al guardar y
-                      puede cambiar si otro usuario registra un cliente antes.
-                    </span>
-                  )}
-                  {field.name === "Codigo" && automatic && suggestionError && (
-                    <div className="reference-error">
-                      <span role="alert">{suggestionError}</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setSuggestionRevision((value) => value + 1)
-                        }
-                      >
-                        Reintentar sugerencia
-                      </button>
-                    </div>
-                  )}
-                  {errors[field.name] && (
-                    <p id={`${id}-error`} className="field-error">
-                      {errors[field.name]}
-                    </p>
-                  )}
+                  </div>
                 </div>
-              );
-            })}
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={record.Activo}
-                disabled={busy || readOnly}
-                onChange={(event) => change("Activo", event.target.checked)}
-              />
-              Registro activo
-            </label>
+              ) : (
+                renderField(field)
+              ),
+            )}
           </div>
         </div>
       </form>

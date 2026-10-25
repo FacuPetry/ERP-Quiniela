@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { MasterField } from "@erp/shared";
 import { Modal } from "./Modal";
 import { ReferenceSelect } from "../masters/ReferenceSelect";
+import { Field, TextBox, DropDown } from "../controls";
 
 export interface FilterField {
   key: string;
@@ -44,45 +45,55 @@ export function FilterDialog({
           <div className="form-grid">
             {fields.map((field) => {
               const id = `filter-${field.key}`;
+              if (field.kind === "text")
+                return (
+                  <TextBox
+                    key={field.key}
+                    id={id}
+                    label={field.label}
+                    value={draft[field.key] ?? ""}
+                    maxLength={100}
+                    onValueChange={(value) => change(field.key, value)}
+                  />
+                );
+              if (field.kind === "relation" && field.reference)
+                return (
+                  <ReferenceSelect
+                    key={`${field.key}-${reset}`}
+                    field={field.reference}
+                    id={id}
+                    label={field.label}
+                    value={draft[field.key] ?? ""}
+                    onChange={(value) => change(field.key, value)}
+                    filter
+                    onExpired={onExpired}
+                  />
+                );
+              if (field.kind === "select")
+                return (
+                  <DropDown
+                    key={field.key}
+                    id={id}
+                    label={field.label}
+                    value={draft[field.key] ?? ""}
+                    options={field.options ?? []}
+                    onValueChange={(value) => change(field.key, value)}
+                  />
+                );
               return (
-                <div className="form-field" key={field.key}>
-                  <label htmlFor={id}>{field.label}</label>
-                  {field.kind === "relation" && field.reference ? (
-                    <ReferenceSelect
-                      key={reset}
-                      field={field.reference}
-                      id={id}
-                      value={draft[field.key] ?? ""}
-                      onChange={(value) => change(field.key, value)}
-                      filter
-                      onExpired={onExpired}
-                    />
-                  ) : field.kind === "select" ? (
-                    <select
-                      id={id}
-                      value={draft[field.key] ?? ""}
-                      onChange={(event) =>
-                        change(field.key, event.target.value)
-                      }
-                    >
-                      {field.options?.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
+                <Field key={field.key} id={id} label={field.label}>
+                  {(binding) => (
                     <input
-                      id={id}
-                      type={field.kind === "date" ? "date" : "text"}
+                      {...binding}
+                      className="base-control"
+                      type="date"
                       value={draft[field.key] ?? ""}
-                      maxLength={100}
                       onChange={(event) =>
                         change(field.key, event.target.value)
                       }
                     />
                   )}
-                </div>
+                </Field>
               );
             })}
           </div>

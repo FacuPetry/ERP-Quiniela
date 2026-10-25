@@ -32,7 +32,8 @@ export function MasterPage({
   const [page, setPage] = useState(1);
   const [revision, setRevision] = useState(0);
   const [data, setData] = useState<MasterList | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [hasRequestedList, setHasRequestedList] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function MasterPage({
   const [filterOpen, setFilterOpen] = useState(false);
   const listHeading = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(true);
+  const opening = useRef(false);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -87,6 +89,7 @@ export function MasterPage({
     Boolean(filters.referencia) ||
     Boolean(filters.q?.trim());
   useEffect(() => {
+    if (!hasRequestedList) return;
     const request = new AbortController();
     setLoading(true);
     setError("");
@@ -128,13 +131,20 @@ export function MasterPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [master.key, filters, page, revision, expired]);
-  async function open(action: "form" | "delete") {
-    if (!selectedRecord || busy) return;
+  }, [master.key, filters, page, revision, expired, hasRequestedList]);
+  function requestList() {
+    setHasRequestedList(true);
+    setLoading(true);
+    setRevision((value) => value + 1);
+  }
+  async function open(action: "form" | "delete", record = selectedRecord) {
+    if (!record || busy || opening.current || listBusy || error) return;
+    opening.current = true;
+    setSelected(record.Codigo);
     setBusy(true);
     setError("");
     try {
-      const detail = await getMaster(master.key, selectedRecord.Codigo);
+      const detail = await getMaster(master.key, record.Codigo);
       if (!mounted.current) return;
       if (action === "form") setView({ detail });
       else setDeleting(detail);
@@ -148,6 +158,7 @@ export function MasterPage({
             : "No se pudo abrir el registro.",
         );
     } finally {
+      opening.current = false;
       if (mounted.current) setBusy(false);
     }
   }
@@ -156,7 +167,7 @@ export function MasterPage({
     setDeleting(null);
     if (refresh) {
       setSelected(null);
-      setRevision((value) => value + 1);
+      if (hasRequestedList) requestList();
     }
     requestAnimationFrame(() => listHeading.current?.focus());
   }
@@ -164,11 +175,18 @@ export function MasterPage({
     ...master.columns.map((key) => ({
       key,
       label: master.fields.find((field) => field.name === key)!.label,
-      render: (row: MasterRecord) => (
-        <span className={key === "Codigo" ? "record-code" : ""}>
-          {row[key] ? String(row[key]) : "—"}
-        </span>
-      ),
+      render: (row: MasterRecord) => {
+        const description = data?.descripciones?.[key]?.[String(row[key])];
+        const value =
+          typeof description === "string" && description
+            ? description
+            : row[key];
+        return (
+          <span className={key === "Codigo" ? "record-code" : ""}>
+            {value ? String(value) : "—"}
+          </span>
+        );
+      },
     })),
     {
       key: "Activo",
@@ -204,8 +222,8 @@ export function MasterPage({
           </h2>
           <p className="muted small">
             {canWrite
-              ? "Seleccioná un registro para modificarlo o eliminarlo."
-              : "Seleccioná un registro para consultar sus datos."}
+              ? "Seleccioná un registro para usar las acciones o hacé doble clic para modificarlo."
+              : "Seleccioná un registro o hacé doble clic para consultar sus datos."}
           </p>
         </div>
         <ActionToolbar
@@ -230,7 +248,7 @@ export function MasterPage({
             void open("delete");
           }}
           onFilter={() => setFilterOpen(true)}
-          onRefresh={() => setRevision((value) => value + 1)}
+          onRefresh={requestList}
           refreshing={loading}
         />
       </div>
@@ -245,25 +263,38 @@ export function MasterPage({
         rows={error ? [] : (data?.registros ?? [])}
         rowKey={(row) => row.Codigo}
         loading={listBusy}
+        emptyMessage={
+          !hasRequestedList
+            ? "No hay registros para mostrar."
+            : error
+              ? "No se pudo completar la búsqueda. Intentá actualizar el listado."
+              : undefined
+        }
         selectionDisabled={busy}
         selectedKey={selected}
         onSelectionChange={setSelected}
+        onRowActivate={(row) => {
+          void open("form", row);
+        }}
       />
       <span className="sr-only" role="status">
         {selectedRecord
           ? `Registro seleccionado: ${selectedRecord.Codigo}.`
           : "Ningún registro seleccionado."}
       </span>
-      <Pagination
-        page={page}
-        total={data?.total ?? 0}
-        limit={20}
-        loading={listBusy || busy}
-        onChange={(value) => {
-          setPage(value);
-          setSelected(null);
-        }}
-      />
+      {hasRequestedList && data && (
+        <Pagination
+          page={page}
+          total={data?.total ?? 0}
+          limit={20}
+          loading={listBusy || busy}
+          onChange={(value) => {
+            setPage(value);
+            setSelected(null);
+            setLoading(true);
+          }}
+        />
+      )}
       {filterOpen && (
         <FilterDialog
           fields={filterFields}
@@ -273,6 +304,7 @@ export function MasterPage({
             setFilters(values);
             setPage(1);
             setSelected(null);
+            requestList();
             setFilterOpen(false);
           }}
           onClose={() => setFilterOpen(false)}
