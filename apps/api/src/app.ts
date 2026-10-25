@@ -5,6 +5,8 @@ import type { HealthResponse, ReadinessResponse, ApiError } from '@erp/shared';
 import { authRouter } from './auth/routes.js';
 import type { AuthService } from './auth/service.js';
 import { masterRouter } from './masters/routes.js';
+import { currentAccountRouter } from './current-account/routes.js';
+import type { CurrentAccountStore } from './current-account/store.js';
 import type { MasterStore } from './masters/store.js';
 
 interface AppOptions {
@@ -13,9 +15,10 @@ interface AppOptions {
   auth?: AuthService;
   secureCookie?: boolean;
   masters?: MasterStore;
+  currentAccount?: CurrentAccountStore;
 }
 
-export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters }: AppOptions) {
+export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters, currentAccount }: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '64kb' }));
@@ -35,6 +38,10 @@ export function createApp({ checkDatabase, webDist, auth, secureCookie = false, 
   if (masters) {
     if (!auth) throw new Error('Los maestros requieren autenticación.');
     app.use('/api/maestros', masterRouter(auth, masters));
+  }
+  if (currentAccount) {
+    if (!auth) throw new Error('Cuenta corriente requiere autenticación.');
+    app.use('/api/cuenta-corriente', currentAccountRouter(auth, currentAccount));
   }
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Recurso no encontrado.' } satisfies ApiError);

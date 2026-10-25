@@ -53,7 +53,7 @@ Guardar o consultar esta configuración no consume números. Una serie sin movim
 
 La modificación bloquea la fila de NUMERACION dentro de la transacción y verifica la versión del registro, el uso y las referencias. La auditoría pertenece a la misma transacción. Los BIGINT se transmiten como texto decimal y se comparan con BigInt, sin convertirlos en Number; el límite es 9223372036854775807, según la columna existente. No se aplica el formato de cinco dígitos de CLIENTE a los números de comprobantes ni a IDTabla.
 
-**La emisión de movimientos todavía no está implementada.** Cuando se desarrolle, deberá bloquear la misma fila de NUMERACION y asignar/incrementar el número dentro de la transacción de la operación. No utilizar un MAX sin bloqueo ni reservar números al abrir formularios. El control actual protege la administración de las series; no sustituye al futuro servicio de emisión.
+La emisión de Cuenta corriente se incorpora en la [etapa 5](etapa-5.md), con Numerador opcional y bloqueo/actualización dentro de la transacción de confirmación. Las demás operaciones financieras siguen pendientes. No utilizar un MAX sin bloqueo ni reservar números al abrir formularios.
 
 ## Interfaz y API compartidas
 
@@ -63,7 +63,7 @@ Ambos módulos reutilizan MasterPage, MasterForm, DataTable, filtros, paginació
 
 API: `/api/maestros/comprobantes` y `/api/maestros/numeraciones`, con los mismos métodos y filtros `q`, `estado`, `pagina` y `limite` de los demás maestros. Numeraciones también acepta `referencia` con el código del comprobante. Los detalles y escrituras de numeraciones usan IDTabla en la URL y en el cuerpo de modificación; no incorporan un campo Codigo ficticio. Los detalles de series utilizadas agregan `camposSoloLectura` sin modificar los datos almacenados ni su versión.
 
-Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y versión If-Match, manteniendo los permisos existentes. SF y DatePicker siguen pendientes.
+Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y versión If-Match, manteniendo los permisos existentes. SF se incorpora en la etapa 5; DatePicker sigue pendiente.
 
 ## Cómo probar
 

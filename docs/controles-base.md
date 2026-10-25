@@ -64,8 +64,12 @@ Durante esta entrega pasaron `npm run check` (TypeScript, las 18 pruebas existen
 
 Incorporar el PR a `main` y desplegar en Hostinger con la configuración actual. Esta entrega no requiere migraciones, variables nuevas ni instalar dependencias adicionales.
 
-DatePicker y SF siguen pendientes de definir e implementar. El campo nativo de fecha que admite FilterDialog sigue disponible mediante Field; no se lo presenta como un DatePicker nuevo. Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF deberán recibir su fuente de datos y configuración desde el módulo.
+SF se implementa en la [etapa 5](etapa-5.md#sf-reutilizable); DatePicker sigue pendiente de definir e implementar. El campo nativo de fecha que admite FilterDialog sigue disponible mediante Field; no se lo presenta como un DatePicker nuevo. Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF deberán recibir su fuente de datos y configuración desde el módulo.
 
 ## Identificadores internos en los ABM
 
 Los formularios y grillas compartidos excluyen IDTabla mediante masterFormFields y masterListColumns. La PK se conserva en el estado y en las solicitudes de modificación, sin crear un campo oculto de formulario ni exponerla en los textos de selección o eliminación. Codigo conserva su presentación y funcionamiento. En Numerador el primer campo visible es Comprobante; el foco inicial espera su carga sin quitarle el foco al usuario si ya comenzó a navegar. Los módulos con formularios propios también deben mantener IDTabla exclusivamente interno.
+
+## SearchField / SF
+
+SearchField recibe datos y funciones por propiedades; no conoce entidades ni APIs. ClientSearch adapta la búsqueda existente de Clientes. La búsqueda solo se ejecuta con Enter o lupa, selecciona una coincidencia o abre Modal/DataTable/Pagination para varias. Los criterios y paginación se envían al servidor, sin descargar todos los clientes. Editar el criterio invalida el registro seleccionado y las respuestas anteriores se cancelan. Ver [configuración y pruebas](etapa-5.md#sf-reutilizable).

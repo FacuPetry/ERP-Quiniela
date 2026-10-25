@@ -11,6 +11,7 @@ import { logout } from "../services/auth";
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
+import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
 
 function AppLink({
@@ -221,7 +222,7 @@ export function Workspace({
         </nav>
         <div className="sidebar-footer">
           <span className="status-dot online" />
-          <span className="nav-label">Etapa 4 · Comprobantes y numeración</span>
+          <span className="nav-label">Etapa 5 · Cuenta corriente</span>
         </div>
       </aside>
       <div className="workspace-body" inert={mobileOpen}>
@@ -322,8 +323,8 @@ export function Workspace({
                   </span>
                   <h2>Todo empieza con una buena base.</h2>
                   <p>
-                    Administrá los datos de tus clientes, cajas y bancos desde
-                    las tablas maestras del sistema.
+                    Consultá la cuenta corriente y administrá los datos de tus
+                    clientes, comprobantes, cajas y bancos.
                   </p>
                   <AppLink path="/mi-cuenta" className="text-link">
                     Ver mi cuenta <Icon name="arrow" size={17} />
@@ -344,7 +345,9 @@ export function Workspace({
               <section aria-labelledby="shortcuts-title">
                 <div className="section-heading">
                   <h2 id="shortcuts-title">Módulos del sistema</h2>
-                  <span className="muted small">Próximas entregas</span>
+                  <span className="muted small">
+                    Cuenta corriente disponible
+                  </span>
                 </div>
                 <div className="module-grid">
                   {modules
@@ -361,7 +364,10 @@ export function Workspace({
                         <h3>{item.title}</h3>
                         <p>{item.description}</p>
                         <span className="module-card-footer">
-                          Ver alcance <Icon name="arrow" size={16} />
+                          {item.path === "/cuenta-corriente"
+                            ? "Abrir módulo"
+                            : "Ver alcance"}{" "}
+                          <Icon name="arrow" size={16} />
                         </span>
                       </AppLink>
                     ))}
@@ -437,6 +443,12 @@ export function Workspace({
                 {busy ? "Cerrando sesión…" : "Cerrar sesión"}
               </button>
             </section>
+          ) : path === "/cuenta-corriente" ? (
+            <CurrentAccountPage
+              key={path}
+              session={session}
+              onExpired={onLogout}
+            />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -475,7 +487,7 @@ export function Workspace({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 4 · Comprobantes y numeración</span>
+            <span>Etapa 5 · Cuenta corriente</span>
           </footer>
         </main>
       </div>

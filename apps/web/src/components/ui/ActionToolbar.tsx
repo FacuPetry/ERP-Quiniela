@@ -61,6 +61,9 @@ export function ActionToolbar({
   onFilter,
   onRefresh,
   refreshing = false,
+  editIcon,
+  removeIcon,
+  removeDisabled = false,
 }: {
   labels: {
     add: string;
@@ -79,6 +82,9 @@ export function ActionToolbar({
   onFilter: () => void;
   onRefresh?: () => void;
   refreshing?: boolean;
+  editIcon?: IconName;
+  removeIcon?: IconName;
+  removeDisabled?: boolean;
 }) {
   return (
     <div
@@ -95,16 +101,16 @@ export function ActionToolbar({
         />
       )}
       <IconAction
-        icon={readOnly ? "eye" : "edit"}
+        icon={editIcon ?? (readOnly ? "eye" : "edit")}
         label={labels.edit}
         disabled={!selected || busy}
         onClick={onEdit}
       />
       {!readOnly && (
         <IconAction
-          icon="trash"
+          icon={removeIcon ?? "trash"}
           label={labels.remove}
-          disabled={!selected || busy}
+          disabled={!selected || busy || removeDisabled}
           onClick={onDelete}
         />
       )}

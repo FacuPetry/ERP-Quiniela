@@ -47,12 +47,17 @@ try {
     } catch { await delay(1000); }
   }
   if (!ready) throw new Error('MySQL de prueba no estuvo disponible dentro del tiempo previsto.');
-  const child = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/integration/database.test.ts', 'tests/integration/masters.test.ts'], {
-    cwd: root,
-    stdio: 'inherit',
-    env: { ...process.env, NODE_ENV: 'test', DB_HOST: '127.0.0.1', DB_PORT: String(port), DB_NAME: 'erp_quiniela_test', DB_USER: 'erp', DB_PASSWORD: password, DB_SSL: 'false', TEST_DATABASE_ISOLATED: '1' },
-  });
-  process.exitCode = await new Promise(resolve => child.on('exit', (code, signal) => resolve(signal ? 1 : code ?? 1)));
+  // Node ordena alfabéticamente los archivos incluso con concurrencia 1.
+  // La preparación inicial debe verificarse antes de insertar fixtures de negocio.
+  for (const testFile of ['tests/integration/database.test.ts', 'tests/integration/masters.test.ts', 'tests/integration/current-account.test.ts']) {
+    const child = spawn(process.execPath, ['--import', 'tsx', '--test', testFile], {
+      cwd: root,
+      stdio: 'inherit',
+      env: { ...process.env, NODE_ENV: 'test', DB_HOST: '127.0.0.1', DB_PORT: String(port), DB_NAME: 'erp_quiniela_test', DB_USER: 'erp', DB_PASSWORD: password, DB_SSL: 'false', TEST_DATABASE_ISOLATED: '1' },
+    });
+    const code = await new Promise(resolve => child.on('exit', (code, signal) => resolve(signal ? 1 : code ?? 1)));
+    if (code !== 0) { process.exitCode = code; break; }
+  }
 } catch (error) {
   console.error(error instanceof Error ? error.message.split('\n')[0] : 'Falló la integración.');
   process.exitCode = 1;

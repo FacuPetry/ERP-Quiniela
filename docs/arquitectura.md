@@ -51,10 +51,16 @@ Estos dos endpoints de disponibilidad son públicos y no exponen datos financier
 
 El límite de ingresos vive en memoria por proceso; reiniciar lo restablece. Sin confiar en encabezados de proxy arbitrarios, la dirección de conexión puede agrupar usuarios del mismo proxy. Si se escala a múltiples procesos, revisar límites compartidos y la topología del proxy.
 
-La etapa 3 agrega `/api/maestros` para seis tablas existentes. Los servicios se organizan en rutas/validación y un repositorio que concentra SQL parametrizado, transacciones y auditoría. Los usuarios activos consultan; ADMIN puede escribir, con CSRF. El cliente comparte tabla, paginación, modal y formularios, y un único cliente HTTP. Ver [etapa 3](etapa-3.md). No existen todavía endpoints financieros.
+La etapa 3 agrega `/api/maestros` para seis tablas existentes. Los servicios se organizan en rutas/validación y un repositorio que concentra SQL parametrizado, transacciones y auditoría. Los usuarios activos consultan; ADMIN puede escribir, con CSRF. El cliente comparte tabla, paginación, modal y formularios, y un único cliente HTTP. Ver [etapa 3](etapa-3.md). Los endpoints financieros se incorporan en la etapa 5.
 
 ## Comprobantes y Numeración
 
 La etapa 4 amplía `/api/maestros` con `comprobantes` y `numeraciones`, manteniendo dos pantallas independientes. MasterDefinition configura opciones de enums compartidos, campos enteros y PK Codigo o IDTabla; MasterRecord conserva los nombres reales de los campos. Los enteros y BIGINT viajan como texto, con validación de rango sin pérdida de precisión. Los enums viven en `packages/shared/src/comprobantes.ts`, no son tipos ENUM de SQL.
 
 NUMERACION usa la FK Comprobante y su índice único de comprobante–serie. Las modificaciones bloquean su fila y comprueban uso en CUENTACORRIENTE y CAJAMOVIMIENTO, incluidos anulados, antes de modificar o eliminar. Las futuras operaciones deberán usar ese mismo bloqueo y actualizar el correlativo dentro de su transacción de emisión. Configurar la numeración no emite ni consume números. Ver [alcance, reglas y pruebas](etapa-4.md).
+
+## Cuenta corriente (etapa 5)
+
+`current-account` separa validación, rutas y persistencia, y se integra en `/api/cuenta-corriente`. El frontend reutiliza controles y listados, agrega SearchField genérico y ClientSearch como adaptador. IDTabla no se muestra en las pantallas.
+
+La numeración es opcional: sin Numerador se deriva el prefijo fijo 0000, sin agregar campos. Las altas bloquean el espacio de comprobante/prefijo mediante GET_LOCK antes de la transacción y comprueban duplicados, incluidos anulados y CAJAMOVIMIENTO; con Numerador bloquean y actualizan además su fila. Los reintentos usan SOLICITUD y la auditoría se confirma en la misma transacción. Las futuras escrituras financieras deben compartir el protocolo, bloquear las cuentas a afectar y no descontar dos veces cancelaciones. Ver [alcance y pruebas](etapa-5.md).

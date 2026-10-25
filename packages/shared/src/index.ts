@@ -31,3 +31,5 @@ export interface SessionResponse {
   csrfToken: string;
   venceEn: string;
 }
+
+export * from './current-account.js';

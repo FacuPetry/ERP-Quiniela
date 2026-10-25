@@ -58,3 +58,7 @@ El ERP se publica como aplicación independiente y puede usar un subdominio. Sus
 ## Comprobantes y numeración (etapa 4)
 
 Desplegar el código tras fusionar el PR a main. Esta entrega utiliza COMPROBANTE y NUMERACION existentes: no agrega migraciones ni variables de entorno y no requiere crear otro administrador. Los dos ABM aparecen en Maestros. Ver [prueba paso a paso](etapa-4.md#cómo-probar). La generación de movimientos y el consumo de correlativos siguen pendientes.
+
+## Cuenta corriente (etapa 5)
+
+Desplegar el código tras fusionar el PR. La entrega utiliza las tablas existentes CUENTACORRIENTE, COMPROBANTE, NUMERACION, SOLICITUD y AUDITORIA; no agrega migraciones ni variables. Numerador es opcional, sin él se usa prefijo 0000. Ver [preparación de comprobantes y prueba](etapa-5.md#cómo-probar). Los cobros y pagos siguen pendientes.
