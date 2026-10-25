@@ -168,11 +168,18 @@ export function MasterPage({
     ...master.columns.map((key) => ({
       key,
       label: master.fields.find((field) => field.name === key)!.label,
-      render: (row: MasterRecord) => (
-        <span className={key === "Codigo" ? "record-code" : ""}>
-          {row[key] ? String(row[key]) : "—"}
-        </span>
-      ),
+      render: (row: MasterRecord) => {
+        const description = data?.descripciones?.[key]?.[String(row[key])];
+        const value =
+          typeof description === "string" && description
+            ? description
+            : row[key];
+        return (
+          <span className={key === "Codigo" ? "record-code" : ""}>
+            {value ? String(value) : "—"}
+          </span>
+        );
+      },
     })),
     {
       key: "Activo",

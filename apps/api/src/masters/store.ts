@@ -25,9 +25,9 @@ const columns = (master: MasterDefinition) => [
   ...master.fields.map((field) => field.name),
   "Activo",
 ];
-const projection = (master: MasterDefinition) =>
+const projection = (master: MasterDefinition, prefix = "") =>
   columns(master)
-    .map((name) => "`" + name + "`")
+    .map((name) => prefix + "`" + name + "`")
     .join(", ");
 function record(row: RowDataPacket): MasterRecord {
   return {
@@ -71,10 +71,28 @@ export function createMasterStore(pool: Pool) {
       master: MasterDefinition,
       query: ListQuery,
     ): Promise<MasterList> {
+      const relations = master.fields.flatMap((field, index) => {
+        if (!field.relation || !field.relationLabelField) return [];
+        const related = masterDefinitions[field.relation];
+        const label = related.fields.find(
+          (candidate) => candidate.name === field.relationLabelField,
+        );
+        if (!label)
+          throw new Error("Campo de descripción relacionado no definido.");
+        return [
+          {
+            field,
+            related,
+            label,
+            alias: `referencia_${index}`,
+            result: `__referencia_${index}`,
+          },
+        ];
+      });
       const clauses: string[] = [];
       const params: (string | number)[] = [];
       if (query.estado !== "todos") {
-        clauses.push("Activo = ?");
+        clauses.push("principal.Activo = ?");
         params.push(query.estado === "activo" ? 1 : 0);
       }
       if (query.q) {
@@ -84,7 +102,9 @@ export function createMasterStore(pool: Pool) {
         clauses.push(
           "(" +
             fields
-              .map((field) => "`" + field.name + "` LIKE ? ESCAPE '!'")
+              .map(
+                (field) => "principal.`" + field.name + "` LIKE ? ESCAPE '!'",
+              )
               .join(" OR ") +
             ")",
         );
@@ -101,23 +121,59 @@ export function createMasterStore(pool: Pool) {
             400,
             "Este maestro no tiene filtro de referencia.",
           );
-        clauses.push("`" + relation.name + "` = ?");
+        clauses.push("principal.`" + relation.name + "` = ?");
         params.push(query.referencia);
       }
       const where = clauses.length ? " WHERE " + clauses.join(" AND ") : "";
       const [count] = await pool.execute<RowDataPacket[]>(
-        "SELECT COUNT(*) AS total FROM " + tableName(master) + where,
+        "SELECT COUNT(*) AS total FROM " +
+          tableName(master) +
+          " AS principal" +
+          where,
         params,
       );
+      const labels = relations.map(
+        ({ alias, label, result }) =>
+          `${alias}.\`${label.name}\` AS \`${result}\``,
+      );
+      const joins = relations
+        .map(
+          ({ field, related, alias }) =>
+            ` LEFT JOIN ${tableName(related)} AS ${alias} ON ${alias}.Codigo = principal.\`${field.name}\``,
+        )
+        .join("");
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT ${projection(master)} FROM ${tableName(master)}${where} ORDER BY Codigo LIMIT ? OFFSET ?`,
+        `SELECT ${[projection(master, "principal."), ...labels].join(", ")} FROM ${tableName(master)} AS principal${joins}${where} ORDER BY principal.Codigo LIMIT ? OFFSET ?`,
         [...params, query.limite, (query.pagina - 1) * query.limite],
       );
+      const descriptions = new Map(
+        relations.map(({ field }) => [field.name, new Map<string, string>()]),
+      );
+      const registros = rows.map((row) => {
+        const item = record(row);
+        for (const { field, result } of relations) {
+          delete item[result];
+          const code = item[field.name];
+          if (typeof code === "string" && row[result] != null)
+            descriptions.get(field.name)!.set(code, String(row[result]));
+        }
+        return item;
+      });
       return {
-        registros: rows.map(record),
+        registros,
         total: Number(count[0]!.total),
         pagina: query.pagina,
         limite: query.limite,
+        ...(relations.length
+          ? {
+              descripciones: Object.fromEntries(
+                [...descriptions].map(([field, values]) => [
+                  field,
+                  Object.fromEntries(values),
+                ]),
+              ),
+            }
+          : {}),
       };
     },
     async get(master: MasterDefinition, code: string): Promise<MasterDetail> {

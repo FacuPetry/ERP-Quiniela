@@ -26,6 +26,16 @@ El componente admite `query` para filtros soportados por la fuente y `optionFilt
 
 Si una referencia de un registro existente fue desactivada o queda fuera del contexto, se conserva su valor mediante una opción actual oculta y deshabilitada, acompañada de una explicación. No se ofrece para nuevas selecciones. Así no se cambian relaciones existentes ni se obliga a reasignarlas al editar otros campos.
 
+## Descripciones de relaciones en las grillas
+
+En Clientes, Tipo de cliente muestra `CLIENTETIPO.Descripcion`. El código sigue en `CLIENTE.ClienteTipo` y se utiliza al seleccionar, filtrar, abrir o guardar un registro. La descripción se consulta mediante LEFT JOIN en la lectura del listado; no se agrega una columna a CLIENTE ni se consulta cada referencia por separado desde el navegador. Los tipos inactivos ya asociados conservan su descripción visible.
+
+La configuración reutilizable es `relationLabelField` en el campo de referencia de `masterDefinitions`. Por ahora solo está habilitada para `ClienteTipo`, apuntando a `Descripcion`. Para un futuro listado de Cuentas bancarias podría habilitarse en `Banco` apuntando a `Nombre`; esta entrega conserva su presentación actual.
+
+La API mantiene `registros` con sus códigos y entrega las etiquetas en el mapa opcional `descripciones` (campo de referencia → código → texto). MasterPage utiliza ese mapa para presentar las columnas. El detalle, la escritura, las versiones de edición y la auditoría no reciben etiquetas adicionales. Si falta una descripción, se muestra el código como alternativa. Los criterios actuales de búsqueda, orden y paginación se conservan.
+
+Para probar: crear o elegir un tipo con código y descripción distintos, asignarlo a un cliente y revisar su columna Tipo de cliente. Cambiar la descripción desde Tipos de cliente y volver a Clientes o actualizar el listado: el texto debe reflejar el cambio sin editar al cliente. Al abrirlo, el combo sigue identificando la referencia por código. No se requieren migraciones ni variables nuevas.
+
 ## Formularios y botones superiores
 
 MasterForm sigue reemplazando al listado dentro del módulo. Su toolbar superior muestra el título a la izquierda y Cancelar/Guardar a la derecha, en todos los maestros. Guardar está asociado al formulario mediante su identificador, aunque el botón esté en el encabezado. Los perfiles de consulta muestran Cerrar.

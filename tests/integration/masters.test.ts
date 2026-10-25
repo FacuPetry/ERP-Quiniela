@@ -287,6 +287,94 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
   );
 
   await t.test(
+    "el listado describe el tipo sin cambiar la FK, la versión ni las referencias inactivas",
+    async () => {
+      const client = await get("clientes/00001");
+      const type = await get("tipos-cliente/M_SIMPLE");
+      const list = async () => {
+        const response = await request(
+          "clientes?referencia=M_SIMPLE&estado=activo&pagina=1&limite=1&q=Cliente",
+        );
+        assert.equal(response.status, 200);
+        return (await response.json()) as MasterList;
+      };
+      const original = await list();
+      assert.equal(original.total, 1);
+      assert.equal(original.registros.length, 1);
+      assert.equal(original.registros[0]?.ClienteTipo, "M_SIMPLE");
+      assert.deepEqual(original.registros[0], client.registro);
+      assert.deepEqual(original.descripciones, {
+        ClienteTipo: { M_SIMPLE: type.registro.Descripcion },
+      });
+
+      const renamed = await update(
+        "tipos-cliente/M_SIMPLE",
+        {
+          ...type.registro,
+          Descripcion: "Tipo actualizado desde su maestro",
+          Activo: false,
+        },
+        type.version,
+      );
+      try {
+        const refreshed = await list();
+        assert.deepEqual(refreshed.descripciones, {
+          ClienteTipo: { M_SIMPLE: "Tipo actualizado desde su maestro" },
+        });
+        assert.deepEqual(refreshed.registros, original.registros);
+        assert.equal((await get("clientes/00001")).version, client.version);
+        // El detalle y la escritura siguen utilizando el código, no las etiquetas.
+        const saved = await update(
+          "clientes/00001",
+          client.registro,
+          client.version,
+        );
+        assert.equal(saved.registro.ClienteTipo, "M_SIMPLE");
+        const empty = await request("clientes?referencia=NO_EXISTE");
+        assert.equal(empty.status, 200);
+        const result = (await empty.json()) as MasterList;
+        assert.equal(result.total, 0);
+        assert.deepEqual(result.registros, []);
+        assert.deepEqual(result.descripciones, { ClienteTipo: {} });
+      } finally {
+        await update("tipos-cliente/M_SIMPLE", type.registro, renamed.version);
+      }
+    },
+  );
+
+  await t.test(
+    "la presentación de relaciones es configurable y no cambia otros listados sin habilitarla",
+    async () => {
+      const response = await request("cuentas-bancarias?referencia=M_SIMPLE");
+      assert.equal(response.status, 200);
+      const current = (await response.json()) as MasterList;
+      assert.equal(current.registros[0]?.Banco, "M_SIMPLE");
+      assert.equal(current.descripciones, undefined);
+      const configured = await createMasterStore(pool).list(
+        {
+          ...masterDefinitions["cuentas-bancarias"],
+          fields: masterDefinitions["cuentas-bancarias"].fields.map((field) =>
+            field.name === "Banco"
+              ? { ...field, relationLabelField: "Nombre" }
+              : field,
+          ),
+        },
+        {
+          q: "M_CUENTA",
+          referencia: "M_SIMPLE",
+          estado: "activo",
+          pagina: 1,
+          limite: 20,
+        },
+      );
+      assert.deepEqual(configured.registros, current.registros);
+      assert.deepEqual(configured.descripciones, {
+        Banco: { M_SIMPLE: "Registro de prueba" },
+      });
+    },
+  );
+
+  await t.test(
     "filtros y paginación estable se calculan en la base de datos",
     async () => {
       for (let i = 0; i < 23; i++)
