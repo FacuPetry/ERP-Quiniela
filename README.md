@@ -4,7 +4,9 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 ## Estado: etapa 3
 
-Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Dispone de acceso de usuarios, sesiones persistentes, menú adaptable y ABM de tipos de cliente, clientes, conceptos, cajas, bancos y cuentas bancarias. Comprobantes, numeración y las operaciones financieras se incorporarán en próximas entregas.
+Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Dispone de acceso de usuarios, sesiones persistentes, menú adaptable y ABM de tipos de cliente, clientes, conceptos, cajas, bancos y cuentas bancarias. La configuración de comprobantes, sus series de numeración y las operaciones financieras se incorporarán en próximas entregas.
+
+Los maestros utilizan selección de fila, acciones con íconos, filtros en ventana y formularios dentro del módulo. Los códigos de clientes se asignan automáticamente con cinco dígitos al guardar, sin tabla adicional. Ver [ajustes de componentes y correlativo](docs/ajustes-componentes.md), incluidos el tratamiento de códigos anteriores y la posible reutilización del último eliminado.
 
 ## Requisitos
 

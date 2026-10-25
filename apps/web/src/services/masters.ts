@@ -4,6 +4,7 @@ import type {
   MasterList,
   MasterRecord,
 } from "@erp/shared";
+import { masterDefinitions } from "@erp/shared";
 import { apiRequest } from "./http";
 
 export function listMasters(
@@ -37,7 +38,13 @@ export function saveMaster(
         "X-CSRF-Token": csrf,
         ...(previous ? { "If-Match": '"' + previous.version + '"' } : {}),
       },
-      body: JSON.stringify(record),
+      body: JSON.stringify(
+        !previous && masterDefinitions[key].automaticCode
+          ? Object.fromEntries(
+              Object.entries(record).filter(([field]) => field !== "Codigo"),
+            )
+          : record,
+      ),
     },
   );
 }

@@ -122,8 +122,55 @@ export function createMasterStore(pool: Pool) {
       version?: string,
     ): Promise<MasterDetail | null> {
       const connection = await pool.getConnection();
+      let transaction = false;
+      let allocationLock: string | null = null;
+      let reusable = true;
       try {
+        if (master.key === "clientes" && action === "ALTA" && input) {
+          const [database] = await connection.query<RowDataPacket[]>(
+            "SELECT DATABASE() AS name",
+          );
+          const name =
+            "erp_cliente_" +
+            createHash("sha256")
+              .update(String(database[0]!.name))
+              .digest("hex")
+              .slice(0, 32);
+          try {
+            const [lock] = await connection.execute<RowDataPacket[]>(
+              "SELECT GET_LOCK(?, 10) AS acquired",
+              [name],
+            );
+            if (Number(lock[0]?.acquired) !== 1)
+              throw new MasterRequestError(
+                503,
+                "No se pudo reservar el código de cliente. Intentá nuevamente en unos momentos.",
+              );
+            allocationLock = name;
+          } catch (error) {
+            // Si se perdió la respuesta, el servidor podría haber adquirido el
+            // bloqueo. Cerrar la conexión impide devolverla bloqueada al pool.
+            reusable = false;
+            throw error;
+          }
+        }
+        // GET_LOCK debe preceder a la transacción y a su primera lectura para
+        // que MAX vea el alta confirmada por la conexión que nos antecedió.
         await connection.beginTransaction();
+        transaction = true;
+        if (allocationLock && input) {
+          const [rows] = await connection.query<RowDataPacket[]>(
+            "SELECT MAX(CAST(Codigo AS UNSIGNED)) AS ultimo FROM CLIENTE WHERE Codigo REGEXP '^[0-9]{1,5}$'",
+          );
+          const next = Number(rows[0]?.ultimo ?? 0) + 1;
+          if (next > 99999)
+            throw new MasterRequestError(
+              409,
+              "Se agotó la numeración de clientes de cinco dígitos. No se creó el cliente.",
+            );
+          code = String(next).padStart(5, "0");
+          input.Codigo = code;
+        }
         let before: MasterRecord | null = null;
         if (action !== "ALTA") {
           const [rows] = await connection.execute<RowDataPacket[]>(
@@ -139,7 +186,7 @@ export function createMasterStore(pool: Pool) {
           if (!version || detail(before).version !== version)
             throw new MasterRequestError(
               409,
-              "El registro cambió desde que lo abriste. Cerrá esta ventana y volvé a abrirlo para trabajar con la versión actual.",
+              "El registro cambió desde que lo abriste. Volvé al listado y abrilo nuevamente para trabajar con la versión actual.",
             );
           if (input && input.Codigo !== before.Codigo)
             throw new MasterRequestError(
@@ -212,9 +259,16 @@ export function createMasterStore(pool: Pool) {
           result = detail(record(rows[0]!));
         }
         await connection.commit();
+        transaction = false;
         return result;
       } catch (error) {
-        await connection.rollback();
+        if (transaction) {
+          try {
+            await connection.rollback();
+          } catch {
+            reusable = false;
+          }
+        }
         const code =
           error && typeof error === "object" && "code" in error
             ? error.code
@@ -241,7 +295,19 @@ export function createMasterStore(pool: Pool) {
           );
         throw error;
       } finally {
-        connection.release();
+        if (allocationLock && reusable) {
+          try {
+            const [released] = await connection.execute<RowDataPacket[]>(
+              "SELECT RELEASE_LOCK(?) AS released",
+              [allocationLock],
+            );
+            if (Number(released[0]?.released) !== 1) reusable = false;
+          } catch {
+            reusable = false;
+          }
+        }
+        if (reusable) connection.release();
+        else connection.destroy();
       }
     },
   };
