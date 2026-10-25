@@ -6,12 +6,14 @@ El usuario confirmó que su contratación permite aplicaciones Node.js sin upgra
 
 Configurar la raíz como la carpeta que contiene `package.json`. Seleccionar Node.js 24. Si el alojamiento no ofrece esa versión, revisar la compatibilidad antes de instalar: el proyecto declara Node 24 explícitamente.
 
+El usuario confirmó una publicación con preset **Other**, Node.js **24**, raíz **./**, npm, comando de compilación **npm run build**, salida **.** y entrada **apps/api/dist/server.js**. Mantener la compilación explícita: el preset Express del intento anterior informó `Build command: none` y falló con `Entry file not found`.
+
 - Instalación de construcción: `npm ci --include=dev`.
 - Construcción: `npm run build`.
 - Arranque: `npm start`.
 - Si hPanel solicita un archivo de entrada en vez de un comando: `apps/api/dist/server.js`, después de construir.
 
-El build necesita TypeScript y Vite, aunque el proceso final corra en producción. No omitir dependencias de desarrollo antes de construir o migrar.
+El build necesita TypeScript y Vite, aunque el proceso final corra en producción. No omitir dependencias de desarrollo antes de construir o migrar. En el instalador automático, `NPM_CONFIG_INCLUDE=dev` permite incluirlas aunque NODE_ENV sea production.
 
 ## Variables del alojamiento
 
@@ -39,8 +41,9 @@ DB_ROOT_PASSWORD, Docker y WEB_PORT no son requisitos de producción. No subir e
 3. Instalar y construir desde la raíz.
 4. Comprobar el motor, versión y `lower_case_table_names`. Para conservar físicamente las mayúsculas de este esquema, MySQL debe utilizar el comportamiento correspondiente; no cambiar esa opción sobre un servidor existente como solución rápida.
 5. Aplicar migraciones desde una ejecución controlada: `npm run db:migrate:prod`. Si no existe consola o comando de predespliegue, resolver con el proveedor un mecanismo de ejecución antes de publicar; no agregar un endpoint web que ejecute migraciones.
-6. Arrancar la aplicación y asociar el dominio o subdominio con HTTPS desde el panel.
-7. Verificar la página, `/api/health` y `/api/ready` desde el dominio asignado.
+6. Ejecutar `npm run db:check:prod` y crear la primera cuenta con `npm run admin:create:prod`, desde una terminal interactiva. No hay contraseñas predeterminadas. Las variables del panel web pueden no heredarse en SSH; verificar ese entorno sin mostrar valores sensibles. Ver [etapa 2](etapa-2.md).
+7. Arrancar la aplicación y asociar el dominio o subdominio con HTTPS desde el panel.
+8. Verificar la página, `/api/health`, `/api/ready`, ingreso, navegación y cierre de sesión desde el dominio asignado.
 
 No introducir credenciales en GitHub, frontend ni scripts. No se incorporan migraciones al comando start.
 

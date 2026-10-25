@@ -2,13 +2,17 @@ import { existsSync } from 'node:fs';
 import { extname, resolve } from 'node:path';
 import express, { type ErrorRequestHandler } from 'express';
 import type { HealthResponse, ReadinessResponse, ApiError } from '@erp/shared';
+import { authRouter } from './auth/routes.js';
+import type { AuthService } from './auth/service.js';
 
 interface AppOptions {
   checkDatabase: () => Promise<void>;
   webDist?: string;
+  auth?: AuthService;
+  secureCookie?: boolean;
 }
 
-export function createApp({ checkDatabase, webDist }: AppOptions) {
+export function createApp({ checkDatabase, webDist, auth, secureCookie = false }: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '64kb' }));
@@ -24,6 +28,7 @@ export function createApp({ checkDatabase, webDist }: AppOptions) {
       res.status(503).json({ status: 'error', database: 'unavailable' } satisfies ReadinessResponse);
     }
   });
+  if (auth) app.use('/api/auth', authRouter(auth, secureCookie));
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Recurso no encontrado.' } satisfies ApiError);
   });

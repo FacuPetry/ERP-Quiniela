@@ -16,3 +16,16 @@ export interface ApiError {
 /** Los importes y BIGINT se transportan como texto para preservar precisión. */
 export type DecimalAmount = string;
 export type RecordId = string;
+
+export interface CurrentUser {
+  id: RecordId;
+  nombre: string;
+  email: string;
+  rol: { codigo: string; nombre: string };
+}
+
+export interface SessionResponse {
+  usuario: CurrentUser;
+  csrfToken: string;
+  venceEn: string;
+}

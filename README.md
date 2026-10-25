@@ -2,15 +2,15 @@
 
 Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa se implementa, se comprueba y se revisa antes de continuar.
 
-## Estado: etapa 1
+## Estado: etapa 2
 
-Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL, esquema Drizzle y migraciones de las **21 tablas acordadas**. La pantalla inicial comprueba la comunicación con la API y MySQL. No hay ABM, acceso de usuarios ni operaciones financieras disponibles todavía.
+Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Agrega acceso de usuarios, sesiones persistentes y menú lateral adaptable. Los módulos comerciales muestran su alcance; los ABM y las operaciones financieras se desarrollarán en próximas entregas.
 
 ## Requisitos
 
 - Node.js 24 LTS y npm 11.
 - Docker con Compose para MySQL local y pruebas de integración. No se necesita Docker en Hostinger ni en las computadoras de los usuarios finales.
-- Alternativamente, MySQL 8 con una base propia y permisos para crear tablas e índices.
+- Alternativamente, MySQL 8 o MariaDB 11.8.9 con una base propia y permisos para crear tablas e índices.
 
 ## Inicio local
 
@@ -22,6 +22,7 @@ npm run env:local
 npm run db:up
 npm run db:migrate
 npm run db:check
+npm run admin:create
 npm run dev
 ```
 
@@ -29,7 +30,7 @@ npm run dev
 
 La interfaz de desarrollo se abre en el puerto **5173**. La API utiliza el **3000** y MySQL local el **3307**; se pueden cambiar en `.env`. Vite envía `/api` a Express.
 
-Usar el botón **Verificar conexión**: aplicación, servidor y base de datos deben aparecer disponibles. Los puertos de la interfaz y de la API pueden necesitar reenvío si se trabaja en una máquina remota.
+`admin:create` solicita nombre, correo y contraseña oculta de la primera cuenta. No hay claves predeterminadas y no se modifican usuarios existentes. Ingresar con esos datos y usar **Verificar conexión** desde Inicio o Estado del sistema. Los puertos de la interfaz y de la API pueden necesitar reenvío si se trabaja en una máquina remota.
 
 Para usar una base propia, copiar `.env.example` a `.env` y completar las variables DB antes de migrar. No ejecutar `db:up` en ese caso. No usar una base que comparta datos con otra aplicación.
 
@@ -38,12 +39,14 @@ Para usar una base propia, copiar `.env.example` a `.env` y completar las variab
 ```sh
 npm run check
 npm run test:integration
+npm run test:integration:mariadb
 ```
 
-- `check`: TypeScript, pruebas HTTP y construcción completa.
+- `check`: TypeScript, pruebas de acceso y HTTP, y construcción completa.
 - `test:integration`: inicia otro contenedor MySQL con base, puerto y credenciales efímeros; aplica migraciones y comprueba relaciones, precisión, rollback y API. Elimina únicamente ese contenedor al terminar. No escribe en la base de desarrollo ni en producción.
 - `db:check`: comprueba la conexión, versión, capitalización de tablas y cantidad de tablas de aplicación.
 - `db:migrate`: aplica solo migraciones pendientes. No crea usuarios, comprobantes ni movimientos de ejemplo.
+- `test:integration:mariadb`: ejecuta la integración aislada con MariaDB 11.8.9, la versión informada por Hostinger.
 
 Se utiliza MySQL real; las pruebas de integración no lo sustituyen por SQLite ni por mocks. La ejecución debe fallar si no puede arrancar su base aislada.
 
@@ -52,6 +55,8 @@ Se utiliza MySQL real; las pruebas de integración no lo sustituyen por SQLite n
 ```sh
 npm run build
 npm run db:migrate:prod
+npm run db:check:prod
+npm run admin:create:prod
 npm start
 ```
 
@@ -69,6 +74,6 @@ Antes de iniciar, configurar `NODE_ENV=production`, `HOST=0.0.0.0`, `PORT` y las
 | `scripts` | Configuración local y ejecución de integración |
 | `docs` | Arquitectura, alcance y despliegue |
 
-Ver [alcance de la etapa](docs/etapa-1.md), [arquitectura](docs/arquitectura.md) y [modelo de datos](docs/modelo.md).
+Ver [etapa 1](docs/etapa-1.md), [etapa 2 y primera cuenta](docs/etapa-2.md), [arquitectura](docs/arquitectura.md) y [modelo de datos](docs/modelo.md).
 
 Para detener MySQL sin borrar sus datos: `npm run db:stop`. Para detener el desarrollo: Ctrl+C. No borrar el volumen de MySQL para solucionar errores de migración sobre una base con datos.
