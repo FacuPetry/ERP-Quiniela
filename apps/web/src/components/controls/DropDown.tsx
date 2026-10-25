@@ -259,7 +259,7 @@ function Selection({
         </svg>
       </button>
       {name && (
-        <input type="hidden" name={name} value={value} disabled={disabled} />
+        <input type="hidden" name={name} value={value} disabled={unavailable} />
       )}
       {expanded &&
         createPortal(
@@ -270,7 +270,8 @@ function Selection({
             aria-label={trigger.current?.labels?.[0]?.textContent ?? "Opciones"}
             className="dropdown-options"
             style={position}
-            onPointerDown={(event) => event.preventDefault()}
+            // Evita trasladar el foco con el mouse sin bloquear el scroll táctil.
+            onMouseDown={(event) => event.preventDefault()}
           >
             {visible.length ? (
               visible.map((option, index) => (
@@ -281,8 +282,9 @@ function Selection({
                   aria-selected={value === option.value}
                   aria-disabled={Boolean(option.disabled)}
                   className={`dropdown-option ${active === index ? "is-active" : ""}`}
-                  onPointerMove={() => {
-                    if (!option.disabled) setActive(index);
+                  onPointerMove={(event) => {
+                    if (event.pointerType === "mouse" && !option.disabled)
+                      setActive(index);
                   }}
                   onClick={() => choose(index)}
                 >
