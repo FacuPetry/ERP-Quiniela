@@ -13,7 +13,7 @@ export interface MasterField {
   required?: boolean;
   kind?: "email" | "textarea" | "relation";
   relation?: MasterKey;
-  /** Campo de la entidad relacionada que se muestra en el listado, sin sustituir la FK. */
+  /** Texto de la entidad relacionada. Definirlo para toda relación mostrada en una grilla. */
   relationLabelField?: string;
 }
 export interface MasterDefinition {
@@ -136,6 +136,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 20,
         kind: "relation",
         relation: "bancos",
+        relationLabelField: "Nombre",
       },
       nombre,
       { name: "Titular", label: "Titular", required: true, maxLength: 150 },
