@@ -3,7 +3,7 @@ import type { MasterDefinition, MasterDetail, MasterRecord } from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
-import { TextBox, TextArea } from "../controls";
+import { TextBox, TextArea, CheckBox } from "../controls";
 
 export function MasterForm({
   master,
@@ -284,15 +284,14 @@ export function MasterForm({
                 />
               );
             })}
-            <label className="checkbox-field">
-              <input
-                type="checkbox"
-                checked={record.Activo}
-                disabled={busy || readOnly}
-                onChange={(event) => change("Activo", event.target.checked)}
-              />
-              Registro activo
-            </label>
+            <CheckBox
+              id="master-Activo"
+              label="Registro activo"
+              value={record.Activo}
+              disabled={busy || readOnly}
+              wide
+              onValueChange={(next) => change("Activo", next)}
+            />
           </div>
         </div>
       </form>

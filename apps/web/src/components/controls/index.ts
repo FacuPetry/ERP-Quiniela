@@ -6,3 +6,5 @@ export { TextArea } from "./TextArea";
 export type { TextAreaProps } from "./TextArea";
 export { DropDown } from "./DropDown";
 export type { DropDownProps, DropDownOption } from "./DropDown";
+export { CheckBox } from "./CheckBox";
+export type { CheckBoxProps } from "./CheckBox";
