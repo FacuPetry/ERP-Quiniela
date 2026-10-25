@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./masters.css";
+@import "./controls.css";
 
 :root {
   font-family:

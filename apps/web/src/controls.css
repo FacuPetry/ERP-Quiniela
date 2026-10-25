@@ -1,0 +1,17 @@
+:root {
+  --control-border: #dbe3d5;
+  --control-background: #fff;
+  --control-text: #274833;
+  --control-focus: #6d9b80;
+  --control-radius: 7px;
+  --control-height: 40px;
+}
+.base-field { min-width: 0; }
+.base-field > label { display: block; font-size: 11px; font-weight: 600; color: #546b51; margin-bottom: 8px; }
+.base-control { width: 100%; min-height: var(--control-height); border: 1px solid var(--control-border); border-radius: var(--control-radius); padding: 9px 11px; background: var(--control-background); color: var(--control-text); font: inherit; font-size: 12px; }
+.base-control::placeholder { color: #8b9783; }
+.base-control:focus-visible { outline: 3px solid var(--control-focus); outline-offset: 3px; }
+.base-control[readonly] { background: #f3f5ef; color: #819074; }
+.base-control:disabled { cursor: not-allowed; opacity: .65; }
+.base-control[aria-invalid=true] { border-color: #b96e54; }
+.base-control.base-textarea { min-height: 0; resize: none; overflow-y: auto; }
