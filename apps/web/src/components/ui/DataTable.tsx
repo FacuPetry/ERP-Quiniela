@@ -16,6 +16,7 @@ export function DataTable<T>({
   columns,
   rows,
   rowKey,
+  rowLabel = rowKey,
   loading,
   actions,
   selectedKey = null,
@@ -28,6 +29,8 @@ export function DataTable<T>({
   columns: readonly TableColumn<T>[];
   rows: readonly T[];
   rowKey: (row: T) => string;
+  /** Etiqueta legible de selección; la clave interna no necesita exponerse. */
+  rowLabel?: (row: T) => string;
   loading: boolean;
   actions?: (row: T) => ReactNode;
   selectedKey?: string | null;
@@ -98,7 +101,7 @@ export function DataTable<T>({
                         className="row-selector sr-only"
                         type="radio"
                         name={selectionGroup}
-                        aria-label={`Seleccionar ${rowKey(row)}`}
+                        aria-label={`Seleccionar ${rowLabel(row)}`}
                         checked={selectedKey === rowKey(row)}
                         disabled={loading || selectionDisabled}
                         onChange={() => onSelectionChange?.(rowKey(row))}

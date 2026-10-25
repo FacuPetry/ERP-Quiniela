@@ -5,7 +5,7 @@ import type {
   MasterRecord,
   MasterField,
 } from "@erp/shared";
-import { integerFieldError } from "@erp/shared";
+import { integerFieldError, masterFormFields } from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
@@ -44,7 +44,7 @@ export function MasterForm({
   const form = useRef<HTMLFormElement>(null);
   const summary = useRef<HTMLDivElement>(null);
   const identity = master.primaryKey ?? "Codigo";
-  const generatedId = master.primaryKey === "IDTabla";
+  const visibleFields = masterFormFields(master);
   const automatic = Boolean(master.automaticCode && !previous);
   const formId = useId();
   const [suggestionLoading, setSuggestionLoading] = useState(automatic);
@@ -79,7 +79,7 @@ export function MasterForm({
   useInitialFieldFocus(form, heading);
   function focusError(fields: Record<string, string>) {
     requestAnimationFrame(() => {
-      const first = master.fields.find((field) => fields[field.name]);
+      const first = visibleFields.find((field) => fields[field.name]);
       if (first) document.getElementById(`master-${first.name}`)?.focus();
       else summary.current?.focus();
     });
@@ -92,9 +92,8 @@ export function MasterForm({
     event.preventDefault();
     if (busy || readOnly) return;
     const invalid: Record<string, string> = {};
-    for (const field of master.fields) {
-      if ((automatic || generatedId) && field.name === identity && !previous)
-        continue;
+    for (const field of visibleFields) {
+      if (automatic && field.name === "Codigo" && !previous) continue;
       const text = String(record[field.name] ?? "").trim();
       if (field.required && !text) invalid[field.name] = "Completá este campo.";
       else if (text.length > field.maxLength)
@@ -154,7 +153,7 @@ export function MasterForm({
     const required = Boolean(
       field.required &&
         !readOnly &&
-        !((automatic || generatedId) && field.name === identity && !previous),
+        !(automatic && field.name === "Codigo" && !previous),
     );
     const value = String(record[field.name] ?? "");
     const hint =
@@ -164,8 +163,6 @@ export function MasterForm({
         ) : (
           field.hint
         )
-      ) : generatedId ? (
-        "Identificador asignado automáticamente; no es el número del comprobante."
       ) : automatic ? (
         <>
           Código sugerido. El definitivo se confirma al guardar y puede cambiar
@@ -241,18 +238,15 @@ export function MasterForm({
         disabled={disabled}
         readOnly={
           locked ||
-          (field.name === identity &&
-            (Boolean(previous) || automatic || generatedId))
+          (field.name === identity && (Boolean(previous) || automatic))
         }
         inputMode={field.kind === "integer" ? "numeric" : undefined}
         placeholder={
-          generatedId && field.name === identity && !previous
-            ? "Se asignará al guardar"
-            : automatic && field.name === "Codigo"
-              ? suggestionLoading
-                ? "Consultando código…"
-                : "Código no disponible"
-              : undefined
+          automatic && field.name === "Codigo"
+            ? suggestionLoading
+              ? "Consultando código…"
+              : "Código no disponible"
+            : undefined
         }
         onValueChange={(next) => change(field.name, next)}
       />
@@ -319,7 +313,7 @@ export function MasterForm({
               {error}
               {Object.values(errors).some(Boolean) && (
                 <ul>
-                  {master.fields
+                  {visibleFields
                     .filter((field) => errors[field.name])
                     .map((field) => (
                       <li key={field.name}>
@@ -331,7 +325,7 @@ export function MasterForm({
             </div>
           )}
           <div className="form-grid">
-            {master.fields.map((field, index) =>
+            {visibleFields.map((field, index) =>
               index === 0 ? (
                 <div className="form-identity-row" key={field.name}>
                   {renderField(field)}

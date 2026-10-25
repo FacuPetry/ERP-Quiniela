@@ -65,3 +65,7 @@ Durante esta entrega pasaron `npm run check` (TypeScript, las 18 pruebas existen
 Incorporar el PR a `main` y desplegar en Hostinger con la configuración actual. Esta entrega no requiere migraciones, variables nuevas ni instalar dependencias adicionales.
 
 DatePicker y SF siguen pendientes de definir e implementar. El campo nativo de fecha que admite FilterDialog sigue disponible mediante Field; no se lo presenta como un DatePicker nuevo. Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF deberán recibir su fuente de datos y configuración desde el módulo.
+
+## Identificadores internos en los ABM
+
+Los formularios y grillas compartidos excluyen IDTabla mediante masterFormFields y masterListColumns. La PK se conserva en el estado y en las solicitudes de modificación, sin crear un campo oculto de formulario ni exponerla en los textos de selección o eliminación. Codigo conserva su presentación y funcionamiento. En Numerador el primer campo visible es Comprobante; el foco inicial espera su carga sin quitarle el foco al usuario si ya comenzó a navegar. Los módulos con formularios propios también deben mantener IDTabla exclusivamente interno.

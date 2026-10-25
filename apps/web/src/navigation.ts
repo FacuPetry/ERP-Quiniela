@@ -73,7 +73,7 @@ export const modules: {
   },
   {
     path: "/numeraciones",
-    title: "Numeración por comprobante",
+    title: "Numerador",
     group: "Maestros",
     icon: "file",
     description: "Series y correlativos de los comprobantes.",

@@ -6,7 +6,11 @@ import type {
   MasterRecord,
   SessionResponse,
 } from "@erp/shared";
-import { masterRecordKey } from "@erp/shared";
+import {
+  masterRecordKey,
+  masterRecordLabel,
+  masterListColumns,
+} from "@erp/shared";
 import { deleteMaster, getMaster, listMasters } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { DataTable, type TableColumn } from "../ui/DataTable";
@@ -178,7 +182,7 @@ export function MasterPage({
     requestAnimationFrame(() => listHeading.current?.focus());
   }
   const columns: TableColumn<MasterRecord>[] = [
-    ...master.columns.map((key) => ({
+    ...masterListColumns(master).map((key) => ({
       key,
       label: master.fields.find((field) => field.name === key)!.label,
       render: (row: MasterRecord) => {
@@ -275,6 +279,7 @@ export function MasterPage({
         columns={columns}
         rows={error ? [] : (data?.registros ?? [])}
         rowKey={(row) => masterRecordKey(master, row)}
+        rowLabel={(row) => masterRecordLabel(master, row, data?.descripciones)}
         loading={listBusy}
         emptyMessage={
           !hasRequestedList
@@ -292,7 +297,7 @@ export function MasterPage({
       />
       <span className="sr-only" role="status">
         {selectedRecord
-          ? `Registro seleccionado: ${masterRecordKey(master, selectedRecord)}.`
+          ? `Registro seleccionado: ${masterRecordLabel(master, selectedRecord, data?.descripciones)}.`
           : "Ningún registro seleccionado."}
       </span>
       {hasRequestedList && data && (
@@ -328,6 +333,11 @@ export function MasterPage({
         <DeleteDialog
           master={master}
           detail={deleting}
+          label={masterRecordLabel(
+            master,
+            deleting.registro,
+            data?.descripciones,
+          )}
           csrf={session.csrfToken}
           onClose={() => setDeleting(null)}
           onDeleted={() => returnToList(true)}
@@ -341,6 +351,7 @@ export function MasterPage({
 function DeleteDialog({
   master,
   detail,
+  label,
   csrf,
   onClose,
   onDeleted,
@@ -348,6 +359,7 @@ function DeleteDialog({
 }: {
   master: MasterDefinition;
   detail: MasterDetail;
+  label: string;
   csrf: string;
   onClose: () => void;
   onDeleted: () => void;
@@ -377,15 +389,19 @@ function DeleteDialog({
     <Modal title={`Eliminar ${master.singular}`} onClose={onClose} busy={busy}>
       <div className="modal-body">
         <p>
-          Vas a eliminar el registro{" "}
-          <strong>{masterRecordKey(master, detail.registro)}</strong> ·{" "}
-          {String(
-            detail.registro.Nombre ??
-              detail.registro.Descripcion ??
-              detail.registro.Serie ??
-              "",
+          Vas a eliminar el registro <strong>{label}</strong>
+          {master.primaryKey === "IDTabla" ? "." : " · "}{" "}
+          {master.primaryKey !== "IDTabla" && (
+            <>
+              {String(
+                detail.registro.Nombre ??
+                  detail.registro.Descripcion ??
+                  detail.registro.Serie ??
+                  "",
+              )}
+              .
+            </>
           )}
-          .
         </p>
         <p className="muted small">
           La eliminación es permanente. Si el registro está utilizado por otros

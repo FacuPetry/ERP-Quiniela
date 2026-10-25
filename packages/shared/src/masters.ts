@@ -125,7 +125,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
   },
   numeraciones: {
     key: "numeraciones",
-    title: "Numeración por comprobante",
+    title: "Numerador",
     singular: "numeración",
     feminine: true,
     primaryKey: "IDTabla",
@@ -163,7 +163,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         hint: "Guardar la configuración no consume números. Debe superar los números ya utilizados.",
       },
     ],
-    columns: ["IDTabla", "Comprobante", "Serie", "ProximoNumero"],
+    columns: ["Comprobante", "Serie", "ProximoNumero"],
   },
   "tipos-cliente": {
     key: "tipos-cliente",
@@ -276,6 +276,33 @@ export function masterRecordKey(
   record: MasterRecord,
 ): string {
   return String(record[master.primaryKey ?? "Codigo"]);
+}
+
+/** IDTabla permanece en el contrato y la persistencia, nunca en la presentación del ABM. */
+export function masterFormFields(
+  master: MasterDefinition,
+): readonly MasterField[] {
+  return master.fields.filter((field) => field.name !== "IDTabla");
+}
+
+export function masterListColumns(master: MasterDefinition): readonly string[] {
+  return master.columns.filter((name) => name !== "IDTabla");
+}
+
+export function masterRecordLabel(
+  master: MasterDefinition,
+  record: MasterRecord,
+  descriptions?: MasterList["descripciones"],
+): string {
+  if (master.primaryKey !== "IDTabla") return masterRecordKey(master, record);
+  const values = masterListColumns(master)
+    .slice(0, 2)
+    .map((name) => {
+      const value = String(record[name] ?? "");
+      return descriptions?.[name]?.[value] ?? value;
+    })
+    .filter(Boolean);
+  return values.join(" · ") || master.singular;
 }
 
 /** Valida enteros como texto, sin redondear BIGINT mediante Number. */

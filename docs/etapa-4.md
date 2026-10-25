@@ -1,4 +1,4 @@
-# Etapa 4: Comprobantes y Numeración por comprobante
+# Etapa 4: Comprobantes y Numerador
 
 Dos ABM independientes en Maestros, sobre las tablas existentes COMPROBANTE y NUMERACION. No se agregan tablas, migraciones, dependencias ni variables de entorno. No se cargan ejemplos en la base del negocio.
 
@@ -32,11 +32,11 @@ Ejemplos orientativos para probar, no registros automáticos:
 | C | Cobro | Cobros y pagos | Cobrar | Crédito | Ingreso |
 | P | Pago | Cobros y pagos | Pagar | Crédito | Egreso |
 
-## Numeración por comprobante
+## Numerador
 
 | Campo | Presentación y alcance |
 |---|---|
-| IDTabla | PK automática; no es el número del comprobante y no se edita |
+| IDTabla | PK automática exclusivamente interna; no se muestra en formularios, grillas ni confirmaciones |
 | Comprobante | FK a COMPROBANTE.Codigo; selector de comprobantes activos |
 | Serie | Nombre de la serie, obligatorio, hasta 10 caracteres |
 | ProximoNumero | Entero positivo; el alta propone 1 |
@@ -57,6 +57,8 @@ La modificación bloquea la fila de NUMERACION dentro de la transacción y verif
 
 ## Interfaz y API compartidas
 
+IDTabla permanece en el contrato de la API y en la persistencia, pero se excluye de la presentación desde la base compartida de formularios y grillas. Las etiquetas de selección y la confirmación de baja usan datos legibles del registro. Codigo sigue visible en los maestros que lo utilizan. El menú y el título del módulo muestran Numerador; la tabla y las rutas no cambian.
+
 Ambos módulos reutilizan MasterPage, MasterForm, DataTable, filtros, paginación y los controles visuales existentes. Se extendió la configuración del ABM para admitir listas de opciones, enteros y PK IDTabla; no se rediseñaron los controles. Se conservan carga manual, selección, doble clic, foco inicial, orden de teclado, estado junto a la identidad y ausencia de mensajes de éxito.
 
 API: `/api/maestros/comprobantes` y `/api/maestros/numeraciones`, con los mismos métodos y filtros `q`, `estado`, `pagina` y `limite` de los demás maestros. Numeraciones también acepta `referencia` con el código del comprobante. Los detalles y escrituras de numeraciones usan IDTabla en la URL y en el cuerpo de modificación; no incorporan un campo Codigo ficticio. Los detalles de series utilizadas agregan `camposSoloLectura` sin modificar los datos almacenados ni su versión.
@@ -67,7 +69,7 @@ Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y ver
 
 1. En Maestros → Comprobantes, comprobar que la grilla comienza vacía. Usar Agregar para crear un comprobante con las opciones de la tabla anterior. Guardar vuelve al listado sin consultar si aún no se solicitó la grilla.
 2. Presionar Actualizar: deben mostrarse las etiquetas de los enums. Hacer doble clic y modificar la descripción. Verificar filtros, estado y conservación del código.
-3. En Maestros → Numeración por comprobante, agregar una serie A asociada al comprobante. Identificador debe ser de solo lectura y Próximo número debe proponer 1.
+3. En Maestros → Numerador, agregar una serie A asociada al comprobante. El formulario debe comenzar en Comprobante, sin campo Identificador ni IDTabla; Próximo número debe proponer 1. Para usar la serie en Cuenta corriente, utilizar una serie numérica, por ejemplo 0001.
 4. Guardar y actualizar. Debe aparecer la descripción del comprobante. Volver a abrir: el próximo número sigue en 1. Crear la serie B del mismo comprobante; intentar repetir A debe informar el duplicado sin guardar.
 5. Modificar el próximo número de una serie sin movimientos, desactivarla y consultar el filtro de inactivos. Se puede eliminar una serie sin referencias. Intentar eliminar su comprobante mientras conserve series debe explicar que está utilizado.
 6. Revisar los ABM anteriores: carga manual, alta de clientes, referencias, edición y navegación siguen disponibles.
