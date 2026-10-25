@@ -3,7 +3,7 @@ import type { MasterDefinition, MasterDetail, MasterRecord } from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
-import { Field, TextBox, TextArea } from '../controls';
+import { TextBox, TextArea } from "../controls";
 
 export function MasterForm({
   master,
@@ -202,20 +202,87 @@ export function MasterForm({
             {master.fields.map((field) => {
               const id = `master-${field.name}`;
               const disabled = busy || readOnly;
-              const required = Boolean(field.required && !readOnly && !(automatic && field.name === 'Codigo'));
-              const value = String(record[field.name] ?? '');
-              const hint = field.name !== 'Codigo' ? undefined : automatic ? <>
-                Código sugerido. El definitivo se confirma al guardar y puede cambiar si otro usuario registra un cliente antes.
-                {suggestionError && <div className="reference-error"><span role="alert">{suggestionError}</span><button type="button" onClick={() => setSuggestionRevision(current => current + 1)}>Reintentar sugerencia</button></div>}
-              </> : previous && !readOnly ? 'El código se conserva para mantener sus relaciones.' : undefined;
-              const presentation = { id, label: field.label, required, invalid: Boolean(errors[field.name]), error: errors[field.name], hint, wide: field.kind === 'textarea' };
-              if (field.kind === 'relation') return <Field key={field.name} {...presentation}>{binding =>
-                <ReferenceSelect field={field} id={binding.id} value={value} disabled={disabled} invalid={Boolean(errors[field.name])} onChange={next => change(field.name, next)} onExpired={onExpired} />
-              }</Field>;
-              if (field.kind === 'textarea') return <TextArea key={field.name} {...presentation} value={value} maxLength={field.maxLength} disabled={disabled} onValueChange={next => change(field.name, next)} />;
-              return <TextBox key={field.name} {...presentation} type={field.kind === 'email' ? 'email' : 'text'} value={value} maxLength={field.maxLength} disabled={disabled} readOnly={field.name === 'Codigo' && (Boolean(previous) || automatic)}
-                placeholder={automatic && field.name === 'Codigo' ? suggestionLoading ? 'Consultando código…' : 'Código no disponible' : undefined}
-                onValueChange={next => change(field.name, next)} />;
+              const required = Boolean(
+                field.required &&
+                  !readOnly &&
+                  !(automatic && field.name === "Codigo"),
+              );
+              const value = String(record[field.name] ?? "");
+              const hint =
+                field.name !== "Codigo" ? undefined : automatic ? (
+                  <>
+                    Código sugerido. El definitivo se confirma al guardar y
+                    puede cambiar si otro usuario registra un cliente antes.
+                    {suggestionError && (
+                      <div className="reference-error">
+                        <span role="alert">{suggestionError}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSuggestionRevision((current) => current + 1)
+                          }
+                        >
+                          Reintentar sugerencia
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : previous && !readOnly ? (
+                  "El código se conserva para mantener sus relaciones."
+                ) : undefined;
+              const presentation = {
+                id,
+                label: field.label,
+                required,
+                invalid: Boolean(errors[field.name]),
+                error: errors[field.name],
+                hint,
+                wide: field.kind === "textarea",
+              };
+              if (field.kind === "relation")
+                return (
+                  <ReferenceSelect
+                    key={field.name}
+                    {...presentation}
+                    field={field}
+                    value={value}
+                    disabled={disabled}
+                    onChange={(next) => change(field.name, next)}
+                    onExpired={onExpired}
+                  />
+                );
+              if (field.kind === "textarea")
+                return (
+                  <TextArea
+                    key={field.name}
+                    {...presentation}
+                    value={value}
+                    maxLength={field.maxLength}
+                    disabled={disabled}
+                    onValueChange={(next) => change(field.name, next)}
+                  />
+                );
+              return (
+                <TextBox
+                  key={field.name}
+                  {...presentation}
+                  type={field.kind === "email" ? "email" : "text"}
+                  value={value}
+                  maxLength={field.maxLength}
+                  disabled={disabled}
+                  readOnly={
+                    field.name === "Codigo" && (Boolean(previous) || automatic)
+                  }
+                  placeholder={
+                    automatic && field.name === "Codigo"
+                      ? suggestionLoading
+                        ? "Consultando código…"
+                        : "Código no disponible"
+                      : undefined
+                  }
+                  onValueChange={(next) => change(field.name, next)}
+                />
+              );
             })}
             <label className="checkbox-field">
               <input
