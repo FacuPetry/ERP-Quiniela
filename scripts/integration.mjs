@@ -47,7 +47,7 @@ try {
     } catch { await delay(1000); }
   }
   if (!ready) throw new Error('MySQL de prueba no estuvo disponible dentro del tiempo previsto.');
-  const child = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/integration/database.test.ts'], {
+  const child = spawn(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/integration/database.test.ts', 'tests/integration/masters.test.ts'], {
     cwd: root,
     stdio: 'inherit',
     env: { ...process.env, NODE_ENV: 'test', DB_HOST: '127.0.0.1', DB_PORT: String(port), DB_NAME: 'erp_quiniela_test', DB_USER: 'erp', DB_PASSWORD: password, DB_SSL: 'false', TEST_DATABASE_ISOLATED: '1' },

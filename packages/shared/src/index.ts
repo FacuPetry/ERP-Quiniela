@@ -1,4 +1,5 @@
 /** Contratos HTTP; no contienen acceso a datos ni configuración sensible. */
+export * from './masters.js';
 export interface HealthResponse {
   status: 'ok';
   service: 'erp-quiniela-api';

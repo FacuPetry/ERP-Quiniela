@@ -1,6 +1,6 @@
 # Preparación para Hostinger
 
-El usuario confirmó que su contratación permite aplicaciones Node.js sin upgrade. Esta guía prepara el despliegue; no acredita una publicación ya realizada ni acceso a su hPanel.
+El usuario confirmó que su contratación permite aplicaciones Node.js sin upgrade y verificó la etapa 2 publicada: conexión, 21 tablas, creación del administrador e ingreso. Codex no tiene acceso a su hPanel ni a sus credenciales.
 
 ## Aplicación
 
@@ -48,6 +48,8 @@ DB_ROOT_PASSWORD, Docker y WEB_PORT no son requisitos de producción. No subir e
 No introducir credenciales en GitHub, frontend ni scripts. No se incorporan migraciones al comando start.
 
 ## Actualizaciones
+
+La [etapa 3](etapa-3.md) utiliza las tablas existentes. No agrega migraciones ni requiere volver a crear el administrador: desplegar el código e ingresar con la cuenta existente.
 
 Comprobar pruebas y build antes de publicar. Respaldar la base antes de migraciones sobre datos reales, aplicar cambios pendientes y reiniciar. Un rollback de código no revierte automáticamente una migración de MySQL: revisar compatibilidad y procedimiento de recuperación antes del cambio.
 

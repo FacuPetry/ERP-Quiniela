@@ -2,9 +2,9 @@
 
 Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa se implementa, se comprueba y se revisa antes de continuar.
 
-## Estado: etapa 2
+## Estado: etapa 3
 
-Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Agrega acceso de usuarios, sesiones persistentes y menú lateral adaptable. Los módulos comerciales muestran su alcance; los ABM y las operaciones financieras se desarrollarán en próximas entregas.
+Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Dispone de acceso de usuarios, sesiones persistentes, menú adaptable y ABM de tipos de cliente, clientes, conceptos, cajas, bancos y cuentas bancarias. Comprobantes, numeración y las operaciones financieras se incorporarán en próximas entregas.
 
 ## Requisitos
 
@@ -74,6 +74,6 @@ Antes de iniciar, configurar `NODE_ENV=production`, `HOST=0.0.0.0`, `PORT` y las
 | `scripts` | Configuración local y ejecución de integración |
 | `docs` | Arquitectura, alcance y despliegue |
 
-Ver [etapa 1](docs/etapa-1.md), [etapa 2 y primera cuenta](docs/etapa-2.md), [arquitectura](docs/arquitectura.md) y [modelo de datos](docs/modelo.md).
+Ver [etapa 1](docs/etapa-1.md), [etapa 2 y primera cuenta](docs/etapa-2.md), [etapa 3 y prueba de ABM](docs/etapa-3.md), [arquitectura](docs/arquitectura.md) y [modelo de datos](docs/modelo.md).
 
 Para detener MySQL sin borrar sus datos: `npm run db:stop`. Para detener el desarrollo: Ctrl+C. No borrar el volumen de MySQL para solucionar errores de migración sobre una base con datos.

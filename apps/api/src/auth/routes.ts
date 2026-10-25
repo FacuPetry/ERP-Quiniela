@@ -5,7 +5,7 @@ import { sessionLifetimeMs, type AuthService } from "./service.js";
 
 export const sessionCookieName = "erp_sesion";
 
-function readToken(req: Request) {
+export function readToken(req: Request) {
   const cookies = (req.headers.cookie ?? "")
     .split(";")
     .map((value) => value.trim());
@@ -18,7 +18,7 @@ function readToken(req: Request) {
 }
 
 // No se habilita CORS. El encabezado propio exige preflight desde otros orígenes.
-const requireApplicationRequest: RequestHandler = (req, res, next) => {
+export const requireApplicationRequest: RequestHandler = (req, res, next) => {
   if (
     req.get("X-ERP-Request") !== "1" ||
     !req.is("application/json") ||
