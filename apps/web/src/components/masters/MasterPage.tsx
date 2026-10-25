@@ -265,7 +265,7 @@ export function MasterPage({
         loading={listBusy}
         emptyMessage={
           !hasRequestedList
-            ? "Todavía no se realizó ninguna búsqueda. Aplicá filtros o usá Actualizar listado para ver registros."
+            ? "No hay registros para mostrar."
             : error
               ? "No se pudo completar la búsqueda. Intentá actualizar el listado."
               : undefined
