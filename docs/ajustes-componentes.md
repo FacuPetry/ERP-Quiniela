@@ -30,6 +30,8 @@ MasterForm sigue reemplazando al listado dentro del módulo. Su toolbar superior
 
 Guardar correctamente actualiza la lista. Cancelar vuelve sin escribir y conserva búsqueda, filtros, página y selección si siguen siendo válidos. Las validaciones permanecen junto a los campos y en un resumen con foco; no abren modales ni borran los valores ingresados. Los modales se reservan para filtros y confirmación de baja.
 
+Las altas, modificaciones y bajas correctas no muestran un aviso de éxito: se actualizan los datos de la grilla, sin recargar toda la página. Agregar mantiene el ícono blanco al pasar el ratón, cambiando únicamente el fondo verde; Modificar usa un lápiz simple y Actualizar una flecha circular. La posible sustitución de las validaciones por un modal agrupado sigue pendiente de revisión y no se implementa en este ajuste.
+
 Los botones habilitados utilizan cursor de puntero. Los deshabilitados indican que la acción no está disponible, sin cursor de espera. Esto corrige Anterior/Siguiente en los límites de paginación; los límites y el bloqueo durante una carga se mantienen.
 
 ## Código sugerido y definitivo de CLIENTE

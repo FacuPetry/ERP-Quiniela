@@ -35,7 +35,6 @@ export function MasterPage({
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [view, setView] = useState<{ detail?: MasterDetail } | null>(null);
   const [deleting, setDeleting] = useState<MasterDetail | null>(null);
@@ -134,7 +133,6 @@ export function MasterPage({
     if (!selectedRecord || busy) return;
     setBusy(true);
     setError("");
-    setNotice("");
     try {
       const detail = await getMaster(master.key, selectedRecord.Codigo);
       if (!mounted.current) return;
@@ -153,12 +151,11 @@ export function MasterPage({
       if (mounted.current) setBusy(false);
     }
   }
-  function returnToList(message?: string) {
+  function returnToList(refresh = false) {
     setView(null);
     setDeleting(null);
-    if (message) {
+    if (refresh) {
       setSelected(null);
-      setNotice(message);
       setRevision((value) => value + 1);
     }
     requestAnimationFrame(() => listHeading.current?.focus());
@@ -191,13 +188,7 @@ export function MasterPage({
         csrf={session.csrfToken}
         readOnly={!canWrite}
         onClose={() => returnToList()}
-        onSaved={(detail) =>
-          returnToList(
-            master.automaticCode && !view.detail
-              ? `Cliente creado correctamente. Código: ${detail.registro.Codigo}.`
-              : "Registro guardado correctamente.",
-          )
-        }
+        onSaved={() => returnToList(true)}
         onExpired={expired}
       />
     );
@@ -230,7 +221,6 @@ export function MasterPage({
           readOnly={!canWrite}
           filtersActive={filtersActive}
           onAdd={() => {
-            setNotice("");
             setView({});
           }}
           onEdit={() => {
@@ -244,11 +234,6 @@ export function MasterPage({
           refreshing={loading}
         />
       </div>
-      {notice && (
-        <p className="notice success" role="status">
-          {notice}
-        </p>
-      )}
       {error && (
         <p className="notice error" role="alert">
           {error}
@@ -300,7 +285,7 @@ export function MasterPage({
           detail={deleting}
           csrf={session.csrfToken}
           onClose={() => setDeleting(null)}
-          onDeleted={() => returnToList("Registro eliminado correctamente.")}
+          onDeleted={() => returnToList(true)}
           onExpired={expired}
         />
       )}

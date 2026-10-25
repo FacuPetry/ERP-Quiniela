@@ -429,6 +429,7 @@
 }
 .action-toolbar .action-add:hover {
   background: #163d2e;
+  color: #fff;
 }
 .action-toolbar .action-icon:disabled {
   cursor: default;
