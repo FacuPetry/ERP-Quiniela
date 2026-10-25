@@ -39,4 +39,6 @@ Ninguna variable DB tiene prefijo `VITE_`: las variables de base no deben incorp
 
 Estos dos endpoints de disponibilidad son públicos y no exponen datos financieros. La etapa 2 agrega `POST /api/auth/login`, `GET /api/auth/me` y `POST /api/auth/logout`. El servidor consulta SESION, USUARIO y ROL; las sesiones duran ocho horas y se transportan en una cookie HttpOnly, Secure en producción y SameSite=Lax. No se habilita CORS ni se guardan credenciales en localStorage. Ver [etapa 2](etapa-2.md).
 
-El límite de ingresos vive en memoria por proceso; reiniciar lo restablece. Sin confiar en encabezados de proxy arbitrarios, la dirección de conexión puede agrupar usuarios del mismo proxy. Si se escala a múltiples procesos, revisar límites compartidos y la topología del proxy. Los permisos por operación se implementarán con cada módulo; todavía no existen endpoints de datos de negocio.
+El límite de ingresos vive en memoria por proceso; reiniciar lo restablece. Sin confiar en encabezados de proxy arbitrarios, la dirección de conexión puede agrupar usuarios del mismo proxy. Si se escala a múltiples procesos, revisar límites compartidos y la topología del proxy.
+
+La etapa 3 agrega `/api/maestros` para seis tablas existentes. Los servicios se organizan en rutas/validación y un repositorio que concentra SQL parametrizado, transacciones y auditoría. Los usuarios activos consultan; ADMIN puede escribir, con CSRF. El cliente comparte tabla, paginación, modal y formularios, y un único cliente HTTP. Ver [etapa 3](etapa-3.md). No existen todavía endpoints financieros.

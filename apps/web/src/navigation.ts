@@ -46,6 +46,14 @@ export const modules: {
       "Los cheques conservarán su identidad e historial. Cheques y transferencias se almacenarán en tablas separadas.",
   },
   {
+    path: "/tipos-cliente",
+    title: "Tipos de cliente",
+    group: "Maestros",
+    icon: "users",
+    description: "Clasificación de las cuentas comerciales.",
+    detail: "",
+  },
+  {
     path: "/clientes",
     title: "Clientes",
     group: "Maestros",
@@ -74,12 +82,20 @@ export const modules: {
   },
   {
     path: "/bancos",
-    title: "Bancos y cuentas",
+    title: "Bancos",
     group: "Maestros",
     icon: "bank",
     description: "Bancos, cuentas bancarias y billeteras propias.",
     detail:
       "Estos maestros serán la referencia para las transferencias y los movimientos bancarios.",
+  },
+  {
+    path: "/cuentas-bancarias",
+    title: "Cuentas bancarias",
+    group: "Maestros",
+    icon: "bank",
+    description: "Cuentas bancarias y billeteras propias.",
+    detail: "",
   },
   {
     path: "/conceptos",

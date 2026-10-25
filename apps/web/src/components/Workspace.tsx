@@ -5,12 +5,13 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import type { SessionResponse } from "@erp/shared";
+import { masterDefinitions, type SessionResponse } from "@erp/shared";
 import { modules, navigate, usePath } from "../navigation";
 import { logout } from "../services/auth";
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
+import { MasterPage } from "./masters/MasterPage";
 
 function AppLink({
   path,
@@ -68,6 +69,9 @@ export function Workspace({
   const menuButton = useRef<HTMLButtonElement | null>(null);
   const heading = useRef<HTMLHeadingElement | null>(null);
   const module = modules.find((item) => item.path === path);
+  const master = Object.values(masterDefinitions).find(
+    (item) => "/" + item.key === path,
+  );
   const isHome = path === "/" || path === "/inicio";
   const isStatus = path === "/sistema";
   const isAccount = path === "/mi-cuenta";
@@ -77,7 +81,7 @@ export function Workspace({
       ? "Estado del sistema"
       : isAccount
         ? "Mi cuenta"
-        : (module?.title ?? "Página no encontrada");
+        : (master?.title ?? module?.title ?? "Página no encontrada");
   const group = module?.group ?? (isHome ? "General" : "Sistema");
 
   useEffect(() => {
@@ -217,7 +221,7 @@ export function Workspace({
         </nav>
         <div className="sidebar-footer">
           <span className="status-dot online" />
-          <span className="nav-label">Etapa 2 · Acceso y navegación</span>
+          <span className="nav-label">Etapa 3 · Tablas maestras</span>
         </div>
       </aside>
       <div className="workspace-body" inert={mobileOpen}>
@@ -286,7 +290,8 @@ export function Workspace({
               <p className="muted">
                 {isHome
                   ? "Bienvenido a tu espacio de administración."
-                  : (module?.description ??
+                  : (master?.description ??
+                    module?.description ??
                     (isStatus
                       ? "Comprobá la disponibilidad de los servicios."
                       : isAccount
@@ -317,8 +322,8 @@ export function Workspace({
                   </span>
                   <h2>Todo empieza con una buena base.</h2>
                   <p>
-                    Tu sesión está activa. Ya podés recorrer los módulos y
-                    verificar el estado de la aplicación.
+                    Administrá los datos de tus clientes, cajas y bancos desde
+                    las tablas maestras del sistema.
                   </p>
                   <AppLink path="/mi-cuenta" className="text-link">
                     Ver mi cuenta <Icon name="arrow" size={17} />
@@ -360,6 +365,24 @@ export function Workspace({
                         </span>
                       </AppLink>
                     ))}
+                </div>
+              </section>
+              <section
+                className="master-shortcuts"
+                aria-label="Tablas maestras disponibles"
+              >
+                <h2>Datos del negocio</h2>
+                <div>
+                  {Object.values(masterDefinitions).map((item) => (
+                    <AppLink
+                      key={item.key}
+                      path={"/" + item.key}
+                      className="button secondary"
+                    >
+                      {item.title}
+                      <Icon name="arrow" size={15} />
+                    </AppLink>
+                  ))}
                 </div>
               </section>
               <ServiceStatus />
@@ -414,6 +437,13 @@ export function Workspace({
                 {busy ? "Cerrando sesión…" : "Cerrar sesión"}
               </button>
             </section>
+          ) : master ? (
+            <MasterPage
+              key={master.key}
+              master={master}
+              session={session}
+              onExpired={onLogout}
+            />
           ) : module ? (
             <section className="panel module-empty">
               <span className="empty-icon">
@@ -445,7 +475,7 @@ export function Workspace({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 2 · Acceso y navegación</span>
+            <span>Etapa 3 · Tablas maestras</span>
           </footer>
         </main>
       </div>
