@@ -3,7 +3,6 @@ import type {
   CurrentAccountDetail,
   CurrentAccountList,
   CurrentAccountRecord,
-  MasterRecord,
   SessionResponse,
 } from "@erp/shared";
 import {
@@ -18,7 +17,6 @@ import { ActionToolbar } from "../ui/ActionToolbar";
 import { Modal } from "../ui/Modal";
 import { initialListFilters } from "../ui/filter-defaults";
 import { TextBox, DropDown, TextArea, DatePicker } from "../controls";
-import { ClientSearch } from "./ClientSearch";
 import { CurrentAccountForm } from "./CurrentAccountForm";
 import { CurrentAccountProperties } from "./CurrentAccountProperties";
 import "./current-account.css";
@@ -30,7 +28,6 @@ function amount(value: string) {
 }
 const emptyFilters: Record<string, string> = {
   q: "",
-  Cliente: "",
   Cuenta: "",
   Estado: "TODOS",
   Desde: "",
@@ -44,9 +41,8 @@ export function CurrentAccountPage({
   onExpired: () => void;
 }) {
   const [filters, setFilters] = useState(() =>
-      initialListFilters(emptyFilters, ["Desde", "Hasta"], "Estado"),
-    ),
-    [client, setClient] = useState<MasterRecord | null>(null);
+    initialListFilters(emptyFilters, ["Desde", "Hasta"], "Estado"),
+  );
   const [page, setPage] = useState(1),
     [revision, setRevision] = useState(0),
     [requested, setRequested] = useState(false);
@@ -307,12 +303,9 @@ export function CurrentAccountPage({
       {filtering && (
         <AccountFilters
           values={filters}
-          client={client}
           onClose={() => setFiltering(false)}
-          onExpired={expired}
-          onApply={(values, selectedClient) => {
+          onApply={(values) => {
             setFilters(values);
-            setClient(selectedClient);
             setPage(1);
             setSelected(null);
             refresh();
@@ -326,22 +319,14 @@ export function CurrentAccountPage({
 }
 function AccountFilters({
   values,
-  client,
   onApply,
   onClose,
-  onExpired,
 }: {
   values: Record<string, string>;
-  client: MasterRecord | null;
-  onApply: (
-    values: Record<string, string>,
-    client: MasterRecord | null,
-  ) => void;
+  onApply: (values: Record<string, string>) => void;
   onClose: () => void;
-  onExpired: () => void;
 }) {
   const [draft, setDraft] = useState({ ...values }),
-    [selected, setSelected] = useState(client),
     [reset, setReset] = useState(0);
   const change = (key: string, value: string) =>
     setDraft((v) => ({ ...v, [key]: value }));
@@ -350,10 +335,7 @@ function AccountFilters({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          onApply(
-            { ...draft, Cliente: selected ? String(selected.Codigo) : "" },
-            selected,
-          );
+          onApply(draft);
         }}
       >
         <div className="modal-body">
@@ -363,14 +345,6 @@ function AccountFilters({
               value={draft.q ?? ""}
               onValueChange={(v) => change("q", v)}
               maxLength={100}
-            />
-            <ClientSearch
-              key={reset}
-              label="Cliente"
-              value={selected}
-              onChange={setSelected}
-              onExpired={onExpired}
-              historical
             />
             <DropDown
               label="Cuenta"
@@ -408,7 +382,6 @@ function AccountFilters({
             className="button secondary"
             onClick={() => {
               setDraft({ ...emptyFilters });
-              setSelected(null);
               setReset((v) => v + 1);
             }}
           >
