@@ -1,12 +1,18 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
-  formatVoucherNumber,
+  voucherNumberError,
   type CurrentAccountDetail,
   type CurrentAccountInput,
   type CurrentAccountOptions,
   type MasterRecord,
 } from "@erp/shared";
-import { TextBox, DropDown, TextArea, Field } from "../controls";
+import {
+  TextBox,
+  DropDown,
+  TextArea,
+  Field,
+  NumeroComprobante,
+} from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 import { ClientSearch } from "./ClientSearch";
 import { accountOptions, createAccount } from "../../services/current-account";
@@ -28,7 +34,7 @@ export function CurrentAccountForm({
   const [client, setClient] = useState<MasterRecord | null>(null);
   const [options, setOptions] = useState<CurrentAccountOptions>({
     comprobantes: [],
-    numeraciones: [],
+    numeradores: [],
   });
   const [loading, setLoading] = useState(!previous),
     [revision, setRevision] = useState(0);
@@ -37,8 +43,7 @@ export function CurrentAccountForm({
       ? {
           Cliente: previous.Cliente,
           Comprobante: previous.Comprobante,
-          Numeracion: previous.Numeracion,
-          NumeroComprobante: previous.NumeroComprobante,
+          NumeroComprobante: previous.NumeroComprobante ?? "0",
           FechaOrigen: previous.FechaOrigen,
           Vencimiento: previous.Vencimiento,
           Importe: previous.Importe,
@@ -47,8 +52,7 @@ export function CurrentAccountForm({
       : {
           Cliente: "",
           Comprobante: "",
-          Numeracion: null,
-          NumeroComprobante: "",
+          NumeroComprobante: "0",
           FechaOrigen: new Intl.DateTimeFormat("sv-SE", {
             timeZone: "America/Argentina/Buenos_Aires",
           }).format(new Date()),
@@ -72,7 +76,17 @@ export function CurrentAccountForm({
     setError("");
     void accountOptions(request.signal)
       .then((data) => {
-        if (!request.signal.aborted) setOptions(data);
+        if (!request.signal.aborted) {
+          setOptions(data);
+          if (input.Comprobante)
+            setInput((current) => ({
+              ...current,
+              NumeroComprobante:
+                data.numeradores.find(
+                  (n) => n.Comprobante === input.Comprobante,
+                )?.ProximoNumero ?? "0",
+            }));
+        }
       })
       .catch((e) => {
         if (request.signal.aborted) return;
@@ -88,7 +102,7 @@ export function CurrentAccountForm({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [previous, revision, onExpired]);
+  }, [previous, revision, onExpired, input.Comprobante]);
   const voucher = options.comprobantes.find(
     (v) => v.Codigo === input.Comprobante,
   );
@@ -97,7 +111,6 @@ export function CurrentAccountForm({
       const name = [
         "Cliente",
         "Comprobante",
-        "Numeracion",
         "NumeroComprobante",
         "FechaOrigen",
         "Vencimiento",
@@ -110,7 +123,6 @@ export function CurrentAccountForm({
   const labels: Record<string, string> = {
     Cliente: "Cliente",
     Comprobante: "Comprobante",
-    Numeracion: "Numerador",
     NumeroComprobante: "Número de comprobante",
     FechaOrigen: "Fecha de origen",
     Vencimiento: "Vencimiento",
@@ -141,6 +153,8 @@ export function CurrentAccountForm({
       "Importe",
     ] as const)
       if (!payload[name]) invalid[name] = "Completá este campo.";
+    const numberError = voucherNumberError(payload.NumeroComprobante);
+    if (numberError) invalid.NumeroComprobante = numberError;
     if (Object.keys(invalid).length) {
       setErrors(invalid);
       setError("Revisá los campos indicados.");
@@ -279,74 +293,34 @@ export function CurrentAccountForm({
                   setInput((current) => ({
                     ...current,
                     Comprobante: value,
-                    Numeracion: null,
-                    NumeroComprobante: "",
+                    NumeroComprobante: "0",
                   }))
                 }
               />
             )}
-            {!previous && (
-              <DropDown
-                label="Numerador"
-                {...presentation("Numeracion")}
-                value={input.Numeracion ?? ""}
+            {previous && previous.NumeroComprobante === null ? (
+              <TextBox
+                label="Número de comprobante"
+                value="Sin número"
+                readOnly
+                onValueChange={() => {}}
+              />
+            ) : (
+              <NumeroComprobante
+                {...presentation("NumeroComprobante")}
+                label="Número de comprobante"
+                value={input.NumeroComprobante}
+                required={!previous}
+                readOnly={Boolean(previous)}
                 disabled={busy || loading}
-                options={[
-                  { value: "", label: "Sin Numerador · ingreso manual" },
-                  ...options.numeraciones
-                    .filter((n) => n.Comprobante === input.Comprobante)
-                    .map((n) => ({
-                      value: n.IDTabla,
-                      label: `Serie ${n.Serie} · ${BigInt(n.ProximoNumero) <= 99999999n ? "Próximo " + formatVoucherNumber(n.Serie, n.ProximoNumero) : "Sin sugerencia de ocho dígitos"}`,
-                    })),
-                ]}
-                onValueChange={(value) => {
-                  const series = options.numeraciones.find(
-                    (n) => n.IDTabla === value,
-                  );
-                  setInput((current) => ({
-                    ...current,
-                    Numeracion: value || null,
-                    NumeroComprobante:
-                      series && BigInt(series.ProximoNumero) <= 99999999n
-                        ? formatVoucherNumber(
-                            series.Serie,
-                            series.ProximoNumero,
-                          )
-                        : "",
-                  }));
-                }}
-                hint="Opcional. Solo se ofrecen series numéricas de hasta cuatro dígitos. El número sugerido se puede ajustar; el definitivo se confirma al guardar."
+                onValueChange={(value) => change("NumeroComprobante", value)}
+                hint={
+                  !previous
+                    ? "El próximo número se sugiere automáticamente si el comprobante tiene un numerador activo. Podés editar ambas partes antes de guardar."
+                    : undefined
+                }
               />
             )}
-            <TextBox
-              {...presentation("NumeroComprobante")}
-              label="Número de comprobante"
-              value={input.NumeroComprobante}
-              required={!previous}
-              readOnly={Boolean(previous)}
-              disabled={busy}
-              placeholder="0000-00000000"
-              maxLength={13}
-              onValueChange={(value) => change("NumeroComprobante", value)}
-              onBlur={() => {
-                if (!previous && /^\d{1,8}$/.test(input.NumeroComprobante))
-                  change(
-                    "NumeroComprobante",
-                    formatVoucherNumber(
-                      options.numeraciones.find(
-                        (n) => n.IDTabla === input.Numeracion,
-                      )?.Serie ?? "0000",
-                      input.NumeroComprobante,
-                    ),
-                  );
-              }}
-              hint={
-                !previous
-                  ? "Sin Numerador el prefijo es 0000. Podés ingresar los ocho dígitos finales y salir del campo para completar el formato."
-                  : undefined
-              }
-            />
             {(["FechaOrigen", "Vencimiento"] as const).map((name) => (
               <Field
                 key={name}

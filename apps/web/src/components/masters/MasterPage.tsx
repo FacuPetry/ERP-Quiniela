@@ -7,6 +7,7 @@ import type {
   SessionResponse,
 } from "@erp/shared";
 import {
+  formatVoucher,
   masterRecordKey,
   masterRecordLabel,
   masterListColumns,
@@ -190,10 +191,13 @@ export function MasterPage({
         const option = master.fields
           .find((field) => field.name === key)
           ?.options?.find((item) => item.value === row[key]);
+        const field = master.fields.find((field) => field.name === key);
         const value =
-          typeof description === "string" && description
-            ? description
-            : (option?.label ?? row[key]);
+          field?.kind === "voucher"
+            ? formatVoucher(String(row[key]))
+            : typeof description === "string" && description
+              ? description
+              : (option?.label ?? row[key]);
         return (
           <span
             className={

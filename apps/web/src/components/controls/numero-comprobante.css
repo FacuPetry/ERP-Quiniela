@@ -1,0 +1,50 @@
+.base-control.voucher-control {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.voucher-control input {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  margin: 0;
+  padding: 9px 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  border-radius: 0;
+}
+.voucher-control .voucher-point {
+  flex: 0 0 calc(4ch + 11px);
+  width: calc(4ch + 11px);
+  padding-left: 11px;
+  text-align: right;
+}
+.voucher-control .voucher-counter {
+  flex: 1;
+  width: 8ch;
+  padding-right: 11px;
+  text-align: left;
+}
+.voucher-control span {
+  margin: 0;
+  padding: 0;
+}
+.voucher-control:focus-within {
+  outline: 3px solid var(--control-focus);
+  outline-offset: 3px;
+}
+.voucher-control[data-readonly] {
+  background: #f3f5ef;
+  color: #819074;
+}
+.voucher-control[data-disabled] {
+  opacity: 0.65;
+}
+.voucher-control[data-disabled] input {
+  cursor: not-allowed;
+}

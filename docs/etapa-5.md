@@ -1,6 +1,6 @@
 # Etapa 5: Cuenta corriente y SF
 
-Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. No hay migraciones, tablas, campos ni variables de entorno nuevos. No se modifican las configuraciones guardadas de Comprobantes o Numerador.
+Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. La revisión actual requiere la migración `0002_numero_comprobante_completo`; ver [actualización segura](numeracion-comprobantes.md). No agrega tablas ni variables de entorno. La configuración funcional de COMPROBANTE no cambia.
 
 ## Alcance acordado
 
@@ -9,7 +9,7 @@ Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. N
 - Anulación con motivo, usuario y fecha, conservando el movimiento y su número.
 - Sin edición ni eliminación de movimientos guardados: para corregir, anular y cargar uno nuevo.
 - Numerador opcional; su número es una sugerencia editable antes de guardar.
-- Formato de comprobante `0000-00000000`. Sin Numerador, prefijo fijo `0000` y correlativo ingresado manualmente, de 1 a 99999999.
+- Formato de comprobante `0000-00000000`. Sin Numerador se completan manualmente ambas partes. El punto admite 0 a 9999 y el correlativo 1 a 99999999.
 
 No se registran fondos, cobros, pagos ni afectaciones desde esta pantalla. Las aplicaciones de créditos a deudas, el pendiente individual por documento y las cancelaciones se mantienen pendientes para sus etapas. Un crédito reduce el saldo neto de la cuenta; esta entrega no lo vincula automáticamente a una deuda concreta.
 
@@ -30,22 +30,22 @@ Cuenta y Naturaleza se copian al movimiento desde el comprobante al guardar. Cam
 
 ## Numeración
 
-En la tabla se mantiene Numero como correlativo y Numeracion como FK opcional. El texto formateado se construye en la API; no se guarda el guion ni se agrega Serie a CUENTACORRIENTE.
+CUENTACORRIENTE almacena únicamente NumeroComprobante como BIGINT sin signo, sin FK Numeracion ni columna Serie. El valor es `punto × 100000000 + correlativo`: `0001-00000025` equivale a `100000025`. Los NULL históricos se conservan y se presentan como «Sin número»; las altas nuevas requieren número válido.
 
-- Sin Numerador: Numeracion NULL, prefijo visible 0000 y número manual.
-- Con Numerador: se elige una serie activa del comprobante. Se proponen sus cuatro dígitos y el próximo número, editable antes de guardar. Se admiten series numéricas de una a cuatro cifras, completadas con ceros; por ejemplo, 1 se presenta como 0001.
-- Las series alfabéticas o de más de cuatro cifras permanecen en Numerador, pero no se ofrecen para emitir en este formato. Una serie cuyo próximo número exceda ocho cifras no ofrece sugerencia válida; se puede elegir un número manual válido y no utilizado dentro de esa serie.
-- El usuario puede ingresar únicamente el correlativo de hasta ocho cifras y salir del campo para completar el formato, o escribir el formato completo. Sin Numerador debe conservar 0000; con Numerador debe respetar el prefijo seleccionado.
-- Abrir el formulario o consultar opciones no reserva ni consume números.
-- Al confirmar, el backend controla duplicados por comprobante, prefijo y número, incluidos anulados y series equivalentes como 1/0001. El mismo número con otro comprobante es independiente.
-- El Numerador seleccionado avanza dentro de la misma transacción: nunca retrocede y queda por encima de los números utilizados en esa serie. Si dos usuarios eligen el mismo número sugerido, una carga gana y la otra recibe el conflicto para elegir otro; no se cambia silenciosamente el número ingresado.
-- El modo manual y una serie configurada como 0000 comparten el espacio de números. También se comprueban los números existentes de CAJAMOVIMIENTO.
+- Al seleccionar un comprobante, se consulta internamente su Numerador activo y se propone su próximo número completo. No hay selector de Numerador.
+- Sin configuración activa, se muestran dos partes en cero para completar manualmente. Ambas partes son editables también cuando existe una sugerencia.
+- El control NumeroComprobante tiene dos inputs unidos, completa ceros al salir y admite pegar el formato completo. Abrirlo o consultar opciones no reserva ni consume números.
+- Al confirmar, se impiden duplicados por comprobante y número completo, incluidos anulados, comprobando CUENTACORRIENTE y CAJAMOVIMIENTO.
+- Se bloquea la fila del Numerador y se utiliza GET_LOCK por base, comprobante canónico y punto antes de la transacción. La clave única en cada tabla refuerza la integridad. Las futuras escrituras de Cobros y pagos deben usar este mismo protocolo.
+- Si se conserva el punto sugerido, el próximo número avanza al menos hasta el mayor utilizado más uno, sin retroceder. Si se cambia el punto, la carga es manual y no altera la configuración original.
+- Si dos usuarios guardan el mismo número, solo uno confirma; el otro recibe un conflicto y debe elegir otro número. No se reemplaza silenciosamente el ingresado.
+- Al confirmar el correlativo 99999999 en el punto del Numerador, se conserva su valor y se desactiva. No se incrementa automáticamente el punto de venta.
 
-Como la clave única existente admite NULL en Numeracion, el modo manual utiliza además GET_LOCK por base, código canónico de comprobante y prefijo antes de comenzar la transacción y comprobar duplicados. Con Numerador se bloquea también su fila. Las futuras escrituras de Cobros y pagos deben respetar este mismo protocolo para números compartidos con Cuenta corriente y actualizar el Numerador dentro de su transacción.
+Los números históricos son independientes del Numerador y no cambian al modificarlo o eliminarlo. Ver [migración y reglas](numeracion-comprobantes.md).
 
 ## Formulario y listado
 
-Campos del alta: Cliente mediante SF, Comprobante, Numerador opcional, Número de comprobante, Fecha de origen, Vencimiento opcional, Cuenta y Naturaleza informativas, Importe y Observaciones. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan controles nativos con Field; no se crea un DatePicker personalizado en esta entrega.
+Campos del alta: Cliente mediante SF, Comprobante, Número de comprobante, Fecha de origen, Vencimiento opcional, Cuenta y Naturaleza informativas, Importe y Observaciones. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan controles nativos con Field; no se crea un DatePicker personalizado en esta entrega.
 
 El listado comienza sin consultar. Aplicar filtros o Actualizar solicita los datos; no hay refrescos periódicos. Los filtros incluyen búsqueda general, cliente con búsqueda histórica, cuenta, estado y rango de fechas. Se muestran descripciones de las referencias, número formateado y estado, sin IDTabla. Se consulta una fila por selección y el botón del ojo o por doble clic.
 
@@ -76,7 +76,7 @@ Los importes viajan como texto decimal y se suman en SQL DECIMAL. IDTabla y BIGI
 
 ## API
 
-- GET `/api/cuenta-corriente/opciones`: comprobantes compatibles y series activas; no emite números.
+- GET `/api/cuenta-corriente/opciones`: comprobantes compatibles y próximos números activos por comprobante; no emite números.
 - GET `/api/cuenta-corriente`: filtros q, Cliente, Comprobante, Cuenta, Estado, Desde, Hasta, pagina y limite.
 - GET `/api/cuenta-corriente/:id`: consulta y versión ETag.
 - POST `/api/cuenta-corriente`: alta; requiere Idempotency-Key.
@@ -84,22 +84,21 @@ Los importes viajan como texto decimal y se suman en SQL DECIMAL. IDTabla y BIGI
 
 ## Cómo probar
 
-1. En Comprobantes configurar Jugada, Crédito a favor y Premio como en la tabla. Opcionalmente crear en Numerador una serie 0001 del comprobante Jugada con próximo número 1.
-2. Entrar a Cuenta corriente: debe estar vacío y no consultar la grilla. Presionar Agregar y buscar un cliente por código o nombre con la lupa o Enter. Probar cero, una y varias coincidencias.
-3. Elegir Jugada, dejar Sin Numerador, escribir 1 en el número y salir del campo: debe mostrarse 0000-00000001. Registrar importe 100,25 y guardar.
-4. Actualizar y filtrar por ese cliente: Cobrar debe mostrar 100,25 y Pagar 0,00.
-5. Cargar Crédito a favor por 30,05: Cobrar queda en 70,20. Cargar Premio por 200: Pagar queda en 200,00, sin cambiar Cobrar.
-6. Cargar otra Jugada seleccionando la serie 0001. Verificar la sugerencia, ajustarla si se desea y guardar; abrir otro alta para comprobar el nuevo correlativo. Repetir el número con el mismo comprobante debe impedir el duplicado.
-7. Consultar por doble clic y comprobar que no hay Guardar ni campos IDTabla. Anular un movimiento con motivo: permanece como Anulado y deja de integrar su saldo; su número no puede reutilizarse.
-8. Navegar a otro módulo y volver: no se carga la grilla. Probar también en móvil y con un usuario de consulta.
-
-Publicación: fusionar el PR y desplegar en Hostinger con la configuración vigente. No ejecutar migraciones nuevas, recrear usuarios ni cambiar variables. No se cargan ejemplos ni se accede a la base del alojamiento durante las pruebas de Codex.
+1. Aplicar y comprobar la migración de numeración según la [guía de Hostinger](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger). No es suficiente que existan las 21 tablas si su estructura aún es la anterior.
+2. Configurar Jugada, Crédito a favor y Premio como en la tabla. En Numerador configurar Jugada con Próximo número `0001-00000025`.
+3. Entrar a Cuenta corriente: la grilla empieza vacía y no consulta hasta Actualizar o aplicar filtros. Agregar y buscar cliente mediante SF.
+4. Elegir Jugada: debe sugerir `0001-00000025` sin mostrar Numerador. Guardar importe 100,25, vencimiento igual a la fecha de origen y Observaciones vacío. Se conserva NULL en Observaciones y se guarda `100000025` como número.
+5. Actualizar y filtrar por cliente: Cobrar muestra 100,25 y Pagar 0,00. Otro alta de Jugada propone `0001-00000026`.
+6. Cambiar el correlativo sugerido a 50 y guardar: la próxima sugerencia será 51. Un número libre menor puede guardarse sin retroceder el Numerador. Un duplicado debe rechazarse.
+7. Cambiar manualmente el punto a 0002: el número se guarda con ese punto, sin modificar el próximo configurado para 0001. Con un comprobante sin Numerador, ambas partes empiezan en cero y se pueden completar libremente.
+8. Cargar Crédito a favor por 30,05 y Premio por 200: Cobrar queda 70,20 y Pagar 200,00. Consultar por doble clic y anular con motivo: se conserva la numeración y el número anulado no puede reutilizarse.
+9. Probar edición por teclado de las dos partes, pegado completo, usuario de consulta y móvil. Cambiar el Numerador no debe alterar los números ya guardados.
 
 ## Verificación
 
-`NODE_ENV=production npm run check`, integración en MySQL 8.4 y MariaDB 11.8.9 aislados y Chromium con API/base reales. Se verifican números manuales y sugeridos, concurrentes y anulados, idempotencia, rollback financiero ante fallas de auditoría, precisión de importes grandes, snapshots, permisos, saldos separados y el recorrido de SF. El runner ejecuta los archivos de integración en orden explícito para revisar la base vacía antes de insertar fixtures financieros.
+`NODE_ENV=production npm run check`, integración aislada en MySQL 8.4 y MariaDB 11.8.9 y Chromium con API/base reales. Se verifican sugerencias, edición, conflictos concurrentes, idempotencia, rollback, importes, permisos, saldos, búsqueda por número numérico y formateado, agotamiento sin cambio de punto y migración de registros históricos. Las bases de pruebas son efímeras y no utilizan la conexión de Hostinger.
 
-Resultado: tipos y compilación correctos, 22 comprobaciones unitarias/HTTP y 36 de integración por motor (94 en total, contando las pruebas contenedoras). Chromium verificó el recorrido financiero y la regresión de los maestros, sin errores de JavaScript ni desbordamiento de página en 320/375/768/1280 px. Todas las bases utilizadas fueron efímeras.
+Esto no identifica por sí solo la causa del fallo informado en la vista previa. Tras aplicar la migración allí, repetir el caso original; si continúa, obtener la referencia y el registro técnico según la sección de diagnóstico.
 
 ## Pendiente
 

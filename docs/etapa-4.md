@@ -1,6 +1,6 @@
 # Etapa 4: Comprobantes y Numerador
 
-Dos ABM independientes en Maestros, sobre las tablas existentes COMPROBANTE y NUMERACION. No se agregan tablas, migraciones, dependencias ni variables de entorno. No se cargan ejemplos en la base del negocio.
+Dos ABM independientes en Maestros, sobre COMPROBANTE y NUMERACION. La revisión actual incorpora la migración `0002_numero_comprobante_completo`: aplicar el [procedimiento de actualización](numeracion-comprobantes.md) antes de probarla. No agrega tablas, dependencias ni variables de entorno ni carga ejemplos en la base del negocio.
 
 ## Comprobantes
 
@@ -36,24 +36,18 @@ Ejemplos orientativos para probar, no registros automáticos:
 
 | Campo | Presentación y alcance |
 |---|---|
-| IDTabla | PK automática exclusivamente interna; no se muestra en formularios, grillas ni confirmaciones |
-| Comprobante | FK a COMPROBANTE.Codigo; selector de comprobantes activos |
-| Serie | Nombre de la serie, obligatorio, hasta 10 caracteres |
-| ProximoNumero | Entero positivo; el alta propone 1 |
-| Activo | Estado de la serie |
+| IDTabla | PK automática interna; no aparece en formularios ni grillas |
+| Comprobante | FK a COMPROBANTE.Codigo; un único numerador por comprobante |
+| ProximoNumero | BIGINT completo, presentado mediante el control de dos partes `0000-00000000` |
+| Activo | Habilita la sugerencia automática |
 
-Se admiten varias series por comprobante. La combinación Comprobante–Serie es única, incluso ante altas simultáneas. Se utiliza el índice existente, con mensaje específico ante duplicados. En la grilla se muestra la descripción actual del comprobante sin copiarla a NUMERACION; la FK sigue siendo su código. Una referencia que después se desactiva puede conservarse en una serie existente.
+No existe un campo Serie separado. El control comienza en ceros y exige un correlativo de 1 a 99999999 para guardar. Por ejemplo, `0001-00000025` se almacena como `100000025`. La grilla muestra la descripción del comprobante y el número completo formateado.
 
-Guardar o consultar esta configuración no consume números. Una serie sin movimientos puede cambiar su comprobante, nombre o próximo número, o eliminarse. Cuando está utilizada:
+Guardar la configuración no consume números. El próximo número de un numerador activo debe superar todos los utilizados en su comprobante y punto de venta, incluidos anulados, tanto en CUENTACORRIENTE como en CAJAMOVIMIENTO. La configuración y la emisión comparten el bloqueo por base, comprobante canónico y punto, además del bloqueo transaccional de la fila.
 
-- Comprobante y Serie se muestran bloqueados. La API también impide cambiarlos, aunque el uso haya comenzado después de abrir el formulario.
-- ProximoNumero debe superar el máximo de CUENTACORRIENTE y CAJAMOVIMIENTO que referencian esa numeración, incluidos los anulados.
-- No se permite eliminarla; puede desactivarse, manteniendo un próximo número válido.
-- Una referencia con número NULL también se considera uso a efectos de conservar la identidad.
+Los movimientos conservan su propio número completo, sin FK al Numerador. Por eso se puede modificar o eliminar la configuración sin cambiar números históricos. Una configuración inactiva puede conservar el último número agotado; para reactivarla se exige otro número válido y no utilizado. No se cambia de punto de venta automáticamente al agotar ocho cifras.
 
-La modificación bloquea la fila de NUMERACION dentro de la transacción y verifica la versión del registro, el uso y las referencias. La auditoría pertenece a la misma transacción. Los BIGINT se transmiten como texto decimal y se comparan con BigInt, sin convertirlos en Number; el límite es 9223372036854775807, según la columna existente. No se aplica el formato de cinco dígitos de CLIENTE a los números de comprobantes ni a IDTabla.
-
-La emisión de Cuenta corriente se incorpora en la [etapa 5](etapa-5.md), con Numerador opcional y bloqueo/actualización dentro de la transacción de confirmación. Las demás operaciones financieras siguen pendientes. No utilizar un MAX sin bloqueo ni reservar números al abrir formularios.
+Los BIGINT viajan como texto decimal y se calculan con BigInt. Ver las reglas completas y la conservación de datos en [Numeración de comprobantes](numeracion-comprobantes.md).
 
 ## Interfaz y API compartidas
 
@@ -61,34 +55,21 @@ IDTabla permanece en el contrato de la API y en la persistencia, pero se excluye
 
 Ambos módulos reutilizan MasterPage, MasterForm, DataTable, filtros, paginación y los controles visuales existentes. Se extendió la configuración del ABM para admitir listas de opciones, enteros y PK IDTabla; no se rediseñaron los controles. Se conservan carga manual, selección, doble clic, foco inicial, orden de teclado, estado junto a la identidad y ausencia de mensajes de éxito.
 
-API: `/api/maestros/comprobantes` y `/api/maestros/numeraciones`, con los mismos métodos y filtros `q`, `estado`, `pagina` y `limite` de los demás maestros. Numeraciones también acepta `referencia` con el código del comprobante. Los detalles y escrituras de numeraciones usan IDTabla en la URL y en el cuerpo de modificación; no incorporan un campo Codigo ficticio. Los detalles de series utilizadas agregan `camposSoloLectura` sin modificar los datos almacenados ni su versión.
+API: `/api/maestros/comprobantes` y `/api/maestros/numeraciones`, con los mismos métodos y filtros `q`, `estado`, `pagina` y `limite` de los demás maestros. Numeraciones también acepta `referencia` con el código del comprobante. Los detalles y escrituras de numeraciones usan IDTabla en la URL y en el cuerpo de modificación; no incorporan un campo Codigo ficticio. El detalle ya no bloquea campos por referencias históricas al Numerador: dichas referencias se eliminan mediante la migración.
 
 Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y versión If-Match, manteniendo los permisos existentes. SF se incorpora en la etapa 5; DatePicker sigue pendiente.
 
 ## Cómo probar
 
-1. En Maestros → Comprobantes, comprobar que la grilla comienza vacía. Usar Agregar para crear un comprobante con las opciones de la tabla anterior. Guardar vuelve al listado sin consultar si aún no se solicitó la grilla.
-2. Presionar Actualizar: deben mostrarse las etiquetas de los enums. Hacer doble clic y modificar la descripción. Verificar filtros, estado y conservación del código.
-3. En Maestros → Numerador, agregar una serie A asociada al comprobante. El formulario debe comenzar en Comprobante, sin campo Identificador ni IDTabla; Próximo número debe proponer 1. Para usar la serie en Cuenta corriente, utilizar una serie numérica, por ejemplo 0001.
-4. Guardar y actualizar. Debe aparecer la descripción del comprobante. Volver a abrir: el próximo número sigue en 1. Crear la serie B del mismo comprobante; intentar repetir A debe informar el duplicado sin guardar.
-5. Modificar el próximo número de una serie sin movimientos, desactivarla y consultar el filtro de inactivos. Se puede eliminar una serie sin referencias. Intentar eliminar su comprobante mientras conserve series debe explicar que está utilizado.
-6. Revisar los ABM anteriores: carga manual, alta de clientes, referencias, edición y navegación siguen disponibles.
+1. Aplicar primero la migración según la [guía](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger).
+2. Crear un comprobante y comprobar sus etiquetas, filtros y conservación del código al editarlo.
+3. En Numerador agregar una configuración asociada a ese comprobante y completar Próximo número `0001-00000025`. No deben aparecer Serie ni Identificador.
+4. Guardar y actualizar manualmente la grilla: se muestran la descripción del comprobante y `0001-00000025`. Intentar crear otro Numerador del mismo comprobante debe informar el duplicado.
+5. Verificar la sugerencia automática y el avance al confirmar movimientos en [Cuenta corriente](etapa-5.md#cómo-probar).
+6. Modificar el punto del Numerador o eliminarlo y comprobar que los movimientos ya guardados conservan su número. Intentar retroceder un numerador activo a un número ya utilizado en el mismo punto debe impedir el cambio.
 
-Las restricciones de series utilizadas se verifican con fixtures aislados, porque todavía no hay pantallas de emisión. No insertar movimientos manuales en producción para probarlas.
+## Publicación y verificación
 
-## Publicación
+Esta revisión requiere la migración de numeración. No recrear usuarios ni modificar las variables de entorno existentes. Ejecutar tipos, pruebas unitarias/HTTP, integración aislada en MySQL 8.4 y MariaDB 11.8.9 y build. Las pruebas incluyen concurrencia, conservación de registros previos y rechazos de migraciones incompatibles antes de DDL. El recorrido de Chromium verifica ambos ABM y Cuenta corriente con la biblioteca de controles existente.
 
-Fusionar el PR a main y desplegar en Hostinger con la configuración vigente. No hay migraciones nuevas ni hay que volver a crear la cuenta administradora o modificar variables de entorno. Los maestros y datos existentes se conservan.
-
-## Verificación
-
-- `NODE_ENV=production npm run check`: tipos, pruebas unitarias/HTTP y compilación.
-- `npm run test:integration`: MySQL 8.4 aislado.
-- `npm run test:integration:mariadb`: MariaDB 11.8.9 aislado.
-- Navegador Chromium: altas, edición, duplicados, etiquetas, referencias activas e históricas, BIGINT exactos, restricciones de series utilizadas, carga manual, permisos, navegación de los maestros anteriores y adaptación móvil.
-
-Resultado: pasaron las 22 comprobaciones unitarias/HTTP y las 28 de integración por cada motor (78 contando las pruebas contenedoras del runner), además de tipos y compilación. Chromium verificó los dos módulos y la regresión de Clientes y Cuentas bancarias; vistas de 320, 375, 768 y 1280 píxeles sin desbordamiento de página ni errores de JavaScript. Todas las bases utilizadas fueron efímeras; no se accedió a Hostinger.
-
-## Próxima etapa
-
-Cuenta corriente, incorporando SF para seleccionar clientes y definiendo el circuito de registro de obligaciones y créditos con los comprobantes configurados. Cobros/pagos y la emisión segura de números se desarrollarán junto con las operaciones correspondientes.
+Cobros/pagos, Tesorería y Valores siguen pendientes.

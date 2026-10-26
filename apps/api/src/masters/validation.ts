@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   integerFieldError,
+  voucherNumberError,
   masterDefinitions,
   type MasterDefinition,
 } from "@erp/shared";
@@ -65,15 +66,23 @@ export function recordSchema(master: MasterDefinition, creation = false) {
               (text) => field.options?.some((option) => option.value === text),
               "Seleccioná una opción válida.",
             )
-          : field.kind === "integer"
+          : field.kind === "voucher"
             ? value
                 .superRefine((text, context) => {
-                  const error = integerFieldError(field, text);
+                  const error = voucherNumberError(text);
                   if (error)
                     context.addIssue({ code: "custom", message: error });
                 })
-                .transform((text) => (text ? BigInt(text).toString() : text))
-            : value;
+                .transform((text) => BigInt(text).toString())
+            : field.kind === "integer"
+              ? value
+                  .superRefine((text, context) => {
+                    const error = integerFieldError(field, text);
+                    if (error)
+                      context.addIssue({ code: "custom", message: error });
+                  })
+                  .transform((text) => (text ? BigInt(text).toString() : text))
+              : value;
     fields[field.name] = field.required
       ? checked
       : checked

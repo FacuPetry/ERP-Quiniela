@@ -898,109 +898,77 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
     },
   );
   await t.test(
-    "Numeración: PK propia, varias series, unicidad concurrente y precisión BIGINT",
+    "Numerador único por comprobante: BIGINT completo, conflictos y auditoría",
     async () => {
-      const input = {
+      const saved = await create("numeraciones", {
         Comprobante: "PR_ET4",
-        Serie: "A",
-        ProximoNumero: "1",
-        Activo: true,
-      };
-      const saved = await create("numeraciones", input);
-      const id = String(saved.registro.IDTabla);
-      assert.ok(BigInt(id) >= 100000001n);
-      assert.equal(Object.hasOwn(saved.registro, "Codigo"), false);
-      assert.equal(saved.registro.ProximoNumero, "1");
-      assert.equal(
-        (await get("numeraciones/" + id)).registro.ProximoNumero,
-        "1",
-      );
-      assert.equal(
-        (await request("numeraciones", "POST", { ...input, IDTabla: "123" }))
-          .status,
-        400,
-      );
-      assert.equal(
-        (await request("numeraciones", "POST", { ...input, Codigo: "NO" }))
-          .status,
-        400,
-      );
-      assert.equal(
-        (
-          await request("numeraciones", "POST", {
-            ...input,
-            Comprobante: "NOEXISTE",
-          })
-        ).status,
-        400,
-      );
-      const simultaneous = await Promise.all([
-        request("numeraciones", "POST", { ...input, Serie: "B" }),
-        request("numeraciones", "POST", { ...input, Serie: "B" }),
-      ]);
-      assert.deepEqual(simultaneous.map((r) => r.status).sort(), [201, 409]);
-      const other = await create("numeraciones", {
-        ...input,
-        Serie: "MAX",
-        ProximoNumero: "9223372036854775807",
+        ProximoNumero: "100000025",
       });
-      const exact = await get("numeraciones/" + other.registro.IDTabla);
-      assert.equal(exact.registro.ProximoNumero, "9223372036854775807");
-      const modified = await update(
-        "numeraciones/" + id,
-        { ...saved.registro, ProximoNumero: "9007199254740993" },
-        saved.version,
-      );
-      assert.equal(modified.registro.ProximoNumero, "9007199254740993");
+      const id = String(saved.registro.IDTabla);
+      assert.equal(saved.registro.ProximoNumero, "100000025");
+      assert.equal(Object.hasOwn(saved.registro, "Serie"), false);
+      assert.equal(Object.hasOwn(saved.registro, "Codigo"), false);
+      const duplicates = await Promise.all([
+        request("numeraciones", "POST", {
+          Comprobante: "PR_ET4",
+          ProximoNumero: "200000001",
+          Activo: true,
+        }),
+        request("numeraciones", "POST", {
+          Comprobante: "PR_ET4",
+          ProximoNumero: "300000001",
+          Activo: true,
+        }),
+      ]);
+      assert.ok(duplicates.every((r) => r.status === 409));
       for (const ProximoNumero of [
         "0",
+        "100000000",
+        "1000000000000",
         "-1",
+        "0001-00000001",
         "1.1",
-        "1e3",
-        "9223372036854775808",
-        1,
       ])
         assert.equal(
           (
             await request("numeraciones", "POST", {
-              ...input,
-              Serie: "INVALIDA",
+              Comprobante: "PR_ET4",
               ProximoNumero,
+              Activo: true,
             })
           ).status,
           400,
+          ProximoNumero,
         );
-      assert.equal(
-        (
-          await request(
-            "numeraciones/" + id,
-            "PUT",
-            { ...modified.registro, IDTabla: "100000000" },
-            modified.version,
-          )
-        ).status,
-        400,
+      const invalid = await request("numeraciones", "POST", {
+        Comprobante: "PR_ET4",
+        ProximoNumero: "100000001",
+        Serie: "1",
+        Activo: true,
+      });
+      assert.equal(invalid.status, 400);
+      const before = await get("numeraciones/" + id);
+      const changed = await update(
+        "numeraciones/" + id,
+        { ...before.registro, ProximoNumero: "100000026" },
+        before.version,
       );
-      for (const key of ["0", "abc", "1e8", id + "x", "9223372036854775808"])
-        assert.equal((await request("numeraciones/" + key)).status, 400);
       assert.equal(
         (
           await request(
             "numeraciones/" + id,
             "PUT",
-            saved.registro,
-            saved.version,
+            before.registro,
+            before.version,
           )
         ).status,
         409,
       );
       const filtered = (await (
-        await request("numeraciones?referencia=PR_ET4&q=MAX")
+        await request("numeraciones?referencia=PR_ET4")
       ).json()) as MasterList;
       assert.equal(filtered.total, 1);
       assert.equal(filtered.descripciones?.Comprobante?.PR_ET4, "Premio");
-      assert.equal(filtered.registros[0]?.Comprobante, "PR_ET4");
-      assert.equal(filtered.registros[0]?.ProximoNumero, "9223372036854775807");
       assert.equal(
         (
           await request(
@@ -1012,233 +980,61 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         ).status,
         409,
       );
-      const read = await get("numeraciones/" + id);
-      const attempts = await Promise.all([
-        request(
-          "numeraciones/" + id,
-          "PUT",
-          { ...read.registro, ProximoNumero: "5" },
-          read.version,
-        ),
-        request(
-          "numeraciones/" + id,
-          "PUT",
-          { ...read.registro, ProximoNumero: "6" },
-          read.version,
-        ),
-      ]);
-      assert.deepEqual(attempts.map((r) => r.status).sort(), [200, 409]);
-      const unused = await get("numeraciones/" + other.registro.IDTabla);
-      const relabeled = await update(
-        "numeraciones/" + other.registro.IDTabla,
-        { ...unused.registro, Serie: "LIBRE", ProximoNumero: "1" },
-        unused.version,
-      );
-      assert.equal(
-        (
-          await request(
-            "numeraciones/" + other.registro.IDTabla,
-            "DELETE",
-            {},
-            relabeled.version,
-          )
-        ).status,
-        204,
-      );
-      const voucher = await get("comprobantes/PR_ET4");
-      await update(
-        "comprobantes/PR_ET4",
-        { ...voucher.registro, Activo: false },
-        voucher.version,
-      );
-      assert.equal(
-        (await request("numeraciones", "POST", { ...input, Serie: "INACTIVA" }))
-          .status,
-        400,
-      );
-      const preserved = await get("numeraciones/" + id);
-      await update(
-        "numeraciones/" + id,
-        { ...preserved.registro, ProximoNumero: "7" },
-        preserved.version,
-      );
-      const active = await get("comprobantes/PR_ET4");
-      await update(
-        "comprobantes/PR_ET4",
-        { ...active.registro, Descripcion: "Premio actualizado", Activo: true },
-        active.version,
-      );
-      const listed = (await (
-        await request("numeraciones?referencia=PR_ET4")
-      ).json()) as MasterList;
-      assert.equal(
-        listed.descripciones?.Comprobante?.PR_ET4,
-        "Premio actualizado",
-      );
-      const store = createMasterStore(pool);
-      await assert.rejects(
-        store.write(
-          masterDefinitions.numeraciones,
-          "ALTA",
-          { ...input, Serie: "REVERTIR", IDTabla: "" },
-          "",
-          "999999999999",
-        ),
-      );
-      const rolledBack = (await (
-        await request("numeraciones?q=REVERTIR")
-      ).json()) as MasterList;
-      assert.equal(rolledBack.total, 0);
-      const [audit] = await pool.execute<RowDataPacket[]>(
-        "SELECT Detalle FROM AUDITORIA WHERE Tabla = 'NUMERACION' AND Registro = ? AND Accion = 'ALTA'",
-        [id],
-      );
-      const detail =
-        typeof audit[0]?.Detalle === "string"
-          ? JSON.parse(audit[0].Detalle)
-          : audit[0]?.Detalle;
-      assert.equal(detail.Despues.IDTabla, id);
-      assert.equal(detail.Despues.ProximoNumero, "1");
+      assert.equal(changed.registro.ProximoNumero, "100000026");
     },
   );
-
   await t.test(
-    "Numeración utilizada: conserva identidad y supera todos los números, incluso anulados",
+    "Cambiar o borrar el Numerador no altera el número histórico; no se retrocede dentro del punto de venta",
     async () => {
-      const number = await create("numeraciones", {
-        Comprobante: "PR_ET4",
-        Serie: "USADA",
-        ProximoNumero: "11",
-      });
-      const id = String(number.registro.IDTabla);
-      const user = admin.session.usuario.id;
+      const number = (await (
+        await request("numeraciones?referencia=PR_ET4")
+      ).json()) as MasterList;
+      const id = String(number.registros[0]!.IDTabla);
       await pool.execute(
-        "INSERT INTO CUENTACORRIENTE (Cliente, Comprobante, Numeracion, Numero, FechaOrigen, Cuenta, Naturaleza, Importe, Estado, Usuario, CreadoEn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?)",
         [
           "00001",
           "PR_ET4",
-          id,
-          "10",
+          "100000050",
           "2026-10-25",
           "PAGAR",
           "DEUDA",
-          "100.00",
-          "CONFIRMADO",
-          user,
-          new Date(),
-        ],
-      );
-      await pool.execute(
-        "INSERT INTO CAJAMOVIMIENTO (Comprobante, Numeracion, Numero, FechaOrigen, ImporteTotal, Sentido, Estado, Usuario, CreadoEn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-          "PR_ET4",
-          id,
-          "9007199254740993",
-          "2026-10-25",
-          "100.00",
-          "EGRESO",
+          "10.00",
           "ANULADO",
-          user,
+          admin.session.usuario.id,
           new Date(),
         ],
       );
       const before = await get("numeraciones/" + id);
-      assert.deepEqual(before.camposSoloLectura, ["Comprobante", "Serie"]);
+      assert.equal(before.camposSoloLectura, undefined);
       assert.equal(
         (
           await request(
             "numeraciones/" + id,
             "PUT",
-            { ...before.registro, Serie: "OTRA" },
+            { ...before.registro, ProximoNumero: "100000050" },
             before.version,
           )
         ).status,
         409,
       );
-      assert.equal(
-        (
-          await request(
-            "numeraciones/" + id,
-            "PUT",
-            { ...before.registro, Comprobante: "OTRO" },
-            before.version,
-          )
-        ).status,
-        409,
-      );
-      for (const ProximoNumero of ["1", "10", "9007199254740993"]) {
-        const invalid = await request(
-          "numeraciones/" + id,
-          "PUT",
-          { ...before.registro, ProximoNumero },
-          before.version,
-        );
-        assert.equal(invalid.status, 409);
-        assert.match(
-          ((await invalid.json()) as { campos: { ProximoNumero: string } })
-            .campos.ProximoNumero,
-          /9007199254740993/,
-        );
-      }
-      const updated = await update(
+      const other = await update(
         "numeraciones/" + id,
-        {
-          ...before.registro,
-          ProximoNumero: "9007199254740994",
-          Activo: false,
-        },
+        { ...before.registro, ProximoNumero: "200000001" },
         before.version,
       );
-      assert.equal(updated.registro.ProximoNumero, "9007199254740994");
-      assert.equal(updated.registro.Activo, false);
       assert.equal(
-        (await request("numeraciones/" + id, "DELETE", {}, updated.version))
+        (await request("numeraciones/" + id, "DELETE", {}, other.version))
           .status,
-        409,
+        204,
       );
       const [rows] = await pool.execute<RowDataPacket[]>(
-        "SELECT Numero FROM CAJAMOVIMIENTO WHERE Numeracion = ?",
-        [id],
+        "SELECT NumeroComprobante FROM CUENTACORRIENTE WHERE Comprobante=?",
+        ["PR_ET4"],
       );
-      assert.equal(String(rows[0]?.Numero), "9007199254740993");
-      const nullNumber = await create("numeraciones", {
-        Comprobante: "PR_ET4",
-        Serie: "SIN_NUM",
-        ProximoNumero: "1",
-      });
-      await pool.execute(
-        "INSERT INTO CUENTACORRIENTE (Cliente, Comprobante, Numeracion, FechaOrigen, Cuenta, Naturaleza, Importe, Estado, Usuario, CreadoEn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [
-          "00001",
-          "PR_ET4",
-          nullNumber.registro.IDTabla,
-          "2026-10-25",
-          "PAGAR",
-          "DEUDA",
-          "50.00",
-          "CONFIRMADO",
-          user,
-          new Date(),
-        ],
-      );
-      const referenced = await get(
-        "numeraciones/" + nullNumber.registro.IDTabla,
-      );
-      assert.deepEqual(referenced.camposSoloLectura, ["Comprobante", "Serie"]);
-      assert.equal(
-        (
-          await request(
-            "numeraciones/" + nullNumber.registro.IDTabla,
-            "PUT",
-            { ...referenced.registro, Serie: "OTRA" },
-            referenced.version,
-          )
-        ).status,
-        409,
-      );
+      assert.equal(String(rows[0]!.NumeroComprobante), "100000050");
     },
   );
-
   await t.test(
     "Comprobantes y Numeración mantienen permisos, CSRF y auditoría",
     async () => {

@@ -10,3 +10,4 @@ export { CheckBox } from "./CheckBox";
 export type { CheckBoxProps } from "./CheckBox";
 export { SearchField } from './SearchField';
 export type { SearchResult } from './SearchField';
+export { NumeroComprobante } from './NumeroComprobante';

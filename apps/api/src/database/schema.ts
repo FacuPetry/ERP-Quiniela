@@ -1,7 +1,8 @@
 import {
-  bigint, boolean, char, date, datetime, decimal, foreignKey, index, int, json,
+  bigint, boolean, char, check, date, datetime, decimal, foreignKey, index, int, json,
   mysqlTable, smallint, text, uniqueIndex, varchar,
 } from 'drizzle-orm/mysql-core';
+import { sql } from 'drizzle-orm';
 
 const id = () => bigint('IDTabla', { mode: 'bigint' }).autoincrement().primaryKey();
 const fk = (name: string) => bigint(name, { mode: 'bigint' });
@@ -32,10 +33,10 @@ export const comprobante = mysqlTable('COMPROBANTE', {
 });
 export const numeracion = mysqlTable('NUMERACION', {
   IDTabla: id(), Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
-  Serie: varchar('Serie', { length: 10 }).notNull(),
-  ProximoNumero: bigint('ProximoNumero', { mode: 'bigint' }).notNull(),
+  ProximoNumero: bigint('ProximoNumero', { mode: 'bigint', unsigned: true }).notNull(),
   Activo: boolean('Activo').notNull().default(true),
-}, t => [uniqueIndex('UQ_NUMERACION_Comprobante_Serie').on(t.Comprobante, t.Serie)]);
+}, t => [uniqueIndex('UQ_NUMERACION_Comprobante').on(t.Comprobante),
+  check('CK_NUMERACION_Numero', sql`${t.ProximoNumero} BETWEEN 1 AND 999999999999 AND MOD(${t.ProximoNumero}, 100000000) > 0`)]);
 export const clienteTipo = mysqlTable('CLIENTETIPO', {
   Codigo: code('Codigo').primaryKey(), Descripcion: varchar('Descripcion', { length: 100 }).notNull(),
   Activo: boolean('Activo').notNull().default(true),
@@ -66,8 +67,7 @@ export const cajaSaldo = mysqlTable('CAJASALDO', {
 }, t => [index('IX_CAJASALDO_Caja_Apertura').on(t.Caja, t.AperturaEn)]);
 export const cajaMovimiento = mysqlTable('CAJAMOVIMIENTO', {
   IDTabla: id(), Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
-  Numeracion: fk('Numeracion').notNull().references(() => numeracion.IDTabla),
-  Numero: bigint('Numero', { mode: 'bigint' }).notNull(),
+  NumeroComprobante: bigint('NumeroComprobante', { mode: 'bigint', unsigned: true }).notNull(),
   Cliente: code('Cliente').references(() => cliente.Codigo), FechaOrigen: day('FechaOrigen').notNull(),
   CajaSaldo: fk('CajaSaldo').references(() => cajaSaldo.IDTabla),
   Concepto: code('Concepto').references(() => concepto.Codigo),
@@ -77,13 +77,14 @@ export const cajaMovimiento = mysqlTable('CAJAMOVIMIENTO', {
   Usuario: fk('Usuario').notNull().references(() => usuario.IDTabla), CreadoEn: instant('CreadoEn').notNull(),
   UsuarioAnulacion: fk('UsuarioAnulacion').references(() => usuario.IDTabla),
   AnuladoEn: instant('AnuladoEn'), MotivoAnulacion: varchar('MotivoAnulacion', { length: 500 }),
-}, t => [uniqueIndex('UQ_CAJAMOVIMIENTO_Numero').on(t.Numeracion, t.Numero),
+}, t => [uniqueIndex('UQ_CAJAMOVIMIENTO_Numero').on(t.Comprobante, t.NumeroComprobante),
+  check('CK_CAJAMOVIMIENTO_Numero', sql`${t.NumeroComprobante} BETWEEN 1 AND 999999999999 AND MOD(${t.NumeroComprobante}, 100000000) > 0`),
   index('IX_CAJAMOVIMIENTO_Cliente_Fecha').on(t.Cliente, t.FechaOrigen)]);
 export const cuentaCorriente = mysqlTable('CUENTACORRIENTE', {
   IDTabla: id(), Cliente: code('Cliente').notNull().references(() => cliente.Codigo),
   Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
   CajaMovimiento: fk('CajaMovimiento').references(() => cajaMovimiento.IDTabla),
-  Numeracion: fk('Numeracion').references(() => numeracion.IDTabla), Numero: bigint('Numero', { mode: 'bigint' }),
+  NumeroComprobante: bigint('NumeroComprobante', { mode: 'bigint', unsigned: true }),
   FechaOrigen: day('FechaOrigen').notNull(), Vencimiento: day('Vencimiento'),
   Cuenta: varchar('Cuenta', { length: 10 }).notNull(), Naturaleza: varchar('Naturaleza', { length: 10 }).notNull(),
   Importe: amount('Importe').notNull(), Observacion: text('Observacion'),
@@ -92,7 +93,8 @@ export const cuentaCorriente = mysqlTable('CUENTACORRIENTE', {
   UsuarioAnulacion: fk('UsuarioAnulacion').references(() => usuario.IDTabla),
   AnuladoEn: instant('AnuladoEn'), MotivoAnulacion: varchar('MotivoAnulacion', { length: 500 }),
 }, t => [uniqueIndex('UQ_CUENTACORRIENTE_CajaMovimiento').on(t.CajaMovimiento),
-  uniqueIndex('UQ_CUENTACORRIENTE_Numero').on(t.Numeracion, t.Numero),
+  uniqueIndex('UQ_CUENTACORRIENTE_Numero').on(t.Comprobante, t.NumeroComprobante),
+  check('CK_CUENTACORRIENTE_Numero', sql`${t.NumeroComprobante} IS NULL OR (${t.NumeroComprobante} BETWEEN 1 AND 999999999999 AND MOD(${t.NumeroComprobante}, 100000000) > 0)`),
   index('IX_CUENTACORRIENTE_Cliente_Cuenta_Fecha').on(t.Cliente, t.Cuenta, t.FechaOrigen)]);
 export const cajaMovimientoAfectacion = mysqlTable('CAJAMOVIMIENTOAFECTACION', {
   IDTabla: id(), CajaMovimiento: fk('CajaMovimiento').notNull(),

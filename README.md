@@ -4,7 +4,7 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 ## Estado: etapa 5
 
-Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Dispone de acceso de usuarios, sesiones persistentes, menú adaptable y ABM de tipos de cliente, clientes, conceptos, cajas, bancos, cuentas bancarias, comprobantes y numeración por comprobante. Comprobantes y Numerador son ABM independientes. Cuenta corriente permite registrar deudas/créditos, consultar saldos separados y anular movimientos, con SF para seleccionar clientes y numeración opcional 0000-00000000. Cobros/pagos, Tesorería y Valores siguen pendientes. Ver [etapa 4](docs/etapa-4.md) y [etapa 5 y pruebas](docs/etapa-5.md).
+Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/MariaDB, esquema Drizzle y migraciones de las **21 tablas acordadas**. Dispone de acceso de usuarios, sesiones persistentes, menú adaptable y ABM de tipos de cliente, clientes, conceptos, cajas, bancos, cuentas bancarias, comprobantes y numeración por comprobante. Comprobantes y Numerador son ABM independientes. Cuenta corriente permite registrar deudas/créditos, consultar saldos separados y anular movimientos, con SF para seleccionar clientes y numeración `0000-00000000` mediante un único BIGINT. El Numerador es una sugerencia interna opcional, sin selector ni FK desde los movimientos. La revisión requiere la [migración segura de numeración](docs/numeracion-comprobantes.md). Cobros/pagos, Tesorería y Valores siguen pendientes. Ver [etapa 4](docs/etapa-4.md) y [etapa 5 y pruebas](docs/etapa-5.md).
 
 Los maestros utilizan selección de fila sin radio visible, acciones con íconos, búsqueda y filtros en ventana, combos activos sin buscador y formularios con Guardar/Cancelar en el encabezado. El alta de clientes muestra un código sugerido; el definitivo se asigna con cinco dígitos al guardar, sin tabla adicional. Ver [componentes y correlativo](docs/ajustes-componentes.md), incluidas la conservación de selección, los códigos anteriores y la posible reutilización del último eliminado.
 
@@ -49,6 +49,7 @@ npm run test:integration:mariadb
 - `check`: TypeScript, pruebas de acceso y HTTP, y construcción completa.
 - `test:integration`: inicia otro contenedor MySQL con base, puerto y credenciales efímeros; aplica migraciones y comprueba relaciones, precisión, rollback y API. Elimina únicamente ese contenedor al terminar. No escribe en la base de desarrollo ni en producción.
 - `db:check`: comprueba la conexión, versión, capitalización de tablas y cantidad de tablas de aplicación.
+- `db:numbering:check`: comprueba compatibilidad con la migración de numeración sin modificar datos. En Hostinger: `db:numbering:check:prod`.
 - `db:migrate`: aplica solo migraciones pendientes. No crea usuarios, comprobantes ni movimientos de ejemplo.
 - `test:integration:mariadb`: ejecuta la integración aislada con MariaDB 11.8.9, la versión informada por Hostinger.
 

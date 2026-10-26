@@ -1,0 +1,239 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  writeFile,
+  copyFile,
+  rm,
+} from "node:fs/promises";
+import { join } from "node:path";
+import mysql, { type RowDataPacket } from "mysql2/promise";
+import { drizzle } from "drizzle-orm/mysql2";
+import { migrate } from "drizzle-orm/mysql2/migrator";
+import {
+  databaseOptions,
+  readConfig,
+  projectRoot,
+} from "../../apps/api/src/config/env.js";
+import { applyMigrations } from "../../apps/api/src/database/migrate.js";
+import {
+  inspectNumberingMigration,
+  NumberingMigrationError,
+} from "../../apps/api/src/database/numbering-preflight.js";
+
+test("Migración de numeración: conserva datos y detiene conversiones ambiguas antes del DDL", async (t) => {
+  assert.equal(process.env.TEST_DATABASE_ISOLATED, "1");
+  const config = readConfig();
+  assert.equal(config.DB_NAME, "erp_quiniela_test");
+  assert.equal(config.DB_HOST, "127.0.0.1");
+  const connection = await mysql.createConnection(databaseOptions(config));
+  const directory = await mkdtemp("/tmp/erp-old-numbering-");
+  await mkdir(join(directory, "meta"));
+  const journal = JSON.parse(
+    await readFile(
+      join(projectRoot, "database/migrations/meta/_journal.json"),
+      "utf8",
+    ),
+  );
+  journal.entries = journal.entries.filter(
+    (entry: { idx: number }) => entry.idx < 2,
+  );
+  await writeFile(
+    join(directory, "meta/_journal.json"),
+    JSON.stringify(journal),
+  );
+  for (const entry of journal.entries)
+    await copyFile(
+      join(projectRoot, "database/migrations", entry.tag + ".sql"),
+      join(directory, entry.tag + ".sql"),
+    );
+  async function reset() {
+    // Solo la base efímera creada por scripts/integration.mjs. Nunca se usa configuración del alojamiento.
+    const [tables] = await connection.query<RowDataPacket[]>("SHOW TABLES");
+    await connection.query("SET FOREIGN_KEY_CHECKS=0");
+    try {
+      for (const row of tables) {
+        const table = String(Object.values(row)[0]);
+        assert.match(table, /^[A-Za-z0-9_]+$/);
+        await connection.query("DROP TABLE `" + table + "`");
+      }
+    } finally {
+      await connection.query("SET FOREIGN_KEY_CHECKS=1");
+    }
+  }
+  t.after(async () => {
+    try {
+      await reset();
+    } finally {
+      await connection.end();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+  async function old() {
+    await reset();
+    await migrate(drizzle(connection), { migrationsFolder: directory });
+    await connection.query(
+      "INSERT INTO ROL (Codigo,Nombre) VALUES ('ADMIN','Administrador')",
+    );
+    await connection.query(
+      "INSERT INTO USUARIO (Nombre,Email,ClaveHash,Rol,CreadoEn) VALUES ('Fixture','fixture@example.invalid','sin-acceso','ADMIN','2026-10-25')",
+    );
+    await connection.query(
+      "INSERT INTO CLIENTETIPO (Codigo,Descripcion) VALUES ('J','Jugador')",
+    );
+    await connection.query(
+      "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES ('00002','Cliente preservado','J')",
+    );
+    await connection.query(
+      "INSERT INTO COMPROBANTE (Codigo,Descripcion,ModuloOrigen,Cuenta,Naturaleza,SentidoFondos) VALUES ('ING','Ingreso','CUENTACORRIENTE','COBRAR','DEUDA','NOAPLICA')",
+    );
+    await connection.query(
+      "INSERT INTO NUMERACION (Comprobante,Serie,ProximoNumero) VALUES ('ING','1',26)",
+    );
+    for (const [Numero, Numeracion, Estado] of [
+      [25, "100000001", "CONFIRMADO"],
+      [20, "100000001", "ANULADO"],
+      [7, null, "CONFIRMADO"],
+      [null, null, "CONFIRMADO"],
+    ])
+      await connection.query(
+        "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,Numeracion,Numero,FechaOrigen,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+          "00002",
+          "ING",
+          Numeracion,
+          Numero,
+          "2026-10-25",
+          "COBRAR",
+          "DEUDA",
+          "10.25",
+          "Conservar observaciones",
+          Estado,
+          "100000001",
+          "2026-10-25",
+        ],
+      );
+    await connection.query(
+      "INSERT INTO CAJAMOVIMIENTO (Comprobante,Numeracion,Numero,FechaOrigen,ImporteTotal,Sentido,Estado,Usuario,CreadoEn) VALUES ('ING',100000001,24,'2026-10-25',10.25,'INGRESO','CONFIRMADO',100000001,'2026-10-25')",
+    );
+    await connection.query(
+      "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,CajaMovimiento,Numeracion,Numero,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES ('00002','ING',100000001,100000001,24,'2026-10-25','COBRAR','CREDITO',10.25,'CONFIRMADO',100000001,'2026-10-25')",
+    );
+    await connection.query(
+      "INSERT INTO CAJAMOVIMIENTOAFECTACION (CajaMovimiento,CuentaCorriente,Importe) VALUES (100000001,100000001,5.00)",
+    );
+    await connection.query(
+      "INSERT INTO AUDITORIA (Usuario,Accion,Tabla,Registro,Fecha,Detalle) VALUES (100000001,'ALTA','CUENTACORRIENTE','100000001','2026-10-25',?)",
+      [JSON.stringify({ Numero: "25", Numeracion: "100000001" })],
+    );
+  }
+  await t.test(
+    "convierte números, conserva claves, importes, anulados, NULL e historia y no repite la conversión",
+    async () => {
+      await old();
+      const [before] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM CUENTACORRIENTE ORDER BY IDTabla",
+      );
+      assert.deepEqual(await inspectNumberingMigration(connection), []);
+      await applyMigrations(config);
+      const [after] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM CUENTACORRIENTE ORDER BY IDTabla",
+      );
+      assert.deepEqual(
+        after.map((r) => r.NumeroComprobante),
+        ["100000025", "100000020", "7", null, "100000024"],
+      );
+      for (let i = 0; i < before.length; i++)
+        for (const [key, value] of Object.entries(before[i]!))
+          if (!["Numero", "Numeracion"].includes(key))
+            assert.deepEqual(after[i]![key], value, key);
+      const [num] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM NUMERACION",
+      );
+      assert.equal(String(num[0]!.ProximoNumero), "100000026");
+      assert.ok(!Object.hasOwn(num[0]!, "Serie"));
+      const [cash] = await connection.query<RowDataPacket[]>(
+        "SELECT NumeroComprobante FROM CAJAMOVIMIENTO",
+      );
+      assert.equal(String(cash[0]!.NumeroComprobante), "100000024");
+      const [affected] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM CAJAMOVIMIENTOAFECTACION",
+      );
+      assert.equal(affected.length, 1);
+      assert.equal(affected[0]!.Importe, "5.00");
+      const [audit] = await connection.query<RowDataPacket[]>(
+        "SELECT Detalle FROM AUDITORIA",
+      );
+      const detail =
+        typeof audit[0]!.Detalle === "string"
+          ? JSON.parse(audit[0]!.Detalle)
+          : audit[0]!.Detalle;
+      assert.equal(detail.Numero, "25");
+      await applyMigrations(config);
+      const [same] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM CUENTACORRIENTE ORDER BY IDTabla",
+      );
+      assert.deepEqual(same, after);
+      await assert.rejects(
+        connection.query(
+          "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES ('00002','ING',100000025,'2026-10-25','COBRAR','DEUDA',10,'CONFIRMADO',100000001,'2026-10-25')",
+        ),
+      );
+      const [tables] = await connection.query<RowDataPacket[]>("SHOW TABLES");
+      assert.equal(tables.length, 22);
+    },
+  );
+  await t.test(
+    "rechaza múltiples numeradores sin elegir uno ni borrar filas",
+    async () => {
+      await old();
+      await connection.query(
+        "INSERT INTO NUMERACION (Comprobante,Serie,ProximoNumero) VALUES ('ING','2',1)",
+      );
+      await assert.rejects(applyMigrations(config), NumberingMigrationError);
+      const [rows] = await connection.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM NUMERACION",
+      );
+      assert.equal(Number(rows[0]!.total), 2);
+      const [columns] = await connection.query<RowDataPacket[]>(
+        "SHOW COLUMNS FROM CUENTACORRIENTE LIKE 'NumeroComprobante'",
+      );
+      assert.equal(columns.length, 0);
+    },
+  );
+  await t.test(
+    "rechaza series alfabéticas, correlativos fuera de rango y duplicados convertidos",
+    async () => {
+      for (const mutation of [
+        "UPDATE NUMERACION SET Serie='A'",
+        "UPDATE NUMERACION SET ProximoNumero=100000000",
+        "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,Numero,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES ('00002','ING',7,'2026-10-25','COBRAR','DEUDA',10,'CONFIRMADO',100000001,'2026-10-25')",
+      ]) {
+        await old();
+        await connection.query(mutation);
+        assert.ok((await inspectNumberingMigration(connection)).length);
+        await assert.rejects(applyMigrations(config), NumberingMigrationError);
+        const [columns] = await connection.query<RowDataPacket[]>(
+          "SHOW COLUMNS FROM CUENTACORRIENTE LIKE 'NumeroComprobante'",
+        );
+        assert.equal(columns.length, 0);
+      }
+    },
+  );
+  await t.test(
+    "detecta DDL incompleto y no vuelve a combinar números automáticamente",
+    async () => {
+      await old();
+      await connection.query(
+        "ALTER TABLE CUENTACORRIENTE ADD NumeroComprobante bigint unsigned",
+      );
+      await assert.rejects(applyMigrations(config), /incompleta/);
+      const [rows] = await connection.query<RowDataPacket[]>(
+        "SELECT ProximoNumero FROM NUMERACION",
+      );
+      assert.equal(String(rows[0]!.ProximoNumero), "26");
+    },
+  );
+});

@@ -1,6 +1,6 @@
 # Biblioteca de controles base
 
-Los seis ABM actuales (Tipos de cliente, Clientes, Conceptos, Cajas, Bancos y Cuentas bancarias) utilizan los mismos controles mediante `MasterForm`. `FilterDialog` también utiliza TextBox y DropDown. No existen variantes de estos controles por tabla.
+Los ocho ABM actuales (Tipos de cliente, Clientes, Conceptos, Cajas, Bancos, Cuentas bancarias, Comprobantes y Numerador) utilizan los mismos controles mediante `MasterForm`. `FilterDialog` también utiliza TextBox y DropDown. No existen variantes de estos controles por tabla.
 
 ## Organización y responsabilidades
 
@@ -44,7 +44,7 @@ Se conserva el foco en el control y se informa la opción activa mediante ARIA. 
 
 ReferenceSelect conserva la carga de todas las páginas, `query`, `optionFilter`, el tratamiento de sesión vencida y la acción de reintentar. Solo ofrece referencias activas. Una referencia histórica inactiva o fuera del contexto se muestra como valor actual, pero no se ofrece para elegirla de nuevo. DropDown no decide estas reglas.
 
-Para un futuro comprobante, el módulo entregará sus opciones permitidas o configurará el adaptador con los filtros que soporte su API. No se agrega todavía ese ABM ni se asumen reglas de sus comprobantes.
+Cada módulo entrega sus opciones permitidas o configura el adaptador con los filtros que soporta su API. El control visual no determina las reglas del comprobante.
 
 ## CheckBox
 
@@ -62,7 +62,7 @@ Durante esta entrega pasaron `npm run check` (TypeScript, las 18 pruebas existen
 
 ## Publicación y próximos componentes
 
-Incorporar el PR a `main` y desplegar en Hostinger con la configuración actual. Esta entrega no requiere migraciones, variables nuevas ni instalar dependencias adicionales.
+Los controles originales no requieren migraciones por sí mismos. La revisión actual de NumeroComprobante sí requiere una migración de datos y estructura: ver [guía](numeracion-comprobantes.md). No agrega dependencias ni variables.
 
 SF se implementa en la [etapa 5](etapa-5.md#sf-reutilizable); DatePicker sigue pendiente de definir e implementar. El campo nativo de fecha que admite FilterDialog sigue disponible mediante Field; no se lo presenta como un DatePicker nuevo. Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF deberán recibir su fuente de datos y configuración desde el módulo.
 
@@ -73,3 +73,9 @@ Los formularios y grillas compartidos excluyen IDTabla mediante masterFormFields
 ## SearchField / SF
 
 SearchField recibe datos y funciones por propiedades; no conoce entidades ni APIs. ClientSearch adapta la búsqueda existente de Clientes. La búsqueda solo se ejecuta con Enter o lupa, selecciona una coincidencia o abre Modal/DataTable/Pagination para varias. Los criterios y paginación se envían al servidor, sin descargar todos los clientes. Editar el criterio invalida el registro seleccionado y las respuestas anteriores se cancelan. Ver [configuración y pruebas](etapa-5.md#sf-reutilizable).
+
+## NumeroComprobante
+
+Control genérico en `controls/NumeroComprobante.tsx`, con Field y estilos propios en `numero-comprobante.css`, utilizado por MasterForm para el Próximo número de Numerador y por Cuenta corriente. Recibe `value` decimal codificado, `onValueChange`, label, ayuda, errores, required, disabled y readOnly. No consulta la base ni decide numeración o duplicados.
+
+Dos inputs contiguos de cuatro y ocho dígitos, separados únicamente por el guion visual, comparten borde y foco. Inicialmente muestra ceros; al salir de cada parte completa sus ceros. Tab navega entre las partes; pegar `0001-00000025` actualiza ambas. Conserva estados intermedios de edición sin redondear números y sincroniza sugerencias externas al cambiar de comprobante. El formulario y la API validan los límites y el correlativo positivo. Ver [reglas y pruebas](numeracion-comprobantes.md).

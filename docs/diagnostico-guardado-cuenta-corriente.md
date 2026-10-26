@@ -1,10 +1,12 @@
 # Diagnóstico de un error de guardado en Cuenta corriente
 
+La revisión actual de numeración requiere [migración previa](numeracion-comprobantes.md). El diagnóstico siguiente conserva la referencia del error original; su payload antiguo con Numeracion y formato con guion ya no corresponde al contrato nuevo.
+
 ## Caso revisado
 
 Alta con cliente seleccionado por SF, comprobante de ingreso de apuesta, Numerador activo con serie 1 y próximo número 1, número sugerido 0001-00000001, fecha de origen y vencimiento iguales, importe 10 y Observacion NULL.
 
-La reproducción aislada con el payload reportado (Cliente 00002, Comprobante ING) en MariaDB 11.8.9 respondió HTTP 201, conservó el vencimiento, guardó Importe 10.00 y Observacion NULL y avanzó el Numerador a 2. Se agrega un caso equivalente de integración para ambos motores.
+La reproducción aislada con el payload reportado (Cliente 00002, Comprobante ING) en MariaDB 11.8.9 respondió HTTP 201, conservó el vencimiento, guardó Importe 10.00 y Observacion NULL y avanzó el Numerador a 2. La integración actual prueba el caso equivalente con NumeroComprobante 100000001 y sin Numeracion; guarda y avanza a 100000002 en ambos motores.
 
 Esto demuestra que esos datos son aceptados por el código y las migraciones del repositorio. **No identifica todavía la causa del fallo del alojamiento.** Sin su excepción no se atribuye el problema a una FK, fecha, numeración o NULL, ni se cambia la lógica financiera por suposición.
 
@@ -25,7 +27,7 @@ El manejador de errores de Cuenta corriente conserva las validaciones y conflict
 
 ## Cómo obtener el error en Hostinger
 
-1. Desplegar el commit que incorpora este diagnóstico desde la rama del PR. No hay migraciones ni variables nuevas.
+1. Desplegar la revisión del PR y completar antes la [migración segura](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger). El registro técnico no requiere variables nuevas.
 2. Reintentar una vez el guardado desde la pantalla. Si falla, en Network/Red abrir el POST `/api/cuenta-corriente` y copiar el estado HTTP y el JSON de respuesta. No copiar encabezados con cookies o credenciales.
 3. En los registros de **ejecución de Node.js** de la aplicación, buscar la línea `cuenta_corriente.error` con la referencia recibida. No confundir estos registros con los de compilación o instalación de npm. Si el panel no los ofrece, solicitar a Hostinger cómo consultar el stderr del proceso Node.js de esa aplicación.
 4. Compartir esa línea de diagnóstico. Su código y ubicación permiten revisar el punto concreto; por ejemplo, distinguir un campo inexistente, una restricción, una conexión o un bloqueo. Los ejemplos de causas no constituyen un diagnóstico del caso reportado.

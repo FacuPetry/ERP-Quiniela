@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
   masterDefinitions,
+  voucherParts,
   masterRecordKey,
   type MasterDefinition,
   type MasterDetail,
@@ -9,6 +10,7 @@ import {
   type MasterList,
   type MasterRecord,
 } from "@erp/shared";
+import { voucherLockName, lastVoucher } from "../database/voucher-sequence.js";
 import { MasterRequestError, type ListQuery } from "./validation.js";
 
 // Solo estos identificadores constantes se interpolan en SQL. Los datos siempre
@@ -51,33 +53,12 @@ function detail(row: MasterRecord): MasterDetail {
   };
 }
 
-/** Los futuros emisores deben bloquear NUMERACION antes de asignar un número. */
-async function numberingUsage(connection: Pool | PoolConnection, id: string) {
-  const [rows] = await connection.execute<RowDataPacket[]>(
-    `SELECT COUNT(*) AS cantidad, MAX(Numero) AS ultimo FROM (
-      SELECT Numero FROM CUENTACORRIENTE WHERE Numeracion = ?
-      UNION ALL SELECT Numero FROM CAJAMOVIMIENTO WHERE Numeracion = ?
-    ) AS utilizados`,
-    [id, id],
-  );
-  return {
-    used: Number(rows[0]!.cantidad) > 0,
-    last: rows[0]!.ultimo == null ? null : BigInt(rows[0]!.ultimo),
-  };
-}
-
 async function recordDetail(
-  connection: Pool | PoolConnection,
-  master: MasterDefinition,
+  _connection: Pool | PoolConnection,
+  _master: MasterDefinition,
   row: MasterRecord,
 ): Promise<MasterDetail> {
-  const result = detail(row);
-  if (
-    master.key === "numeraciones" &&
-    (await numberingUsage(connection, masterRecordKey(master, row))).used
-  )
-    result.camposSoloLectura = ["Comprobante", "Serie"];
-  return result;
+  return detail(row);
 }
 
 function checkIdentity(master: MasterDefinition, key: string) {
@@ -273,11 +254,48 @@ export function createMasterStore(pool: Pool) {
             throw error;
           }
         }
+        if (master.key === "numeraciones" && input && action !== "BAJA") {
+          const [related] = await connection.execute<RowDataPacket[]>(
+            "SELECT Codigo FROM COMPROBANTE WHERE Codigo = ?",
+            [input.Comprobante ?? null],
+          );
+          if (!related[0])
+            throw new MasterRequestError(
+              400,
+              "El comprobante seleccionado no existe.",
+            );
+          input.Comprobante = String(related[0].Codigo);
+          const [database] = await connection.query<RowDataPacket[]>(
+            "SELECT DATABASE() AS name",
+          );
+          const name = voucherLockName(
+            String(database[0]!.name),
+            JSON.stringify([
+              input.Comprobante,
+              voucherParts(String(input.ProximoNumero)).point,
+            ]),
+          );
+          try {
+            const [rows] = await connection.execute<RowDataPacket[]>(
+              "SELECT GET_LOCK(?, 10) AS acquired",
+              [name],
+            );
+            if (Number(rows[0]?.acquired) !== 1)
+              throw new MasterRequestError(
+                503,
+                "Otra operación está utilizando esta numeración. Reintentá.",
+              );
+            allocationLock = name;
+          } catch (error) {
+            reusable = false;
+            throw error;
+          }
+        }
         // GET_LOCK debe preceder a la transacción y a su primera lectura para
         // que MAX vea el alta confirmada por la conexión que nos antecedió.
         await connection.beginTransaction();
         transaction = true;
-        if (allocationLock && input) {
+        if (allocationLock && input && master.key === "clientes") {
           code = await nextClientCode(connection);
           input.Codigo = code;
         }
@@ -309,35 +327,6 @@ export function createMasterStore(pool: Pool) {
                 : "El código no puede modificarse.",
             );
         }
-        if (master.key === "numeraciones" && before) {
-          // La fila ya está bloqueada. Incluye operaciones anuladas: sus números
-          // no se liberan ni se reutilizan.
-          const { used, last } = await numberingUsage(connection, code);
-          if (used) {
-            if (action === "BAJA")
-              throw new MasterRequestError(
-                409,
-                "La serie ya fue utilizada y no puede eliminarse. Podés desactivarla desde Modificar.",
-              );
-            if (
-              input &&
-              (input.Comprobante !== before.Comprobante ||
-                input.Serie !== before.Serie)
-            )
-              throw new MasterRequestError(
-                409,
-                "Una serie utilizada conserva su comprobante y su serie.",
-              );
-            if (
-              input &&
-              last !== null &&
-              BigInt(String(input.ProximoNumero)) <= last
-            )
-              throw new MasterRequestError(409, "Revisá el próximo número.", {
-                ProximoNumero: `Debe ser mayor que ${last}, el último número utilizado (incluidos los anulados).`,
-              });
-          }
-        }
         if (input) {
           for (const field of master.fields) {
             if (!field.relation) continue;
@@ -363,6 +352,20 @@ export function createMasterStore(pool: Pool) {
               );
             input[field.name] = rows[0].Codigo;
           }
+        }
+        if (master.key === "numeraciones" && input?.Activo) {
+          const last = await lastVoucher(
+            connection,
+            String(input.Comprobante),
+            String(input.ProximoNumero),
+          );
+          if (last !== null && BigInt(String(input.ProximoNumero)) <= last)
+            throw new MasterRequestError(409, "Revisá el próximo número.", {
+              ProximoNumero:
+                "Debe superar " +
+                last +
+                " dentro del punto de venta configurado, incluidos los anulados.",
+            });
         }
         if (action === "ALTA" && input) {
           const fields = columns(master).filter((field) => field !== "IDTabla");
@@ -430,7 +433,7 @@ export function createMasterStore(pool: Pool) {
           throw new MasterRequestError(
             409,
             master.key === "numeraciones"
-              ? "Ya existe una serie con ese comprobante y nombre de serie."
+              ? "Ya existe un numerador para ese comprobante."
               : "Ya existe un registro con ese código.",
           );
         if (code === "ER_ROW_IS_REFERENCED_2")

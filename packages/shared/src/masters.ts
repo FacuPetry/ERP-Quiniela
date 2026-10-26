@@ -1,3 +1,4 @@
+import { formatVoucher } from "./voucher-number.js";
 import {
   modulosComprobante,
   cuentasComprobante,
@@ -20,7 +21,7 @@ export interface MasterField {
   label: string;
   maxLength: number;
   required?: boolean;
-  kind?: "email" | "textarea" | "relation" | "select" | "integer";
+  kind?: "email" | "textarea" | "relation" | "select" | "integer" | "voucher";
   options?: readonly { value: string; label: string }[];
   minimum?: string;
   maximum?: string;
@@ -129,8 +130,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
     singular: "numeración",
     feminine: true,
     primaryKey: "IDTabla",
-    description:
-      "Administrá las series y el próximo número de cada comprobante.",
+    description: "Configurá el próximo número sugerido para cada comprobante.",
     fields: [
       {
         name: "IDTabla",
@@ -150,20 +150,17 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         relation: "comprobantes",
         relationLabelField: "Descripcion",
       },
-      { name: "Serie", label: "Serie", required: true, maxLength: 10 },
       {
         name: "ProximoNumero",
         label: "Próximo número",
         required: true,
-        maxLength: 19,
-        kind: "integer",
-        minimum: "1",
-        maximum: "9223372036854775807",
-        defaultValue: "1",
-        hint: "Guardar la configuración no consume números. Debe superar los números ya utilizados.",
+        maxLength: 12,
+        kind: "voucher",
+        defaultValue: "0",
+        hint: "Guardar la configuración no consume números. Debe superar los números ya utilizados dentro del punto de venta elegido.",
       },
     ],
-    columns: ["Comprobante", "Serie", "ProximoNumero"],
+    columns: ["Comprobante", "ProximoNumero"],
   },
   "tipos-cliente": {
     key: "tipos-cliente",
@@ -299,7 +296,10 @@ export function masterRecordLabel(
     .slice(0, 2)
     .map((name) => {
       const value = String(record[name] ?? "");
-      return descriptions?.[name]?.[value] ?? value;
+      return master.fields.find((field) => field.name === name)?.kind ===
+        "voucher"
+        ? formatVoucher(value)
+        : (descriptions?.[name]?.[value] ?? value);
     })
     .filter(Boolean);
   return values.join(" · ") || master.singular;

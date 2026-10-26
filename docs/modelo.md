@@ -5,13 +5,13 @@ Se conserva el diseño de 21 tablas acordado. La definición ejecutable está en
 | Tabla | Finalidad y referencias |
 |---|---|
 | COMPROBANTE | Maestro de configuración, no cabecera de una operación |
-| NUMERACION | Series por Comprobante |
+| NUMERACION | Próximo número completo por Comprobante; configuración opcional y única |
 | CLIENTETIPO | Clasificación comercial |
 | CLIENTE | Cuenta comercial de un ClienteTipo |
 | CONCEPTO | Motivos de ingresos, egresos y ajustes |
 | CAJA | Caja física |
 | CAJASALDO | Apertura y cierre de una Caja |
-| CAJAMOVIMIENTO | Operación completa; Comprobante, Numeracion, Cliente, CajaSaldo y Concepto |
+| CAJAMOVIMIENTO | Operación completa; Comprobante, número completo propio, Cliente, CajaSaldo y Concepto |
 | CUENTACORRIENTE | Deuda o crédito; Cliente, Comprobante y CajaMovimiento cuando es generado |
 | CAJAMOVIMIENTOAFECTACION | CajaMovimiento, CuentaCorriente e Importe |
 | BANCO | Entidad financiera |
@@ -28,8 +28,9 @@ Se conserva el diseño de 21 tablas acordado. La definición ejecutable está en
 
 ```mermaid
 erDiagram
-    COMPROBANTE ||--o{ NUMERACION : configura
+    COMPROBANTE ||--o| NUMERACION : configura
     COMPROBANTE ||--o{ CAJAMOVIMIENTO : identifica
+    COMPROBANTE ||--o{ CUENTACORRIENTE : identifica
     CLIENTETIPO ||--o{ CLIENTE : clasifica
     CLIENTE ||--o{ CUENTACORRIENTE : tiene
     CLIENTE |o--o{ CAJAMOVIMIENTO : participa
@@ -66,3 +67,7 @@ No se implementan en esta etapa ni se resuelven agregando tablas por anticipado:
 - Circuito de aperturas y ajustes bancarios independientes.
 
 La existencia de los campos de estado o anulación no significa que los servicios financieros ya estén implementados. Los ABM y las operaciones se incorporarán y probarán por etapas.
+
+## Número de comprobante
+
+NUMERACION.ProximoNumero y los campos NumeroComprobante de CUENTACORRIENTE y CAJAMOVIMIENTO almacenan el BIGINT compuesto. No hay FK de movimientos al Numerador ni Serie separada. La migración conserva los números anteriores y sus registros, y exige resolver incompatibilidades antes de convertirlos. Ver [reglas y procedimiento](numeracion-comprobantes.md).

@@ -5,11 +5,21 @@ import type {
   MasterRecord,
   MasterField,
 } from "@erp/shared";
-import { integerFieldError, masterFormFields } from "@erp/shared";
+import {
+  integerFieldError,
+  masterFormFields,
+  voucherNumberError,
+} from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import { ReferenceSelect } from "./ReferenceSelect";
-import { TextBox, TextArea, CheckBox, DropDown } from "../controls";
+import {
+  TextBox,
+  TextArea,
+  CheckBox,
+  DropDown,
+  NumeroComprobante,
+} from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 
 export function MasterForm({
@@ -98,7 +108,10 @@ export function MasterForm({
       if (field.required && !text) invalid[field.name] = "Completá este campo.";
       else if (text.length > field.maxLength)
         invalid[field.name] = `Hasta ${field.maxLength} caracteres.`;
-      else if (field.kind === "integer") {
+      else if (field.kind === "voucher") {
+        const message = voucherNumberError(text);
+        if (message) invalid[field.name] = message;
+      } else if (field.kind === "integer") {
         const message = integerFieldError(field, text);
         if (message) invalid[field.name] = message;
       } else if (
@@ -191,6 +204,17 @@ export function MasterForm({
       hint,
       wide: field.kind === "textarea",
     };
+    if (field.kind === "voucher")
+      return (
+        <NumeroComprobante
+          key={field.name}
+          {...presentation}
+          value={value}
+          disabled={disabled}
+          readOnly={readOnly}
+          onValueChange={(next) => change(field.name, next)}
+        />
+      );
     if (field.kind === "select")
       return (
         <DropDown

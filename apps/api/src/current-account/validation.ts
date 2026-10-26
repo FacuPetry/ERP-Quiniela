@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { voucherNumberError } from "@erp/shared";
 const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -26,21 +27,13 @@ export const creation = z
   .object({
     Cliente: z.string().trim().min(1).max(20),
     Comprobante: z.string().trim().min(1).max(20),
-    Numeracion: z
-      .string()
-      .regex(/^[1-9][0-9]{0,18}$/)
-      .refine(
-        (v) =>
-          /^[1-9][0-9]{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n,
-      )
-      .nullable(),
     NumeroComprobante: z
       .string()
-      .regex(/^\d{4}-\d{8}$/, "Usá el formato 0000-00000000.")
-      .refine(
-        (v) => !v.endsWith("-00000000"),
-        "El número debe ser mayor que cero.",
-      ),
+      .superRefine((value, context) => {
+        const error = voucherNumberError(value);
+        if (error) context.addIssue({ code: "custom", message: error });
+      })
+      .transform((value) => BigInt(value).toString()),
     FechaOrigen: date,
     Vencimiento: date.nullable(),
     Importe: money,

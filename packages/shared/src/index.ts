@@ -33,3 +33,4 @@ export interface SessionResponse {
 }
 
 export * from './current-account.js';
+export * from './voucher-number.js';

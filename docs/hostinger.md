@@ -57,8 +57,8 @@ El ERP se publica como aplicación independiente y puede usar un subdominio. Sus
 
 ## Comprobantes y numeración (etapa 4)
 
-Desplegar el código tras fusionar el PR a main. Esta entrega utiliza COMPROBANTE y NUMERACION existentes: no agrega migraciones ni variables de entorno y no requiere crear otro administrador. Los dos ABM aparecen en Maestros. Ver [prueba paso a paso](etapa-4.md#cómo-probar). La generación de movimientos y el consumo de correlativos siguen pendientes.
+Comprobantes y Numerador aparecen en Maestros. La revisión actual requiere la migración `0002_numero_comprobante_completo`, sin nuevas variables ni otra cuenta administradora. Seguir [actualización segura de numeración](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger) y luego la [prueba paso a paso](etapa-4.md#cómo-probar).
 
 ## Cuenta corriente (etapa 5)
 
-Desplegar el código tras fusionar el PR. La entrega utiliza las tablas existentes CUENTACORRIENTE, COMPROBANTE, NUMERACION, SOLICITUD y AUDITORIA; no agrega migraciones ni variables. Numerador es opcional, sin él se usa prefijo 0000. Ver [preparación de comprobantes y prueba](etapa-5.md#cómo-probar). Los cobros y pagos siguen pendientes.
+La revisión de numeración cambia columnas de CUENTACORRIENTE, CAJAMOVIMIENTO y NUMERACION: requiere migración controlada, copia de seguridad y detener escrituras. El Numerador es interno y opcional; sin él se ingresan ambas partes manualmente. Ver [preparación y prueba](etapa-5.md#cómo-probar). Cobros y pagos siguen pendientes. La vista previa de Hostinger también necesita migrar su base, aunque el PR no esté fusionado; comprobar qué DB_NAME utiliza antes de intervenir.

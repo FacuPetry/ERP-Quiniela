@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
-  formatVoucherNumber,
+  formatVoucher,
+  voucherBase,
+  voucherParts,
+  nextVoucher,
   type CurrentAccountDetail,
   type CurrentAccountInput,
   type CurrentAccountList,
@@ -9,15 +12,16 @@ import {
   type CurrentAccountRecord,
 } from "@erp/shared";
 import { MasterRequestError } from "../masters/validation.js";
+import { voucherLockName, lastVoucher } from "../database/voucher-sequence.js";
 import type { AccountQuery } from "./validation.js";
 
 const eligible =
   "c.Activo = 1 AND c.ModuloOrigen = 'CUENTACORRIENTE' AND c.Cuenta IN ('COBRAR','PAGAR') AND c.Naturaleza IN ('DEUDA','CREDITO') AND c.SentidoFondos = 'NOAPLICA'";
 const projection = `a.*, cl.Nombre AS ClienteNombre, c.Descripcion AS ComprobanteDescripcion,
-  COALESCE(n.Serie, '0000') AS Serie, DATE_FORMAT(a.FechaOrigen, '%Y-%m-%d') AS FechaOrigen,
+  DATE_FORMAT(a.FechaOrigen, '%Y-%m-%d') AS FechaOrigen,
   DATE_FORMAT(a.Vencimiento, '%Y-%m-%d') AS Vencimiento`;
 const joins =
-  " FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo = a.Cliente JOIN COMPROBANTE c ON c.Codigo = a.Comprobante LEFT JOIN NUMERACION n ON n.IDTabla = a.Numeracion";
+  " FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo = a.Cliente JOIN COMPROBANTE c ON c.Codigo = a.Comprobante";
 function detail(row: RowDataPacket): CurrentAccountDetail {
   const data = Object.fromEntries(
     Object.entries(row).map(([key, value]) => [
@@ -29,13 +33,7 @@ function detail(row: RowDataPacket): CurrentAccountDetail {
           : String(value),
     ]),
   );
-  const series = /^\d{1,4}$/.test(String(data.Serie))
-    ? String(data.Serie).padStart(4, "0")
-    : null;
-  data.NumeroComprobante =
-    series && /^\d{1,8}$/.test(String(data.Numero))
-      ? formatVoucherNumber(series, String(data.Numero))
-      : "Numeración anterior";
+  data.NumeroComprobanteTexto = formatVoucher(data.NumeroComprobante ?? null);
   const registro = data as unknown as CurrentAccountRecord;
   return {
     registro,
@@ -83,7 +81,7 @@ export function createCurrentAccountStore(pool: Pool) {
         const [db] = await connection.query<RowDataPacket[]>(
           "SELECT DATABASE() AS name",
         );
-        const name = "erp_cc_" + hash([db[0]!.name, namespace]).slice(0, 48);
+        const name = voucherLockName(String(db[0]!.name), namespace);
         try {
           const [rows] = await connection.execute<RowDataPacket[]>(
             "SELECT GET_LOCK(?, 10) AS acquired",
@@ -202,15 +200,13 @@ export function createCurrentAccountStore(pool: Pool) {
           eligible +
           " ORDER BY c.Orden, c.Codigo",
       );
-      const [numeraciones] = await pool.query<RowDataPacket[]>(
-        `SELECT n.IDTabla, n.Comprobante, n.Serie, n.ProximoNumero FROM NUMERACION n JOIN COMPROBANTE c ON c.Codigo = n.Comprobante WHERE n.Activo = 1 AND n.Serie REGEXP '^[0-9]{1,4}$' AND ${eligible} ORDER BY n.Serie`,
+      const [numeradores] = await pool.query<RowDataPacket[]>(
+        `SELECT n.Comprobante, n.ProximoNumero FROM NUMERACION n JOIN COMPROBANTE c ON c.Codigo = n.Comprobante WHERE n.Activo = 1 AND ${eligible} ORDER BY n.Comprobante`,
       );
       return {
         comprobantes: comprobantes as CurrentAccountOptions["comprobantes"],
-        numeraciones: numeraciones.map((r) => ({
-          IDTabla: String(r.IDTabla),
+        numeradores: numeradores.map((r) => ({
           Comprobante: String(r.Comprobante),
-          Serie: String(r.Serie).padStart(4, "0"),
           ProximoNumero: String(r.ProximoNumero),
         })),
       };
@@ -237,10 +233,11 @@ export function createCurrentAccountStore(pool: Pool) {
       }
       if (query.q) {
         clauses.push(
-          "(cl.Nombre LIKE ? ESCAPE '!' OR c.Descripcion LIKE ? ESCAPE '!' OR a.Observacion LIKE ? ESCAPE '!' OR a.Cliente LIKE ? ESCAPE '!' OR CONCAT(LPAD(COALESCE(n.Serie, '0000'), 4, '0'), '-', LPAD(a.Numero, 8, '0')) LIKE ? ESCAPE '!')",
+          "(cl.Nombre LIKE ? ESCAPE '!' OR c.Descripcion LIKE ? ESCAPE '!' OR a.Observacion LIKE ? ESCAPE '!' OR a.Cliente LIKE ? ESCAPE '!' OR CONCAT(LPAD((a.NumeroComprobante DIV 100000000), 4, '0'), '-', LPAD(MOD(a.NumeroComprobante,100000000), 8, '0')) LIKE ? ESCAPE '!' OR a.NumeroComprobante = ?)",
         );
         params.push(
           ...Array(5).fill("%" + query.q.replace(/[!%_]/g, "!$&") + "%"),
+          /^[0-9]{1,12}$/.test(query.q) ? BigInt(query.q).toString() : "0",
         );
       }
       const where = clauses.length ? " WHERE " + clauses.join(" AND ") : "";
@@ -298,38 +295,19 @@ export function createCurrentAccountStore(pool: Pool) {
       if (!vouchers[0])
         throw new MasterRequestError(400, "El comprobante no existe.");
       const voucherCode = String(vouchers[0].Codigo),
-        prefix = input.NumeroComprobante.slice(0, 4),
-        number = BigInt(input.NumeroComprobante.slice(5)).toString();
+        prefix = voucherParts(input.NumeroComprobante).point,
+        number = BigInt(input.NumeroComprobante).toString();
       return transaction(
         user,
         "CC_ALTA",
         key,
         input,
         async (connection) => {
-          let numbering: RowDataPacket | undefined;
-          if (input.Numeracion) {
-            const [rows] = await connection.execute<RowDataPacket[]>(
-              "SELECT * FROM NUMERACION WHERE IDTabla = ? FOR UPDATE",
-              [input.Numeracion],
-            );
-            numbering = rows[0];
-            if (
-              !numbering ||
-              !numbering.Activo ||
-              numbering.Comprobante !== voucherCode ||
-              !/^\d{1,4}$/.test(String(numbering.Serie)) ||
-              String(numbering.Serie).padStart(4, "0") !== prefix
-            )
-              throw new MasterRequestError(
-                409,
-                "El Numerador cambió o no corresponde al comprobante y serie elegidos.",
-              );
-          } else if (prefix !== "0000")
-            throw new MasterRequestError(
-              400,
-              "Sin Numerador el prefijo debe ser 0000.",
-              { NumeroComprobante: "Usá 0000 seguido de ocho dígitos." },
-            );
+          const [numberings] = await connection.execute<RowDataPacket[]>(
+            "SELECT * FROM NUMERACION WHERE Comprobante = ? FOR UPDATE",
+            [voucherCode],
+          );
+          const numbering = numberings[0];
           const [vouchers] = await connection.execute<RowDataPacket[]>(
             "SELECT c.* FROM COMPROBANTE c WHERE c.Codigo = ? AND " +
               eligible +
@@ -348,11 +326,10 @@ export function createCurrentAccountStore(pool: Pool) {
           );
           if (!clients[0])
             throw new MasterRequestError(400, "Seleccioná un cliente activo.");
-          // Incluye anulados y numeradores equivalentes (1 y 0001). Sin Numerador se usa 0000.
           for (const table of ["CUENTACORRIENTE", "CAJAMOVIMIENTO"]) {
             const [duplicates] = await connection.execute<RowDataPacket[]>(
-              `SELECT a.IDTabla FROM ${table} a LEFT JOIN NUMERACION n ON n.IDTabla = a.Numeracion WHERE a.Comprobante = ? AND a.Numero = ? AND ((a.Numeracion IS NULL AND ? = '0000') OR (n.Serie REGEXP '^[0-9]{1,4}$' AND LPAD(n.Serie, 4, '0') = ?)) LIMIT 1`,
-              [voucherCode, number, prefix, prefix],
+              `SELECT IDTabla FROM ${table} WHERE Comprobante = ? AND NumeroComprobante = ? LIMIT 1`,
+              [voucherCode, number],
             );
             if (duplicates.length)
               throw new MasterRequestError(
@@ -361,11 +338,10 @@ export function createCurrentAccountStore(pool: Pool) {
               );
           }
           await connection.execute(
-            "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,Numeracion,Numero,FechaOrigen,Vencimiento,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Vencimiento,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             [
               clients[0].Codigo,
               voucherCode,
-              input.Numeracion,
               number,
               input.FechaOrigen,
               input.Vencimiento,
@@ -382,16 +358,29 @@ export function createCurrentAccountStore(pool: Pool) {
             "SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id",
           );
           const id = String(ids[0]!.id);
-          if (numbering) {
-            const [used] = await connection.execute<RowDataPacket[]>(
-              "SELECT MAX(Numero) AS ultimo FROM (SELECT Numero FROM CUENTACORRIENTE WHERE Numeracion = ? UNION ALL SELECT Numero FROM CAJAMOVIMIENTO WHERE Numeracion = ?) r",
-              [input.Numeracion, input.Numeracion],
-            );
-            const next = BigInt(used[0]!.ultimo) + 1n;
+          if (
+            numbering?.Activo &&
+            BigInt(numbering.ProximoNumero) / voucherBase ===
+              BigInt(number) / voucherBase
+          ) {
+            const highest = (await lastVoucher(
+              connection,
+              voucherCode,
+              number,
+            ))!;
+            const next = nextVoucher(highest.toString());
             const current = BigInt(numbering.ProximoNumero);
             await connection.execute(
-              "UPDATE NUMERACION SET ProximoNumero = ? WHERE IDTabla = ?",
-              [(next > current ? next : current).toString(), input.Numeracion],
+              "UPDATE NUMERACION SET ProximoNumero = ?, Activo = ? WHERE IDTabla = ?",
+              [
+                next === null
+                  ? highest.toString()
+                  : BigInt(next) > current
+                    ? next
+                    : current.toString(),
+                next !== null ? 1 : 0,
+                String(numbering.IDTabla),
+              ],
             );
           }
           const result = await read(connection, id);

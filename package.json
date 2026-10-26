@@ -29,7 +29,9 @@
     "db:migrate:prod": "node apps/api/dist/database/migrate.js",
     "db:check:prod": "node apps/api/dist/database/check.js",
     "admin:create": "tsx apps/api/src/auth/create-admin.ts",
-    "admin:create:prod": "node apps/api/dist/auth/create-admin.js"
+    "admin:create:prod": "node apps/api/dist/auth/create-admin.js",
+    "db:numbering:check": "tsx apps/api/src/database/check-numbering.ts",
+    "db:numbering:check:prod": "node apps/api/dist/database/check-numbering.js"
   },
   "devDependencies": {
     "@types/node": "24.19.2",

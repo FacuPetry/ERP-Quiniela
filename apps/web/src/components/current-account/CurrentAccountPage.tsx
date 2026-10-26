@@ -160,7 +160,7 @@ export function CurrentAccountPage({
       label: "Comprobante",
       render: (r) => r.ComprobanteDescripcion,
     },
-    { key: "Numero", label: "Número", render: (r) => r.NumeroComprobante },
+    { key: "Numero", label: "Número", render: (r) => r.NumeroComprobanteTexto },
     {
       key: "Cuenta",
       label: "Cuenta",
@@ -272,7 +272,7 @@ export function CurrentAccountPage({
           columns={columns}
           rows={error ? [] : (data?.registros ?? [])}
           rowKey={(r) => r.IDTabla}
-          rowLabel={(r) => `${r.NumeroComprobante} · ${r.ClienteNombre}`}
+          rowLabel={(r) => `${r.NumeroComprobanteTexto} · ${r.ClienteNombre}`}
           loading={loading}
           selectedKey={selected}
           onSelectionChange={setSelected}
@@ -470,7 +470,7 @@ function CancelMovement({
       <div className="modal-body">
         <p>
           Vas a anular {detail.registro.ComprobanteDescripcion}{" "}
-          {detail.registro.NumeroComprobante} de {detail.registro.ClienteNombre}
+          {detail.registro.NumeroComprobanteTexto} de {detail.registro.ClienteNombre}
           . Se conservará su historia y el número no se reutilizará.
         </p>
         <TextArea

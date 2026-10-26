@@ -61,8 +61,7 @@ test("Cuenta corriente: un fallo real del servicio deja diagnóstico correlacion
   const input = {
     Cliente: "00002",
     Comprobante: "I",
-    Numeracion: "100000001",
-    NumeroComprobante: "0001-00000001",
+    NumeroComprobante: "100000001",
     FechaOrigen: "2026-10-25",
     Vencimiento: "2026-10-25",
     Importe: "10",
