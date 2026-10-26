@@ -5,6 +5,7 @@ import {
   type Response,
 } from "express";
 import type { z } from "zod";
+import { randomUUID } from "node:crypto";
 import type { SessionResponse, CurrentAccountDetail } from "@erp/shared";
 import type { AuthService } from "../auth/service.js";
 import { requireSession, requireMasterWrite } from "../auth/middleware.js";
@@ -81,14 +82,56 @@ export function currentAccountRouter(
       ),
     );
   });
-  const errors: ErrorRequestHandler = (error, _req, res, next) => {
-    if (!(error instanceof MasterRequestError)) return next(error);
-    res
-      .status(error.status)
-      .json({
-        error: error.message,
-        ...(error.campos ? { campos: error.campos } : {}),
-      });
+  const errors: ErrorRequestHandler = (error: unknown, req, res, _next) => {
+    if (!(error instanceof MasterRequestError) || error.status >= 500) {
+      const referencia = randomUUID();
+      const fields =
+        error && typeof error === "object"
+          ? (error as Record<string, unknown>)
+          : {};
+      const code =
+        typeof fields.code === "string" && /^[A-Z0-9_]{1,64}$/.test(fields.code)
+          ? fields.code
+          : "ERROR_INTERNO";
+      // No imprimir el objeto de mysql2: incluye SQL con parámetros, ni el
+      // mensaje/stack completos que pueden contener datos del movimiento.
+      const origen =
+        error instanceof Error
+          ? error.stack?.match(
+              /current-account\/(?:store|routes)\.(?:js|ts):\d+:\d+/,
+            )?.[0]
+          : undefined;
+      console.error(
+        JSON.stringify({
+          evento: "cuenta_corriente.error",
+          referencia,
+          metodo: req.method,
+          ruta: req.route?.path,
+          codigo: code,
+          errno: typeof fields.errno === "number" ? fields.errno : undefined,
+          sqlState:
+            typeof fields.sqlState === "string" &&
+            /^[A-Z0-9]{5}$/.test(fields.sqlState)
+              ? fields.sqlState
+              : undefined,
+          origen,
+        }),
+      );
+      res
+        .status(error instanceof MasterRequestError ? error.status : 500)
+        .json({
+          error:
+            error instanceof MasterRequestError
+              ? error.message
+              : "No se pudo completar la solicitud.",
+          referencia,
+        });
+      return;
+    }
+    res.status(error.status).json({
+      error: error.message,
+      ...(error.campos ? { campos: error.campos } : {}),
+    });
   };
   router.use(errors);
   return router;

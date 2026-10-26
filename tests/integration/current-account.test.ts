@@ -557,4 +557,75 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       assert.equal(rows.length, 22, "No se agregan tablas al esquema");
     },
   );
+  await t.test(
+    "serie 1, importe 10, vencimiento igual al origen y observaciones vacías se confirman",
+    async () => {
+      await pool.execute(
+        "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES (?,?,?)",
+        ["CC_02", "Leandro Paredes", "CC_T"],
+      );
+      await pool.execute(
+        "INSERT INTO COMPROBANTE (Codigo,Descripcion,ModuloOrigen,Cuenta,Naturaleza,SentidoFondos) VALUES (?,?,?,?,?,?)",
+        [
+          "CC_REPRO",
+          "Ingreso de apuesta",
+          "CUENTACORRIENTE",
+          "COBRAR",
+          "DEUDA",
+          "NOAPLICA",
+        ],
+      );
+      const numerator = await fetch(base + "/api/maestros/numeraciones", {
+        method: "POST",
+        headers: {
+          Cookie: admin.cookie,
+          "Content-Type": "application/json",
+          "X-ERP-Request": "1",
+          "X-CSRF-Token": admin.session.csrfToken,
+        },
+        body: JSON.stringify({
+          Comprobante: "CC_REPRO",
+          Serie: "1",
+          ProximoNumero: "1",
+          Activo: true,
+        }),
+      });
+      assert.equal(numerator.status, 201, await numerator.clone().text());
+      const numbering = (await numerator.json()) as {
+        registro: { IDTabla: string };
+      };
+      const date = new Intl.DateTimeFormat("sv-SE", {
+        timeZone: "America/Argentina/Buenos_Aires",
+      }).format(new Date());
+      const response = await req(
+        "",
+        "POST",
+        input("0001-00000001", {
+          Cliente: "CC_02",
+          Comprobante: "CC_REPRO",
+          Numeracion: numbering.registro.IDTabla,
+          FechaOrigen: date,
+          Vencimiento: date,
+          Importe: "10",
+          Observacion: null,
+        }),
+      );
+      assert.equal(response.status, 201, await response.clone().text());
+      const result = (await response.json()) as CurrentAccountDetail;
+      assert.equal(result.registro.ClienteNombre, "Leandro Paredes");
+      assert.equal(result.registro.NumeroComprobante, "0001-00000001");
+      assert.equal(result.registro.Importe, "10.00");
+      assert.equal(result.registro.Vencimiento, date);
+      assert.equal(result.registro.Observacion, null);
+      assert.equal(result.registro.Cuenta, "COBRAR");
+      assert.equal(result.registro.Naturaleza, "DEUDA");
+      const persisted = await get(result.registro.IDTabla);
+      assert.equal(persisted.registro.Estado, "CONFIRMADO");
+      const [next] = await pool.execute<RowDataPacket[]>(
+        "SELECT ProximoNumero FROM NUMERACION WHERE IDTabla=?",
+        [numbering.registro.IDTabla],
+      );
+      assert.equal(String(next[0]!.ProximoNumero), "2");
+    },
+  );
 });

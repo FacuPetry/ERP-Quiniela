@@ -104,3 +104,7 @@ Resultado: tipos y compilación correctos, 22 comprobaciones unitarias/HTTP y 36
 ## Pendiente
 
 Cobros y pagos con medios de pago y afectaciones, Tesorería, Valores y aplicaciones entre créditos y deudas. DatePicker sigue pendiente; SF ya está disponible. Las anulaciones de operaciones financieras relacionadas se definirán junto con esos circuitos.
+
+## Diagnóstico de fallos de guardado
+
+Ante un 5xx de Cuenta corriente, la respuesta incluye una referencia que se correlaciona con un registro técnico acotado en el servidor. Ver [caso reproducido y obtención de la excepción en Hostinger](diagnostico-guardado-cuenta-corriente.md). No atribuir la causa a Observacion NULL: el esquema la admite y ese caso se confirma en integración.
