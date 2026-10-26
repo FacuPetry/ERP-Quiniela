@@ -196,6 +196,15 @@ export function CurrentAccountForm({
           {previous ? "Consultar movimiento" : "Nuevo movimiento"}
         </h2>
         <FormToolbarActions
+          closeAction={
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={onClose}
+            >
+              {previous ? "Cerrar" : "Cancelar"}
+            </button>
+          }
           {...(previous?.Estado === "CONFIRMADO" && onAnnul
             ? {
                 annulAction: {
@@ -205,13 +214,6 @@ export function CurrentAccountForm({
               }
             : {})}
         >
-          <button
-            className="button secondary"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {previous ? "Cerrar" : "Cancelar"}
-          </button>
           {!previous && (
             <button
               className="button primary"

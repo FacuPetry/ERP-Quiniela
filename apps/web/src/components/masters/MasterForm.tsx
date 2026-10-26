@@ -22,6 +22,7 @@ import {
   initialMasterFieldValue,
 } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
+import { FormToolbarActions } from "../ui/FormToolbarActions";
 
 export function MasterForm({
   master,
@@ -293,19 +294,18 @@ export function MasterForm({
           ref={heading}
           tabIndex={-1}
         >{`${readOnly ? "Consultar" : previous ? "Modificar" : master.feminine ? "Nueva" : "Nuevo"} ${master.singular}`}</h2>
-        <div
-          className="form-toolbar-actions"
-          role="group"
-          aria-label="Acciones del formulario"
+        <FormToolbarActions
+          closeAction={
+            <button
+              className="button secondary"
+              type="button"
+              disabled={busy}
+              onClick={onClose}
+            >
+              {readOnly ? "Cerrar" : "Cancelar"}
+            </button>
+          }
         >
-          <button
-            className="button secondary"
-            type="button"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {readOnly ? "Cerrar" : "Cancelar"}
-          </button>
           {!readOnly && (
             <button
               className="button primary"
@@ -316,7 +316,7 @@ export function MasterForm({
               {busy ? "Guardando…" : "Guardar"}
             </button>
           )}
-        </div>
+        </FormToolbarActions>
       </div>
       <form
         ref={form}

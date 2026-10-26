@@ -113,3 +113,9 @@ initialListFilters permite inicializar fechas al entrar al módulo y Confirmado 
 ## Acciones de formularios operativos
 
 `components/ui/FormToolbarActions.tsx` agrupa acciones de cabecera y admite `annulAction` opcional con onClick/disabled. Cuenta corriente lo utiliza para conectar el diálogo de anulación existente también desde la consulta. La base no decide permisos/estados ni realiza peticiones; futuros módulos operativos pueden reutilizarla aportando esas decisiones. Los maestros existentes conservan sus acciones. Ver [anulación desde la consulta](etapa-5.md#anular-desde-la-consulta).
+
+## Distribución del toolbar de formularios
+
+FormToolbarActions recibe las acciones dinámicas como children (más annulAction opcional) y el botón Cerrar/Cancelar mediante closeAction obligatorio. Presenta dos zonas: dinámicas a la izquierda y cierre al extremo derecho. MasterForm y Cuenta corriente utilizan la misma base; los próximos formularios deben reutilizarla. Mantiene handlers, type/form, permisos y estados disabled de cada botón.
+
+Comprobar manualmente alta (Guardar / Cancelar), edición de maestros (Guardar / Cancelar), consulta de confirmado (Anular / Cerrar) y consulta sin acciones (Cerrar a la derecha). Esta revisión visual no ejecuta compilaciones ni pruebas automáticas.

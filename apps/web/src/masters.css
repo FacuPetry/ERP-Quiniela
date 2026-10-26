@@ -561,7 +561,24 @@
 .form-toolbar-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
+  flex-shrink: 0;
+}
+.form-toolbar-dynamic,
+.form-toolbar-close {
+  display: flex;
+  align-items: center;
+  gap: inherit;
+}
+.form-toolbar-dynamic {
+  flex-wrap: wrap;
+}
+.form-toolbar-dynamic:empty {
+  display: none;
+}
+.form-toolbar-close {
+  margin-left: auto;
   flex-shrink: 0;
 }
 .data-table tbody tr:has(.row-selector:focus-visible) {
