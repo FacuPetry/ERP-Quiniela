@@ -10,7 +10,8 @@ export interface OffCanvasProps {
   onClose: () => void;
   children: ReactNode;
   side?: "left" | "right";
-  size?: "sm" | "md" | "lg" | "xl";
+  /** sm conserva el ancho de Propiedades; md y lg ofrecen más espacio. */
+  size?: "sm" | "md" | "lg";
   footer?: ReactNode;
   /** Reservado para una confirmación en curso; cargar datos no impide cerrar. */
   busy?: boolean;
@@ -24,7 +25,7 @@ export function OffCanvas({
   onClose,
   children,
   side = "right",
-  size = "md",
+  size = "sm",
   footer,
   busy = false,
   closeOnBackdrop = true,
