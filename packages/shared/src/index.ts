@@ -1,5 +1,6 @@
 /** Contratos HTTP; no contienen acceso a datos ni configuración sensible. */
 export * from './masters.js';
+export * from './comprobantes.js';
 export interface HealthResponse {
   status: 'ok';
   service: 'erp-quiniela-api';
@@ -30,3 +31,6 @@ export interface SessionResponse {
   csrfToken: string;
   venceEn: string;
 }
+
+export * from './current-account.js';
+export * from './voucher-number.js';

@@ -72,6 +72,14 @@ export const modules: {
       "Una sola tabla COMPROBANTE definirá el comportamiento de los movimientos en los distintos módulos.",
   },
   {
+    path: "/numeraciones",
+    title: "Numerador",
+    group: "Maestros",
+    icon: "file",
+    description: "Series y correlativos de los comprobantes.",
+    detail: "",
+  },
+  {
     path: "/cajas",
     title: "Cajas",
     group: "Maestros",

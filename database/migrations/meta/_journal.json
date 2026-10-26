@@ -15,6 +15,13 @@
       "when": 1792876017267,
       "tag": "0001_identificadores",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1792983227097,
+      "tag": "0002_numero_comprobante_completo",
+      "breakpoints": true
     }
   ]
 }

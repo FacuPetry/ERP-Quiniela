@@ -1,0 +1,2308 @@
+{
+  "version": "5",
+  "dialect": "mysql",
+  "id": "90eab30c-4cfb-4b2e-9f12-71b3adf22d9a",
+  "prevId": "1f42d898-45d1-4718-b839-23a5af058c2f",
+  "tables": {
+    "AUDITORIA": {
+      "name": "AUDITORIA",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Accion": {
+          "name": "Accion",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Tabla": {
+          "name": "Tabla",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Registro": {
+          "name": "Registro",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Fecha": {
+          "name": "Fecha",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Motivo": {
+          "name": "Motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Detalle": {
+          "name": "Detalle",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "IX_AUDITORIA_Tabla_Registro": {
+          "name": "IX_AUDITORIA_Tabla_Registro",
+          "columns": [
+            "Tabla",
+            "Registro"
+          ],
+          "isUnique": false
+        },
+        "IX_AUDITORIA_Fecha": {
+          "name": "IX_AUDITORIA_Fecha",
+          "columns": [
+            "Fecha"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "AUDITORIA_Usuario_USUARIO_IDTabla_fk": {
+          "name": "AUDITORIA_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "AUDITORIA",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "AUDITORIA_IDTabla": {
+          "name": "AUDITORIA_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "BANCO": {
+      "name": "BANCO",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "BANCO_Codigo": {
+          "name": "BANCO_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "BANCOCUENTA": {
+      "name": "BANCOCUENTA",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Banco": {
+          "name": "Banco",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Titular": {
+          "name": "Titular",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Numero": {
+          "name": "Numero",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "CBU": {
+          "name": "CBU",
+          "type": "varchar(22)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Alias": {
+          "name": "Alias",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "BANCOCUENTA_Banco_BANCO_Codigo_fk": {
+          "name": "BANCOCUENTA_Banco_BANCO_Codigo_fk",
+          "tableFrom": "BANCOCUENTA",
+          "tableTo": "BANCO",
+          "columnsFrom": [
+            "Banco"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "BANCOCUENTA_Codigo": {
+          "name": "BANCOCUENTA_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "BANCOMOVIMIENTO": {
+      "name": "BANCOMOVIMIENTO",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "BancoCuenta": {
+          "name": "BancoCuenta",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Fecha": {
+          "name": "Fecha",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Sentido": {
+          "name": "Sentido",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Importe": {
+          "name": "Importe",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Origen": {
+          "name": "Origen",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Transferencia": {
+          "name": "Transferencia",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ChequeEvento": {
+          "name": "ChequeEvento",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Concepto": {
+          "name": "Concepto",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_BANCOMOVIMIENTO_Transferencia": {
+          "name": "UQ_BANCOMOVIMIENTO_Transferencia",
+          "columns": [
+            "Transferencia"
+          ],
+          "isUnique": true
+        },
+        "UQ_BANCOMOVIMIENTO_ChequeEvento": {
+          "name": "UQ_BANCOMOVIMIENTO_ChequeEvento",
+          "columns": [
+            "ChequeEvento"
+          ],
+          "isUnique": true
+        },
+        "IX_BANCOMOVIMIENTO_Cuenta_Fecha": {
+          "name": "IX_BANCOMOVIMIENTO_Cuenta_Fecha",
+          "columns": [
+            "BancoCuenta",
+            "Fecha"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "BANCOMOVIMIENTO_BancoCuenta_BANCOCUENTA_Codigo_fk": {
+          "name": "BANCOMOVIMIENTO_BancoCuenta_BANCOCUENTA_Codigo_fk",
+          "tableFrom": "BANCOMOVIMIENTO",
+          "tableTo": "BANCOCUENTA",
+          "columnsFrom": [
+            "BancoCuenta"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "BANCOMOVIMIENTO_Transferencia_TRANSFERENCIA_IDTabla_fk": {
+          "name": "BANCOMOVIMIENTO_Transferencia_TRANSFERENCIA_IDTabla_fk",
+          "tableFrom": "BANCOMOVIMIENTO",
+          "tableTo": "TRANSFERENCIA",
+          "columnsFrom": [
+            "Transferencia"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "BANCOMOVIMIENTO_ChequeEvento_CHEQUEEVENTO_IDTabla_fk": {
+          "name": "BANCOMOVIMIENTO_ChequeEvento_CHEQUEEVENTO_IDTabla_fk",
+          "tableFrom": "BANCOMOVIMIENTO",
+          "tableTo": "CHEQUEEVENTO",
+          "columnsFrom": [
+            "ChequeEvento"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "BANCOMOVIMIENTO_Concepto_CONCEPTO_Codigo_fk": {
+          "name": "BANCOMOVIMIENTO_Concepto_CONCEPTO_Codigo_fk",
+          "tableFrom": "BANCOMOVIMIENTO",
+          "tableTo": "CONCEPTO",
+          "columnsFrom": [
+            "Concepto"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "BANCOMOVIMIENTO_Usuario_USUARIO_IDTabla_fk": {
+          "name": "BANCOMOVIMIENTO_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "BANCOMOVIMIENTO",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "BANCOMOVIMIENTO_IDTabla": {
+          "name": "BANCOMOVIMIENTO_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CAJA": {
+      "name": "CAJA",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "CAJA_Codigo": {
+          "name": "CAJA_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CAJAMOVIMIENTO": {
+      "name": "CAJAMOVIMIENTO",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Comprobante": {
+          "name": "Comprobante",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "NumeroComprobante": {
+          "name": "NumeroComprobante",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Cliente": {
+          "name": "Cliente",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "FechaOrigen": {
+          "name": "FechaOrigen",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CajaSaldo": {
+          "name": "CajaSaldo",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Concepto": {
+          "name": "Concepto",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "ImporteEfectivo": {
+          "name": "ImporteEfectivo",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'0.00'"
+        },
+        "ImporteTotal": {
+          "name": "ImporteTotal",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Sentido": {
+          "name": "Sentido",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "UsuarioAnulacion": {
+          "name": "UsuarioAnulacion",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "AnuladoEn": {
+          "name": "AnuladoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "MotivoAnulacion": {
+          "name": "MotivoAnulacion",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_CAJAMOVIMIENTO_Numero": {
+          "name": "UQ_CAJAMOVIMIENTO_Numero",
+          "columns": [
+            "Comprobante",
+            "NumeroComprobante"
+          ],
+          "isUnique": true
+        },
+        "IX_CAJAMOVIMIENTO_Cliente_Fecha": {
+          "name": "IX_CAJAMOVIMIENTO_Cliente_Fecha",
+          "columns": [
+            "Cliente",
+            "FechaOrigen"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "CAJAMOVIMIENTO_Comprobante_COMPROBANTE_Codigo_fk": {
+          "name": "CAJAMOVIMIENTO_Comprobante_COMPROBANTE_Codigo_fk",
+          "tableFrom": "CAJAMOVIMIENTO",
+          "tableTo": "COMPROBANTE",
+          "columnsFrom": [
+            "Comprobante"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJAMOVIMIENTO_Cliente_CLIENTE_Codigo_fk": {
+          "name": "CAJAMOVIMIENTO_Cliente_CLIENTE_Codigo_fk",
+          "tableFrom": "CAJAMOVIMIENTO",
+          "tableTo": "CLIENTE",
+          "columnsFrom": [
+            "Cliente"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJAMOVIMIENTO_CajaSaldo_CAJASALDO_IDTabla_fk": {
+          "name": "CAJAMOVIMIENTO_CajaSaldo_CAJASALDO_IDTabla_fk",
+          "tableFrom": "CAJAMOVIMIENTO",
+          "tableTo": "CAJASALDO",
+          "columnsFrom": [
+            "CajaSaldo"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJAMOVIMIENTO_Concepto_CONCEPTO_Codigo_fk": {
+          "name": "CAJAMOVIMIENTO_Concepto_CONCEPTO_Codigo_fk",
+          "tableFrom": "CAJAMOVIMIENTO",
+          "tableTo": "CONCEPTO",
+          "columnsFrom": [
+            "Concepto"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJAMOVIMIENTO_Usuario_USUARIO_IDTabla_fk": {
+          "name": "CAJAMOVIMIENTO_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "CAJAMOVIMIENTO",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJAMOVIMIENTO_UsuarioAnulacion_USUARIO_IDTabla_fk": {
+          "name": "CAJAMOVIMIENTO_UsuarioAnulacion_USUARIO_IDTabla_fk",
+          "tableFrom": "CAJAMOVIMIENTO",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "UsuarioAnulacion"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CAJAMOVIMIENTO_IDTabla": {
+          "name": "CAJAMOVIMIENTO_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {
+        "CK_CAJAMOVIMIENTO_Numero": {
+          "name": "CK_CAJAMOVIMIENTO_Numero",
+          "value": "`CAJAMOVIMIENTO`.`NumeroComprobante` BETWEEN 1 AND 999999999999 AND MOD(`CAJAMOVIMIENTO`.`NumeroComprobante`, 100000000) > 0"
+        }
+      }
+    },
+    "CAJAMOVIMIENTOAFECTACION": {
+      "name": "CAJAMOVIMIENTOAFECTACION",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "CajaMovimiento": {
+          "name": "CajaMovimiento",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CuentaCorriente": {
+          "name": "CuentaCorriente",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Importe": {
+          "name": "Importe",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_AFECTACION_Movimiento_Cuenta": {
+          "name": "UQ_AFECTACION_Movimiento_Cuenta",
+          "columns": [
+            "CajaMovimiento",
+            "CuentaCorriente"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "FK_AFECTACION_CajaMovimiento": {
+          "name": "FK_AFECTACION_CajaMovimiento",
+          "tableFrom": "CAJAMOVIMIENTOAFECTACION",
+          "tableTo": "CAJAMOVIMIENTO",
+          "columnsFrom": [
+            "CajaMovimiento"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "FK_AFECTACION_CuentaCorriente": {
+          "name": "FK_AFECTACION_CuentaCorriente",
+          "tableFrom": "CAJAMOVIMIENTOAFECTACION",
+          "tableTo": "CUENTACORRIENTE",
+          "columnsFrom": [
+            "CuentaCorriente"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CAJAMOVIMIENTOAFECTACION_IDTabla": {
+          "name": "CAJAMOVIMIENTOAFECTACION_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CAJASALDO": {
+      "name": "CAJASALDO",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Caja": {
+          "name": "Caja",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "AperturaEn": {
+          "name": "AperturaEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "SaldoInicial": {
+          "name": "SaldoInicial",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "UsuarioApertura": {
+          "name": "UsuarioApertura",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CierreEn": {
+          "name": "CierreEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "SaldoTeorico": {
+          "name": "SaldoTeorico",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "SaldoContado": {
+          "name": "SaldoContado",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "UsuarioCierre": {
+          "name": "UsuarioCierre",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "IX_CAJASALDO_Caja_Apertura": {
+          "name": "IX_CAJASALDO_Caja_Apertura",
+          "columns": [
+            "Caja",
+            "AperturaEn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "CAJASALDO_Caja_CAJA_Codigo_fk": {
+          "name": "CAJASALDO_Caja_CAJA_Codigo_fk",
+          "tableFrom": "CAJASALDO",
+          "tableTo": "CAJA",
+          "columnsFrom": [
+            "Caja"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJASALDO_UsuarioApertura_USUARIO_IDTabla_fk": {
+          "name": "CAJASALDO_UsuarioApertura_USUARIO_IDTabla_fk",
+          "tableFrom": "CAJASALDO",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "UsuarioApertura"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CAJASALDO_UsuarioCierre_USUARIO_IDTabla_fk": {
+          "name": "CAJASALDO_UsuarioCierre_USUARIO_IDTabla_fk",
+          "tableFrom": "CAJASALDO",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "UsuarioCierre"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CAJASALDO_IDTabla": {
+          "name": "CAJASALDO_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CHEQUE": {
+      "name": "CHEQUE",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Comprobante": {
+          "name": "Comprobante",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Tipo": {
+          "name": "Tipo",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Numero": {
+          "name": "Numero",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Banco": {
+          "name": "Banco",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "BancoCuenta": {
+          "name": "BancoCuenta",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Librador": {
+          "name": "Librador",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Documento": {
+          "name": "Documento",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Emision": {
+          "name": "Emision",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Vencimiento": {
+          "name": "Vencimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Importe": {
+          "name": "Importe",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "IX_CHEQUE_Estado_Vencimiento": {
+          "name": "IX_CHEQUE_Estado_Vencimiento",
+          "columns": [
+            "Estado",
+            "Vencimiento"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "CHEQUE_Comprobante_COMPROBANTE_Codigo_fk": {
+          "name": "CHEQUE_Comprobante_COMPROBANTE_Codigo_fk",
+          "tableFrom": "CHEQUE",
+          "tableTo": "COMPROBANTE",
+          "columnsFrom": [
+            "Comprobante"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CHEQUE_Banco_BANCO_Codigo_fk": {
+          "name": "CHEQUE_Banco_BANCO_Codigo_fk",
+          "tableFrom": "CHEQUE",
+          "tableTo": "BANCO",
+          "columnsFrom": [
+            "Banco"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CHEQUE_BancoCuenta_BANCOCUENTA_Codigo_fk": {
+          "name": "CHEQUE_BancoCuenta_BANCOCUENTA_Codigo_fk",
+          "tableFrom": "CHEQUE",
+          "tableTo": "BANCOCUENTA",
+          "columnsFrom": [
+            "BancoCuenta"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CHEQUE_Usuario_USUARIO_IDTabla_fk": {
+          "name": "CHEQUE_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "CHEQUE",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CHEQUE_IDTabla": {
+          "name": "CHEQUE_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CHEQUEEVENTO": {
+      "name": "CHEQUEEVENTO",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Cheque": {
+          "name": "Cheque",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Tipo": {
+          "name": "Tipo",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Fecha": {
+          "name": "Fecha",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CajaMovimiento": {
+          "name": "CajaMovimiento",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "BancoCuenta": {
+          "name": "BancoCuenta",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "IX_CHEQUEEVENTO_Cheque_Fecha": {
+          "name": "IX_CHEQUEEVENTO_Cheque_Fecha",
+          "columns": [
+            "Cheque",
+            "Fecha"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "CHEQUEEVENTO_Cheque_CHEQUE_IDTabla_fk": {
+          "name": "CHEQUEEVENTO_Cheque_CHEQUE_IDTabla_fk",
+          "tableFrom": "CHEQUEEVENTO",
+          "tableTo": "CHEQUE",
+          "columnsFrom": [
+            "Cheque"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CHEQUEEVENTO_CajaMovimiento_CAJAMOVIMIENTO_IDTabla_fk": {
+          "name": "CHEQUEEVENTO_CajaMovimiento_CAJAMOVIMIENTO_IDTabla_fk",
+          "tableFrom": "CHEQUEEVENTO",
+          "tableTo": "CAJAMOVIMIENTO",
+          "columnsFrom": [
+            "CajaMovimiento"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CHEQUEEVENTO_BancoCuenta_BANCOCUENTA_Codigo_fk": {
+          "name": "CHEQUEEVENTO_BancoCuenta_BANCOCUENTA_Codigo_fk",
+          "tableFrom": "CHEQUEEVENTO",
+          "tableTo": "BANCOCUENTA",
+          "columnsFrom": [
+            "BancoCuenta"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CHEQUEEVENTO_Usuario_USUARIO_IDTabla_fk": {
+          "name": "CHEQUEEVENTO_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "CHEQUEEVENTO",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CHEQUEEVENTO_IDTabla": {
+          "name": "CHEQUEEVENTO_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CLIENTE": {
+      "name": "CLIENTE",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ClienteTipo": {
+          "name": "ClienteTipo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Fantasia": {
+          "name": "Fantasia",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "DocumentoTipo": {
+          "name": "DocumentoTipo",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Documento": {
+          "name": "Documento",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Telefono": {
+          "name": "Telefono",
+          "type": "varchar(40)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Email": {
+          "name": "Email",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Domicilio": {
+          "name": "Domicilio",
+          "type": "varchar(250)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {
+        "IX_CLIENTE_Nombre": {
+          "name": "IX_CLIENTE_Nombre",
+          "columns": [
+            "Nombre"
+          ],
+          "isUnique": false
+        },
+        "IX_CLIENTE_Documento": {
+          "name": "IX_CLIENTE_Documento",
+          "columns": [
+            "Documento"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "CLIENTE_ClienteTipo_CLIENTETIPO_Codigo_fk": {
+          "name": "CLIENTE_ClienteTipo_CLIENTETIPO_Codigo_fk",
+          "tableFrom": "CLIENTE",
+          "tableTo": "CLIENTETIPO",
+          "columnsFrom": [
+            "ClienteTipo"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CLIENTE_Codigo": {
+          "name": "CLIENTE_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CLIENTETIPO": {
+      "name": "CLIENTETIPO",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Descripcion": {
+          "name": "Descripcion",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "CLIENTETIPO_Codigo": {
+          "name": "CLIENTETIPO_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "COMPROBANTE": {
+      "name": "COMPROBANTE",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Descripcion": {
+          "name": "Descripcion",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ModuloOrigen": {
+          "name": "ModuloOrigen",
+          "type": "varchar(30)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Cuenta": {
+          "name": "Cuenta",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Naturaleza": {
+          "name": "Naturaleza",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "SentidoFondos": {
+          "name": "SentidoFondos",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "Orden": {
+          "name": "Orden",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "COMPROBANTE_Codigo": {
+          "name": "COMPROBANTE_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CONCEPTO": {
+      "name": "CONCEPTO",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Descripcion": {
+          "name": "Descripcion",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "CONCEPTO_Codigo": {
+          "name": "CONCEPTO_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "CUENTACORRIENTE": {
+      "name": "CUENTACORRIENTE",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Cliente": {
+          "name": "Cliente",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Comprobante": {
+          "name": "Comprobante",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CajaMovimiento": {
+          "name": "CajaMovimiento",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "NumeroComprobante": {
+          "name": "NumeroComprobante",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "FechaOrigen": {
+          "name": "FechaOrigen",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Vencimiento": {
+          "name": "Vencimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Cuenta": {
+          "name": "Cuenta",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Naturaleza": {
+          "name": "Naturaleza",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Importe": {
+          "name": "Importe",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "UsuarioAnulacion": {
+          "name": "UsuarioAnulacion",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "AnuladoEn": {
+          "name": "AnuladoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "MotivoAnulacion": {
+          "name": "MotivoAnulacion",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_CUENTACORRIENTE_CajaMovimiento": {
+          "name": "UQ_CUENTACORRIENTE_CajaMovimiento",
+          "columns": [
+            "CajaMovimiento"
+          ],
+          "isUnique": true
+        },
+        "UQ_CUENTACORRIENTE_Numero": {
+          "name": "UQ_CUENTACORRIENTE_Numero",
+          "columns": [
+            "Comprobante",
+            "NumeroComprobante"
+          ],
+          "isUnique": true
+        },
+        "IX_CUENTACORRIENTE_Cliente_Cuenta_Fecha": {
+          "name": "IX_CUENTACORRIENTE_Cliente_Cuenta_Fecha",
+          "columns": [
+            "Cliente",
+            "Cuenta",
+            "FechaOrigen"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "CUENTACORRIENTE_Cliente_CLIENTE_Codigo_fk": {
+          "name": "CUENTACORRIENTE_Cliente_CLIENTE_Codigo_fk",
+          "tableFrom": "CUENTACORRIENTE",
+          "tableTo": "CLIENTE",
+          "columnsFrom": [
+            "Cliente"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CUENTACORRIENTE_Comprobante_COMPROBANTE_Codigo_fk": {
+          "name": "CUENTACORRIENTE_Comprobante_COMPROBANTE_Codigo_fk",
+          "tableFrom": "CUENTACORRIENTE",
+          "tableTo": "COMPROBANTE",
+          "columnsFrom": [
+            "Comprobante"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CUENTACORRIENTE_CajaMovimiento_CAJAMOVIMIENTO_IDTabla_fk": {
+          "name": "CUENTACORRIENTE_CajaMovimiento_CAJAMOVIMIENTO_IDTabla_fk",
+          "tableFrom": "CUENTACORRIENTE",
+          "tableTo": "CAJAMOVIMIENTO",
+          "columnsFrom": [
+            "CajaMovimiento"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CUENTACORRIENTE_Usuario_USUARIO_IDTabla_fk": {
+          "name": "CUENTACORRIENTE_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "CUENTACORRIENTE",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "CUENTACORRIENTE_UsuarioAnulacion_USUARIO_IDTabla_fk": {
+          "name": "CUENTACORRIENTE_UsuarioAnulacion_USUARIO_IDTabla_fk",
+          "tableFrom": "CUENTACORRIENTE",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "UsuarioAnulacion"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "CUENTACORRIENTE_IDTabla": {
+          "name": "CUENTACORRIENTE_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {
+        "CK_CUENTACORRIENTE_Numero": {
+          "name": "CK_CUENTACORRIENTE_Numero",
+          "value": "`CUENTACORRIENTE`.`NumeroComprobante` IS NULL OR (`CUENTACORRIENTE`.`NumeroComprobante` BETWEEN 1 AND 999999999999 AND MOD(`CUENTACORRIENTE`.`NumeroComprobante`, 100000000) > 0)"
+        }
+      }
+    },
+    "NUMERACION": {
+      "name": "NUMERACION",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Comprobante": {
+          "name": "Comprobante",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ProximoNumero": {
+          "name": "ProximoNumero",
+          "type": "bigint unsigned",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {
+        "UQ_NUMERACION_Comprobante": {
+          "name": "UQ_NUMERACION_Comprobante",
+          "columns": [
+            "Comprobante"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "NUMERACION_Comprobante_COMPROBANTE_Codigo_fk": {
+          "name": "NUMERACION_Comprobante_COMPROBANTE_Codigo_fk",
+          "tableFrom": "NUMERACION",
+          "tableTo": "COMPROBANTE",
+          "columnsFrom": [
+            "Comprobante"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "NUMERACION_IDTabla": {
+          "name": "NUMERACION_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {
+        "CK_NUMERACION_Numero": {
+          "name": "CK_NUMERACION_Numero",
+          "value": "`NUMERACION`.`ProximoNumero` BETWEEN 1 AND 999999999999 AND MOD(`NUMERACION`.`ProximoNumero`, 100000000) > 0"
+        }
+      }
+    },
+    "ROL": {
+      "name": "ROL",
+      "columns": {
+        "Codigo": {
+          "name": "Codigo",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "ROL_Codigo": {
+          "name": "ROL_Codigo",
+          "columns": [
+            "Codigo"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "SESION": {
+      "name": "SESION",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "TokenHash": {
+          "name": "TokenHash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "VenceEn": {
+          "name": "VenceEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "RevocadoEn": {
+          "name": "RevocadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_SESION_TokenHash": {
+          "name": "UQ_SESION_TokenHash",
+          "columns": [
+            "TokenHash"
+          ],
+          "isUnique": true
+        },
+        "IX_SESION_VenceEn": {
+          "name": "IX_SESION_VenceEn",
+          "columns": [
+            "VenceEn"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "SESION_Usuario_USUARIO_IDTabla_fk": {
+          "name": "SESION_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "SESION",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "SESION_IDTabla": {
+          "name": "SESION_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "SOLICITUD": {
+      "name": "SOLICITUD",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Accion": {
+          "name": "Accion",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Clave": {
+          "name": "Clave",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Huella": {
+          "name": "Huella",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Estado": {
+          "name": "Estado",
+          "type": "varchar(15)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CodigoRespuesta": {
+          "name": "CodigoRespuesta",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Resultado": {
+          "name": "Resultado",
+          "type": "json",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_SOLICITUD_Usuario_Accion_Clave": {
+          "name": "UQ_SOLICITUD_Usuario_Accion_Clave",
+          "columns": [
+            "Usuario",
+            "Accion",
+            "Clave"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "SOLICITUD_Usuario_USUARIO_IDTabla_fk": {
+          "name": "SOLICITUD_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "SOLICITUD",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "SOLICITUD_IDTabla": {
+          "name": "SOLICITUD_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "TRANSFERENCIA": {
+      "name": "TRANSFERENCIA",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Comprobante": {
+          "name": "Comprobante",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CajaMovimiento": {
+          "name": "CajaMovimiento",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "BancoCuenta": {
+          "name": "BancoCuenta",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Fecha": {
+          "name": "Fecha",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Importe": {
+          "name": "Importe",
+          "type": "decimal(18,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Referencia": {
+          "name": "Referencia",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Observacion": {
+          "name": "Observacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "Usuario": {
+          "name": "Usuario",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "IX_TRANSFERENCIA_Cuenta_Fecha": {
+          "name": "IX_TRANSFERENCIA_Cuenta_Fecha",
+          "columns": [
+            "BancoCuenta",
+            "Fecha"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "TRANSFERENCIA_Comprobante_COMPROBANTE_Codigo_fk": {
+          "name": "TRANSFERENCIA_Comprobante_COMPROBANTE_Codigo_fk",
+          "tableFrom": "TRANSFERENCIA",
+          "tableTo": "COMPROBANTE",
+          "columnsFrom": [
+            "Comprobante"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "TRANSFERENCIA_CajaMovimiento_CAJAMOVIMIENTO_IDTabla_fk": {
+          "name": "TRANSFERENCIA_CajaMovimiento_CAJAMOVIMIENTO_IDTabla_fk",
+          "tableFrom": "TRANSFERENCIA",
+          "tableTo": "CAJAMOVIMIENTO",
+          "columnsFrom": [
+            "CajaMovimiento"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "TRANSFERENCIA_BancoCuenta_BANCOCUENTA_Codigo_fk": {
+          "name": "TRANSFERENCIA_BancoCuenta_BANCOCUENTA_Codigo_fk",
+          "tableFrom": "TRANSFERENCIA",
+          "tableTo": "BANCOCUENTA",
+          "columnsFrom": [
+            "BancoCuenta"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "TRANSFERENCIA_Usuario_USUARIO_IDTabla_fk": {
+          "name": "TRANSFERENCIA_Usuario_USUARIO_IDTabla_fk",
+          "tableFrom": "TRANSFERENCIA",
+          "tableTo": "USUARIO",
+          "columnsFrom": [
+            "Usuario"
+          ],
+          "columnsTo": [
+            "IDTabla"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "TRANSFERENCIA_IDTabla": {
+          "name": "TRANSFERENCIA_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "USUARIO": {
+      "name": "USUARIO",
+      "columns": {
+        "IDTabla": {
+          "name": "IDTabla",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "Nombre": {
+          "name": "Nombre",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Email": {
+          "name": "Email",
+          "type": "varchar(150)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "ClaveHash": {
+          "name": "ClaveHash",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Rol": {
+          "name": "Rol",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "Activo": {
+          "name": "Activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": true
+        },
+        "CreadoEn": {
+          "name": "CreadoEn",
+          "type": "datetime(6)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {
+        "UQ_USUARIO_Email": {
+          "name": "UQ_USUARIO_Email",
+          "columns": [
+            "Email"
+          ],
+          "isUnique": true
+        }
+      },
+      "foreignKeys": {
+        "USUARIO_Rol_ROL_Codigo_fk": {
+          "name": "USUARIO_Rol_ROL_Codigo_fk",
+          "tableFrom": "USUARIO",
+          "tableTo": "ROL",
+          "columnsFrom": [
+            "Rol"
+          ],
+          "columnsTo": [
+            "Codigo"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "USUARIO_IDTabla": {
+          "name": "USUARIO_IDTabla",
+          "columns": [
+            "IDTabla"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    }
+  },
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {},
+    "indexes": {}
+  }
+}

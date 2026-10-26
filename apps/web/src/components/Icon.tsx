@@ -21,8 +21,10 @@ export type IconName =
   | "edit"
   | "trash"
   | "filter"
-  | "refresh";
+  | "refresh"
+  | "search";
 const paths: Record<IconName, string> = {
+  search: "M21 21l-5.2-5.2M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15",
   refresh: "M21 2v6h-6M20.49 13a9 9 0 1 1-2.12-9.36L21 8",
   plus: "M12 5v14M5 12h14",
   edit: "M17 3a2.828 2.828 0 0 1 4 4L7 21l-4 1 1-4ZM15 5l4 4",

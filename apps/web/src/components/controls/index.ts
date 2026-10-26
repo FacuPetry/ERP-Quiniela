@@ -8,3 +8,6 @@ export { DropDown } from "./DropDown";
 export type { DropDownProps, DropDownOption } from "./DropDown";
 export { CheckBox } from "./CheckBox";
 export type { CheckBoxProps } from "./CheckBox";
+export { SearchField } from './SearchField';
+export type { SearchResult } from './SearchField';
+export { NumeroComprobante } from './NumeroComprobante';

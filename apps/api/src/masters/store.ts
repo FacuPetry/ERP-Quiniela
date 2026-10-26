@@ -2,12 +2,15 @@ import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
   masterDefinitions,
+  voucherParts,
+  masterRecordKey,
   type MasterDefinition,
   type MasterDetail,
   type MasterKey,
   type MasterList,
   type MasterRecord,
 } from "@erp/shared";
+import { voucherLockName, lastVoucher } from "../database/voucher-sequence.js";
 import { MasterRequestError, type ListQuery } from "./validation.js";
 
 // Solo estos identificadores constantes se interpolan en SQL. Los datos siempre
@@ -19,8 +22,11 @@ const tables: Record<MasterKey, string> = {
   cajas: "CAJA",
   bancos: "BANCO",
   "cuentas-bancarias": "BANCOCUENTA",
+  comprobantes: "COMPROBANTE",
+  numeraciones: "NUMERACION",
 };
 const tableName = (master: MasterDefinition) => "`" + tables[master.key] + "`";
+const primaryKey = (master: MasterDefinition) => master.primaryKey ?? "Codigo";
 const columns = (master: MasterDefinition) => [
   ...master.fields.map((field) => field.name),
   "Activo",
@@ -31,11 +37,12 @@ const projection = (master: MasterDefinition, prefix = "") =>
     .join(", ");
 function record(row: RowDataPacket): MasterRecord {
   return {
-    ...(Object.fromEntries(Object.entries(row)) as Record<
-      string,
-      string | null
-    >),
-    Codigo: String(row.Codigo),
+    ...(Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [
+        key,
+        value == null ? null : String(value),
+      ]),
+    ) as Record<string, string | null>),
     Activo: Boolean(row.Activo),
   };
 }
@@ -44,6 +51,22 @@ function detail(row: MasterRecord): MasterDetail {
     registro: row,
     version: createHash("sha256").update(JSON.stringify(row)).digest("hex"),
   };
+}
+
+async function recordDetail(
+  _connection: Pool | PoolConnection,
+  _master: MasterDefinition,
+  row: MasterRecord,
+): Promise<MasterDetail> {
+  return detail(row);
+}
+
+function checkIdentity(master: MasterDefinition, key: string) {
+  if (
+    master.primaryKey === "IDTabla" &&
+    (!/^[1-9][0-9]{0,18}$/.test(key) || BigInt(key) > 9223372036854775807n)
+  )
+    throw new MasterRequestError(400, "Identificador inválido.");
 }
 
 async function nextClientCode(
@@ -143,7 +166,7 @@ export function createMasterStore(pool: Pool) {
         )
         .join("");
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT ${[projection(master, "principal."), ...labels].join(", ")} FROM ${tableName(master)} AS principal${joins}${where} ORDER BY principal.Codigo LIMIT ? OFFSET ?`,
+        `SELECT ${[projection(master, "principal."), ...labels].join(", ")} FROM ${tableName(master)} AS principal${joins}${where} ORDER BY principal.\`${primaryKey(master)}\` LIMIT ? OFFSET ?`,
         [...params, query.limite, (query.pagina - 1) * query.limite],
       );
       const descriptions = new Map(
@@ -177,8 +200,9 @@ export function createMasterStore(pool: Pool) {
       };
     },
     async get(master: MasterDefinition, code: string): Promise<MasterDetail> {
+      checkIdentity(master, code);
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT ${projection(master)} FROM ${tableName(master)} WHERE Codigo = ?`,
+        `SELECT ${projection(master)} FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ?`,
         [code],
       );
       if (!rows[0])
@@ -186,7 +210,7 @@ export function createMasterStore(pool: Pool) {
           404,
           "El registro ya no existe. Actualizá el listado.",
         );
-      return detail(record(rows[0]));
+      return recordDetail(pool, master, record(rows[0]));
     },
     async write(
       master: MasterDefinition,
@@ -196,6 +220,7 @@ export function createMasterStore(pool: Pool) {
       userId: string,
       version?: string,
     ): Promise<MasterDetail | null> {
+      if (action !== "ALTA") checkIdentity(master, code);
       const connection = await pool.getConnection();
       let transaction = false;
       let allocationLock: string | null = null;
@@ -229,18 +254,55 @@ export function createMasterStore(pool: Pool) {
             throw error;
           }
         }
+        if (master.key === "numeraciones" && input && action !== "BAJA") {
+          const [related] = await connection.execute<RowDataPacket[]>(
+            "SELECT Codigo FROM COMPROBANTE WHERE Codigo = ?",
+            [input.Comprobante ?? null],
+          );
+          if (!related[0])
+            throw new MasterRequestError(
+              400,
+              "El comprobante seleccionado no existe.",
+            );
+          input.Comprobante = String(related[0].Codigo);
+          const [database] = await connection.query<RowDataPacket[]>(
+            "SELECT DATABASE() AS name",
+          );
+          const name = voucherLockName(
+            String(database[0]!.name),
+            JSON.stringify([
+              input.Comprobante,
+              voucherParts(String(input.ProximoNumero)).point,
+            ]),
+          );
+          try {
+            const [rows] = await connection.execute<RowDataPacket[]>(
+              "SELECT GET_LOCK(?, 10) AS acquired",
+              [name],
+            );
+            if (Number(rows[0]?.acquired) !== 1)
+              throw new MasterRequestError(
+                503,
+                "Otra operación está utilizando esta numeración. Reintentá.",
+              );
+            allocationLock = name;
+          } catch (error) {
+            reusable = false;
+            throw error;
+          }
+        }
         // GET_LOCK debe preceder a la transacción y a su primera lectura para
         // que MAX vea el alta confirmada por la conexión que nos antecedió.
         await connection.beginTransaction();
         transaction = true;
-        if (allocationLock && input) {
+        if (allocationLock && input && master.key === "clientes") {
           code = await nextClientCode(connection);
           input.Codigo = code;
         }
         let before: MasterRecord | null = null;
         if (action !== "ALTA") {
           const [rows] = await connection.execute<RowDataPacket[]>(
-            `SELECT ${projection(master)} FROM ${tableName(master)} WHERE Codigo = ? FOR UPDATE`,
+            `SELECT ${projection(master)} FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ? FOR UPDATE`,
             [code],
           );
           if (!rows[0])
@@ -254,10 +316,15 @@ export function createMasterStore(pool: Pool) {
               409,
               "El registro cambió desde que lo abriste. Volvé al listado y abrilo nuevamente para trabajar con la versión actual.",
             );
-          if (input && input.Codigo !== before.Codigo)
+          if (
+            input &&
+            masterRecordKey(master, input) !== masterRecordKey(master, before)
+          )
             throw new MasterRequestError(
               400,
-              "El código no puede modificarse.",
+              master.primaryKey === "IDTabla"
+                ? "El identificador no puede modificarse."
+                : "El código no puede modificarse.",
             );
         }
         if (input) {
@@ -286,21 +353,44 @@ export function createMasterStore(pool: Pool) {
             input[field.name] = rows[0].Codigo;
           }
         }
+        if (master.key === "numeraciones" && input?.Activo) {
+          const last = await lastVoucher(
+            connection,
+            String(input.Comprobante),
+            String(input.ProximoNumero),
+          );
+          if (last !== null && BigInt(String(input.ProximoNumero)) <= last)
+            throw new MasterRequestError(409, "Revisá el próximo número.", {
+              ProximoNumero:
+                "Debe superar " +
+                last +
+                " dentro del punto de venta configurado, incluidos los anulados.",
+            });
+        }
         if (action === "ALTA" && input) {
-          const fields = columns(master);
+          const fields = columns(master).filter((field) => field !== "IDTabla");
           await connection.execute(
-            `INSERT INTO ${tableName(master)} (${projection(master)}) VALUES (${fields.map(() => "?").join(", ")})`,
+            `INSERT INTO ${tableName(master)} (${fields.map((field) => "`" + field + "`").join(", ")}) VALUES (${fields.map(() => "?").join(", ")})`,
             fields.map((field) => input[field] ?? null),
           );
+          if (master.primaryKey === "IDTabla") {
+            const [rows] = await connection.query<RowDataPacket[]>(
+              "SELECT CAST(LAST_INSERT_ID() AS CHAR) AS id",
+            );
+            code = String(rows[0]!.id);
+            input.IDTabla = code;
+          }
         } else if (action === "MODIFICACION" && input) {
-          const fields = columns(master).filter((field) => field !== "Codigo");
+          const fields = columns(master).filter(
+            (field) => field !== primaryKey(master),
+          );
           await connection.execute(
-            `UPDATE ${tableName(master)} SET ${fields.map((field) => "`" + field + "` = ?").join(", ")} WHERE Codigo = ?`,
+            `UPDATE ${tableName(master)} SET ${fields.map((field) => "`" + field + "` = ?").join(", ")} WHERE \`${primaryKey(master)}\` = ?`,
             [...fields.map((field) => input[field] ?? null), code],
           );
         } else if (action === "BAJA")
           await connection.execute(
-            `DELETE FROM ${tableName(master)} WHERE Codigo = ?`,
+            `DELETE FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ?`,
             [code],
           );
         const after = input ? { ...input } : null;
@@ -310,7 +400,7 @@ export function createMasterStore(pool: Pool) {
             userId,
             action,
             tables[master.key],
-            before?.Codigo ?? code,
+            before ? masterRecordKey(master, before) : code,
             new Date(),
             JSON.stringify({ Antes: before, Despues: after }),
           ],
@@ -319,10 +409,10 @@ export function createMasterStore(pool: Pool) {
         let result: MasterDetail | null = null;
         if (after) {
           const [rows] = await connection.execute<RowDataPacket[]>(
-            `SELECT ${projection(master)} FROM ${tableName(master)} WHERE Codigo = ?`,
+            `SELECT ${projection(master)} FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ?`,
             [code],
           );
-          result = detail(record(rows[0]!));
+          result = await recordDetail(connection, master, record(rows[0]!));
         }
         await connection.commit();
         transaction = false;
@@ -342,7 +432,9 @@ export function createMasterStore(pool: Pool) {
         if (code === "ER_DUP_ENTRY")
           throw new MasterRequestError(
             409,
-            "Ya existe un registro con ese código.",
+            master.key === "numeraciones"
+              ? "Ya existe un numerador para ese comprobante."
+              : "Ya existe un registro con ese código.",
           );
         if (code === "ER_ROW_IS_REFERENCED_2")
           throw new MasterRequestError(

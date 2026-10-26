@@ -1,0 +1,16 @@
+.sf-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+.sf-line > .base-field {
+  flex: 1;
+  min-width: 0;
+}
+.sf-action {
+  flex-shrink: 0;
+  margin-top: 1.5rem;
+}
+.sf-field {
+  min-width: 0;
+}

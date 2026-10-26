@@ -54,3 +54,11 @@ La [etapa 3](etapa-3.md) utiliza las tablas existentes. No agrega migraciones ni
 Comprobar pruebas y build antes de publicar. Respaldar la base antes de migraciones sobre datos reales, aplicar cambios pendientes y reiniciar. Un rollback de código no revierte automáticamente una migración de MySQL: revisar compatibilidad y procedimiento de recuperación antes del cambio.
 
 El ERP se publica como aplicación independiente y puede usar un subdominio. Sus archivos no deben reemplazar los de los sitios existentes.
+
+## Comprobantes y numeración (etapa 4)
+
+Comprobantes y Numerador aparecen en Maestros. La revisión actual requiere la migración `0002_numero_comprobante_completo`, sin nuevas variables ni otra cuenta administradora. Seguir [actualización segura de numeración](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger) y luego la [prueba paso a paso](etapa-4.md#cómo-probar).
+
+## Cuenta corriente (etapa 5)
+
+La revisión de numeración cambia columnas de CUENTACORRIENTE, CAJAMOVIMIENTO y NUMERACION: requiere migración controlada, copia de seguridad y detener escrituras. El Numerador es interno y opcional; sin él se ingresan ambas partes manualmente. Ver [preparación y prueba](etapa-5.md#cómo-probar). Cobros y pagos siguen pendientes. La vista previa de Hostinger también necesita migrar su base, aunque el PR no esté fusionado; comprobar qué DB_NAME utiliza antes de intervenir.

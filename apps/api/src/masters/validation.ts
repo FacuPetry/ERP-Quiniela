@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { masterDefinitions, type MasterDefinition } from "@erp/shared";
+import {
+  integerFieldError,
+  voucherNumberError,
+  masterDefinitions,
+  type MasterDefinition,
+} from "@erp/shared";
 
 export class MasterRequestError extends Error {
   constructor(
@@ -20,6 +25,18 @@ export function definition(key: string): MasterDefinition {
 export function recordSchema(master: MasterDefinition, creation = false) {
   const fields: Record<string, z.ZodType> = { Activo: z.boolean() };
   for (const field of master.fields) {
+    if (
+      field.name === "IDTabla" &&
+      master.primaryKey === "IDTabla" &&
+      creation
+    ) {
+      fields.IDTabla = z
+        .string()
+        .max(0, "El identificador se asigna al guardar.")
+        .optional()
+        .transform(() => "");
+      continue;
+    }
     if (field.name === "Codigo" && master.automaticCode && creation) {
       fields.Codigo = z
         .string()
@@ -44,7 +61,28 @@ export function recordSchema(master: MasterDefinition, creation = false) {
             (text) => !text || z.email().safeParse(text).success,
             "Ingresá un correo válido.",
           )
-        : value;
+        : field.kind === "select"
+          ? value.refine(
+              (text) => field.options?.some((option) => option.value === text),
+              "Seleccioná una opción válida.",
+            )
+          : field.kind === "voucher"
+            ? value
+                .superRefine((text, context) => {
+                  const error = voucherNumberError(text);
+                  if (error)
+                    context.addIssue({ code: "custom", message: error });
+                })
+                .transform((text) => BigInt(text).toString())
+            : field.kind === "integer"
+              ? value
+                  .superRefine((text, context) => {
+                    const error = integerFieldError(field, text);
+                    if (error)
+                      context.addIssue({ code: "custom", message: error });
+                  })
+                  .transform((text) => (text ? BigInt(text).toString() : text))
+              : value;
     fields[field.name] = field.required
       ? checked
       : checked

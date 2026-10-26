@@ -758,4 +758,318 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       await pool.execute("DELETE FROM CLIENTE WHERE Codigo = ?", ["99999"]);
     },
   );
+
+  const voucherInput = {
+    Codigo: "PR_ET4",
+    Descripcion: "Premio",
+    ModuloOrigen: "CUENTACORRIENTE",
+    Cuenta: "PAGAR",
+    Naturaleza: "DEUDA",
+    SentidoFondos: "NOAPLICA",
+    Orden: "0",
+    Activo: true,
+  };
+  await t.test(
+    "Comprobantes: catálogo compartido, persistencia, edición, filtros, estados y baja",
+    async () => {
+      const saved = await create("comprobantes", voucherInput);
+      assert.deepEqual(saved.registro, voucherInput);
+      for (const [field, values] of Object.entries({
+        ModuloOrigen: [
+          "CUENTACORRIENTE",
+          "COBROSPAGOS",
+          "TESORERIA",
+          "VALORES",
+        ],
+        Cuenta: ["COBRAR", "PAGAR", "NOAPLICA"],
+        Naturaleza: ["DEUDA", "CREDITO", "NOAPLICA"],
+        SentidoFondos: ["INGRESO", "EGRESO", "NOAPLICA"],
+      })) {
+        for (const value of values) {
+          const before = await get("comprobantes/PR_ET4");
+          const changed = await update(
+            "comprobantes/PR_ET4",
+            { ...before.registro, [field]: value },
+            before.version,
+          );
+          assert.equal(changed.registro[field], value);
+        }
+        const bad = await request("comprobantes", "POST", {
+          ...voucherInput,
+          Codigo: "INVALIDO",
+          [field]: "NO_DEFINIDO",
+        });
+        assert.equal(bad.status, 400);
+        assert.ok(
+          ((await bad.json()) as { campos: Record<string, string> }).campos[
+            field
+          ],
+        );
+      }
+      const current = await get("comprobantes/PR_ET4");
+      const restored = await update(
+        "comprobantes/PR_ET4",
+        voucherInput,
+        current.version,
+      );
+      assert.equal(
+        (await request("comprobantes", "POST", voucherInput)).status,
+        409,
+      );
+      assert.equal(
+        (
+          await request(
+            "comprobantes/PR_ET4",
+            "PUT",
+            { ...voucherInput, Descripcion: "Vieja" },
+            current.version,
+          )
+        ).status,
+        409,
+      );
+      assert.equal(
+        (
+          await request(
+            "comprobantes/PR_ET4",
+            "PUT",
+            { ...voucherInput, Codigo: "OTRO" },
+            restored.version,
+          )
+        ).status,
+        400,
+      );
+      const filtered = (await (
+        await request("comprobantes?q=Premio&estado=activo")
+      ).json()) as MasterList;
+      assert.equal(filtered.total, 1);
+      assert.equal(filtered.registros[0]?.Codigo, "PR_ET4");
+      await create("comprobantes", {
+        ...voucherInput,
+        Codigo: "ET4_BAJA",
+        Orden: "",
+      });
+      const disposable = await get("comprobantes/ET4_BAJA");
+      assert.equal(disposable.registro.Orden, null);
+      assert.equal(
+        (
+          await request(
+            "comprobantes/ET4_BAJA",
+            "DELETE",
+            {},
+            disposable.version,
+          )
+        ).status,
+        204,
+      );
+      assert.equal((await request("comprobantes/ET4_BAJA")).status, 404);
+      const inactive = await update(
+        "comprobantes/PR_ET4",
+        { ...restored.registro, Activo: false },
+        restored.version,
+      );
+      const inactiveList = (await (
+        await request("comprobantes?estado=inactivo")
+      ).json()) as MasterList;
+      assert.ok(inactiveList.registros.some((row) => row.Codigo === "PR_ET4"));
+      await update(
+        "comprobantes/PR_ET4",
+        { ...inactive.registro, Activo: true },
+        inactive.version,
+      );
+      const [rows] = await pool.query<RowDataPacket[]>(
+        "SELECT Cuenta, Naturaleza, SentidoFondos FROM COMPROBANTE WHERE Codigo = 'PR_ET4'",
+      );
+      assert.equal(rows[0]?.Cuenta, "PAGAR");
+      const [movements] = await pool.query<RowDataPacket[]>(
+        "SELECT COUNT(*) AS total FROM CUENTACORRIENTE",
+      );
+      assert.equal(
+        Number(movements[0]!.total),
+        0,
+        "Configurar comprobantes no genera movimientos",
+      );
+      const [audit] = await pool.query<RowDataPacket[]>(
+        "SELECT Accion FROM AUDITORIA WHERE Tabla = 'COMPROBANTE' AND Registro = 'ET4_BAJA' ORDER BY IDTabla",
+      );
+      assert.deepEqual(
+        audit.map((row) => row.Accion),
+        ["ALTA", "BAJA"],
+      );
+    },
+  );
+  await t.test(
+    "Numerador único por comprobante: BIGINT completo, conflictos y auditoría",
+    async () => {
+      const saved = await create("numeraciones", {
+        Comprobante: "PR_ET4",
+        ProximoNumero: "100000025",
+      });
+      const id = String(saved.registro.IDTabla);
+      assert.equal(saved.registro.ProximoNumero, "100000025");
+      assert.equal(Object.hasOwn(saved.registro, "Serie"), false);
+      assert.equal(Object.hasOwn(saved.registro, "Codigo"), false);
+      const duplicates = await Promise.all([
+        request("numeraciones", "POST", {
+          Comprobante: "PR_ET4",
+          ProximoNumero: "200000001",
+          Activo: true,
+        }),
+        request("numeraciones", "POST", {
+          Comprobante: "PR_ET4",
+          ProximoNumero: "300000001",
+          Activo: true,
+        }),
+      ]);
+      assert.ok(duplicates.every((r) => r.status === 409));
+      for (const ProximoNumero of [
+        "0",
+        "100000000",
+        "1000000000000",
+        "-1",
+        "0001-00000001",
+        "1.1",
+      ])
+        assert.equal(
+          (
+            await request("numeraciones", "POST", {
+              Comprobante: "PR_ET4",
+              ProximoNumero,
+              Activo: true,
+            })
+          ).status,
+          400,
+          ProximoNumero,
+        );
+      const invalid = await request("numeraciones", "POST", {
+        Comprobante: "PR_ET4",
+        ProximoNumero: "100000001",
+        Serie: "1",
+        Activo: true,
+      });
+      assert.equal(invalid.status, 400);
+      const before = await get("numeraciones/" + id);
+      const changed = await update(
+        "numeraciones/" + id,
+        { ...before.registro, ProximoNumero: "100000026" },
+        before.version,
+      );
+      assert.equal(
+        (
+          await request(
+            "numeraciones/" + id,
+            "PUT",
+            before.registro,
+            before.version,
+          )
+        ).status,
+        409,
+      );
+      const filtered = (await (
+        await request("numeraciones?referencia=PR_ET4")
+      ).json()) as MasterList;
+      assert.equal(filtered.total, 1);
+      assert.equal(filtered.descripciones?.Comprobante?.PR_ET4, "Premio");
+      assert.equal(
+        (
+          await request(
+            "comprobantes/PR_ET4",
+            "DELETE",
+            {},
+            (await get("comprobantes/PR_ET4")).version,
+          )
+        ).status,
+        409,
+      );
+      assert.equal(changed.registro.ProximoNumero, "100000026");
+    },
+  );
+  await t.test(
+    "Cambiar o borrar el Numerador no altera el número histórico; no se retrocede dentro del punto de venta",
+    async () => {
+      const number = (await (
+        await request("numeraciones?referencia=PR_ET4")
+      ).json()) as MasterList;
+      const id = String(number.registros[0]!.IDTabla);
+      await pool.execute(
+        "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [
+          "00001",
+          "PR_ET4",
+          "100000050",
+          "2026-10-25",
+          "PAGAR",
+          "DEUDA",
+          "10.00",
+          "ANULADO",
+          admin.session.usuario.id,
+          new Date(),
+        ],
+      );
+      const before = await get("numeraciones/" + id);
+      assert.equal(before.camposSoloLectura, undefined);
+      assert.equal(
+        (
+          await request(
+            "numeraciones/" + id,
+            "PUT",
+            { ...before.registro, ProximoNumero: "100000050" },
+            before.version,
+          )
+        ).status,
+        409,
+      );
+      const other = await update(
+        "numeraciones/" + id,
+        { ...before.registro, ProximoNumero: "200000001" },
+        before.version,
+      );
+      assert.equal(
+        (await request("numeraciones/" + id, "DELETE", {}, other.version))
+          .status,
+        204,
+      );
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        "SELECT NumeroComprobante FROM CUENTACORRIENTE WHERE Comprobante=?",
+        ["PR_ET4"],
+      );
+      assert.equal(String(rows[0]!.NumeroComprobante), "100000050");
+    },
+  );
+  await t.test(
+    "Comprobantes y Numeración mantienen permisos, CSRF y auditoría",
+    async () => {
+      for (const key of ["comprobantes", "numeraciones"]) {
+        assert.equal((await fetch(`${base}/api/maestros/${key}`)).status, 401);
+        assert.equal(
+          (
+            await fetch(`${base}/api/maestros/${key}`, {
+              headers: { Cookie: reader.cookie },
+            })
+          ).status,
+          200,
+        );
+        const readerWrite = await fetch(`${base}/api/maestros/${key}`, {
+          method: "POST",
+          headers: {
+            Cookie: reader.cookie,
+            "Content-Type": "application/json",
+            "X-ERP-Request": "1",
+            "X-CSRF-Token": reader.session.csrfToken,
+          },
+          body: "{}",
+        });
+        assert.equal(readerWrite.status, 403);
+        const noCsrf = await fetch(`${base}/api/maestros/${key}`, {
+          method: "POST",
+          headers: {
+            Cookie: admin.cookie,
+            "Content-Type": "application/json",
+            "X-ERP-Request": "1",
+          },
+          body: "{}",
+        });
+        assert.equal(noCsrf.status, 403);
+      }
+    },
+  );
 });

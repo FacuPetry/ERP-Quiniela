@@ -1,0 +1,109 @@
+# Etapa 5: Cuenta corriente y SF
+
+Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. La revisión actual requiere la migración `0002_numero_comprobante_completo`; ver [actualización segura](numeracion-comprobantes.md). No agrega tablas ni variables de entorno. La configuración funcional de COMPROBANTE no cambia.
+
+## Alcance acordado
+
+- Alta y consulta de movimientos manuales de deuda o crédito.
+- Saldos actuales separados de Cobrar y Pagar por cliente.
+- Anulación con motivo, usuario y fecha, conservando el movimiento y su número.
+- Sin edición ni eliminación de movimientos guardados: para corregir, anular y cargar uno nuevo.
+- Numerador opcional; su número es una sugerencia editable antes de guardar.
+- Formato de comprobante `0000-00000000`. Sin Numerador se completan manualmente ambas partes. El punto admite 0 a 9999 y el correlativo 1 a 99999999.
+
+No se registran fondos, cobros, pagos ni afectaciones desde esta pantalla. Las aplicaciones de créditos a deudas, el pendiente individual por documento y las cancelaciones se mantienen pendientes para sus etapas. Un crédito reduce el saldo neto de la cuenta; esta entrega no lo vincula automáticamente a una deuda concreta.
+
+## Configuración de comprobantes para probar
+
+El formulario ofrece únicamente comprobantes activos de CUENTACORRIENTE, con Cuenta COBRAR o PAGAR, Naturaleza DEUDA o CREDITO y SentidoFondos NOAPLICA. Las mismas condiciones se verifican en el backend al guardar. Configuraciones de otros módulos se conservan y no se ofrecen aquí.
+
+| Ejemplo de descripción | Módulo | Cuenta | Naturaleza | Sentido de fondos | Efecto |
+|---|---|---|---|---|---|
+| Jugada | Cuenta corriente | Cobrar | Deuda | No aplica | Aumenta lo que debe el jugador |
+| Crédito a favor | Cuenta corriente | Cobrar | Crédito | No aplica | Reduce lo que debe el jugador |
+| Premio | Cuenta corriente | Pagar | Deuda | No aplica | Genera la obligación de pagar el premio |
+| Ajuste de premio | Cuenta corriente | Pagar | Crédito | No aplica | Reduce esa obligación |
+
+Los códigos son configurables: no se identifica el comportamiento por códigos como C, P o PR. El premio registra una obligación, no la entrega efectiva del dinero. Su pago se implementará desde Cobros y pagos.
+
+Cuenta y Naturaleza se copian al movimiento desde el comprobante al guardar. Cambiar el maestro posteriormente no reinterpreta los movimientos anteriores. Las descripciones de cliente y comprobante se consultan mediante relaciones y no se duplican en la base.
+
+## Numeración
+
+CUENTACORRIENTE almacena únicamente NumeroComprobante como BIGINT sin signo, sin FK Numeracion ni columna Serie. El valor es `punto × 100000000 + correlativo`: `0001-00000025` equivale a `100000025`. Los NULL históricos se conservan y se presentan como «Sin número»; las altas nuevas requieren número válido.
+
+- Al seleccionar un comprobante, se consulta internamente su Numerador activo y se propone su próximo número completo. No hay selector de Numerador.
+- Sin configuración activa, se muestran dos partes en cero para completar manualmente. Ambas partes son editables también cuando existe una sugerencia.
+- El control NumeroComprobante tiene dos inputs unidos, completa ceros al salir y admite pegar el formato completo. Abrirlo o consultar opciones no reserva ni consume números.
+- Al confirmar, se impiden duplicados por comprobante y número completo, incluidos anulados, comprobando CUENTACORRIENTE y CAJAMOVIMIENTO.
+- Se bloquea la fila del Numerador y se utiliza GET_LOCK por base, comprobante canónico y punto antes de la transacción. La clave única en cada tabla refuerza la integridad. Las futuras escrituras de Cobros y pagos deben usar este mismo protocolo.
+- Si se conserva el punto sugerido, el próximo número avanza al menos hasta el mayor utilizado más uno, sin retroceder. Si se cambia el punto, la carga es manual y no altera la configuración original.
+- Si dos usuarios guardan el mismo número, solo uno confirma; el otro recibe un conflicto y debe elegir otro número. No se reemplaza silenciosamente el ingresado.
+- Al confirmar el correlativo 99999999 en el punto del Numerador, se conserva su valor y se desactiva. No se incrementa automáticamente el punto de venta.
+
+Los números históricos son independientes del Numerador y no cambian al modificarlo o eliminarlo. Ver [migración y reglas](numeracion-comprobantes.md).
+
+## Formulario y listado
+
+Campos del alta: Cliente mediante SF, Comprobante, Número de comprobante, Fecha de origen, Vencimiento opcional, Cuenta y Naturaleza informativas, Importe y Observaciones. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan controles nativos con Field; no se crea un DatePicker personalizado en esta entrega.
+
+El listado comienza sin consultar. Aplicar filtros o Actualizar solicita los datos; no hay refrescos periódicos. Los filtros incluyen búsqueda general, cliente con búsqueda histórica, cuenta, estado y rango de fechas. Se muestran descripciones de las referencias, número formateado y estado, sin IDTabla. Se consulta una fila por selección y el botón del ojo o por doble clic.
+
+Al filtrar un cliente se muestran sus saldos actuales. Se calculan sobre todos sus movimientos CONFIRMADO, sin aplicar los otros filtros del listado: DEUDA suma y CREDITO resta, por separado en COBRAR y PAGAR. No se descuentan nuevamente las afectaciones. Sin cliente seleccionado no se presenta un saldo global que mezcle distintas cuentas comerciales.
+
+Guardar o anular actualiza los datos solamente si antes se había solicitado el listado. Volver a entrar al módulo comienza sin consultar.
+
+## SF reutilizable
+
+`SearchField<T>` recibe la función de búsqueda, las columnas de resultados, cómo obtener código y descripción, el registro seleccionado y su callback. No conoce tablas ni endpoints.
+
+- Lupa o Enter realiza la búsqueda; escribir o entrar al formulario no consulta automáticamente.
+- Cero coincidencias informa el resultado; una selecciona automáticamente; varias abren una ventana de selección.
+- La ventana reutiliza Modal, DataTable y Pagination, sin acciones de ABM. Permite buscar, paginar, seleccionar y confirmar o elegir por doble clic; Escape/Cancelar cierra.
+- Editar el criterio invalida la selección anterior, evitando enviar una FK que ya no corresponde a lo escrito. Se cancelan respuestas anteriores al iniciar otra búsqueda o desmontar el componente.
+
+`ClientSearch` es el adaptador de Cuenta corriente: reutiliza la búsqueda del maestro de Clientes, incluidos código y nombre. Ofrece activos para altas e incluye históricos para filtros. El resto del diseño y comportamiento pertenece al SF genérico. Otros módulos podrán aportar otra fuente y columnas sin crear un nuevo control visual.
+
+## Confirmación, anulación e integridad
+
+Las altas y anulaciones requieren ADMIN y CSRF; los demás usuarios activos pueden consultar. La interfaz no ofrece modificar o eliminar movimientos financieros. La API tampoco expone esas operaciones.
+
+La confirmación inserta movimiento, actualiza Numerador cuando corresponde y registra AUDITORIA en una sola transacción. SOLICITUD controla reintentos mediante usuario, acción, clave y huella del contenido: reenviar la misma operación devuelve el resultado guardado sin duplicarla; reutilizar la clave con otro contenido se rechaza. El frontend conserva la clave mientras reintenta el mismo contenido.
+
+Anular exige motivo y la versión actual. Solo se admiten movimientos manuales confirmados sin CajaMovimiento ni afectaciones relacionadas. No se eliminan registros ni se retrocede el Numerador. Las reglas posteriores de corrección de cobros/pagos se desarrollarán con esos módulos.
+
+Los importes viajan como texto decimal y se suman en SQL DECIMAL. IDTabla y BIGINT se transportan como texto; no se convierten importes a Number. Las consultas de listado, cantidad y saldos se realizan en la misma transacción de lectura.
+
+## API
+
+- GET `/api/cuenta-corriente/opciones`: comprobantes compatibles y próximos números activos por comprobante; no emite números.
+- GET `/api/cuenta-corriente`: filtros q, Cliente, Comprobante, Cuenta, Estado, Desde, Hasta, pagina y limite.
+- GET `/api/cuenta-corriente/:id`: consulta y versión ETag.
+- POST `/api/cuenta-corriente`: alta; requiere Idempotency-Key.
+- POST `/api/cuenta-corriente/:id/anular`: motivo, If-Match e Idempotency-Key.
+
+## Cómo probar
+
+1. Aplicar y comprobar la migración de numeración según la [guía de Hostinger](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger). No es suficiente que existan las 21 tablas si su estructura aún es la anterior.
+2. Configurar Jugada, Crédito a favor y Premio como en la tabla. En Numerador configurar Jugada con Próximo número `0001-00000025`.
+3. Entrar a Cuenta corriente: la grilla empieza vacía y no consulta hasta Actualizar o aplicar filtros. Agregar y buscar cliente mediante SF.
+4. Elegir Jugada: debe sugerir `0001-00000025` sin mostrar Numerador. Guardar importe 100,25, vencimiento igual a la fecha de origen y Observaciones vacío. Se conserva NULL en Observaciones y se guarda `100000025` como número.
+5. Actualizar y filtrar por cliente: Cobrar muestra 100,25 y Pagar 0,00. Otro alta de Jugada propone `0001-00000026`.
+6. Cambiar el correlativo sugerido a 50 y guardar: la próxima sugerencia será 51. Un número libre menor puede guardarse sin retroceder el Numerador. Un duplicado debe rechazarse.
+7. Cambiar manualmente el punto a 0002: el número se guarda con ese punto, sin modificar el próximo configurado para 0001. Con un comprobante sin Numerador, ambas partes empiezan en cero y se pueden completar libremente.
+8. Cargar Crédito a favor por 30,05 y Premio por 200: Cobrar queda 70,20 y Pagar 200,00. Consultar por doble clic y anular con motivo: se conserva la numeración y el número anulado no puede reutilizarse.
+9. Probar edición por teclado de las dos partes, pegado completo, usuario de consulta y móvil. Cambiar el Numerador no debe alterar los números ya guardados.
+
+## Verificación
+
+`NODE_ENV=production npm run check`, integración aislada en MySQL 8.4 y MariaDB 11.8.9 y Chromium con API/base reales. Se verifican sugerencias, edición, conflictos concurrentes, idempotencia, rollback, importes, permisos, saldos, búsqueda por número numérico y formateado, agotamiento sin cambio de punto y migración de registros históricos. Las bases de pruebas son efímeras y no utilizan la conexión de Hostinger.
+
+Esto no identifica por sí solo la causa del fallo informado en la vista previa. Tras aplicar la migración allí, repetir el caso original; si continúa, obtener la referencia y el registro técnico según la sección de diagnóstico.
+
+## Pendiente
+
+Cobros y pagos con medios de pago y afectaciones, Tesorería, Valores y aplicaciones entre créditos y deudas. DatePicker sigue pendiente; SF ya está disponible. Las anulaciones de operaciones financieras relacionadas se definirán junto con esos circuitos.
+
+## Diagnóstico de fallos de guardado
+
+Ante un 5xx de Cuenta corriente, la respuesta incluye una referencia que se correlaciona con un registro técnico acotado en el servidor. Ver [caso reproducido y obtención de la excepción en Hostinger](diagnostico-guardado-cuenta-corriente.md). No atribuir la causa a Observacion NULL: el esquema la admite y ese caso se confirma en integración.
