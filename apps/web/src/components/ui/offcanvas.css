@@ -14,15 +14,12 @@
   display: flex;
 }
 .offcanvas-sm {
-  --offcanvas-width: 24rem;
-}
-.offcanvas-md {
   --offcanvas-width: 36rem;
 }
-.offcanvas-lg {
+.offcanvas-md {
   --offcanvas-width: 48rem;
 }
-.offcanvas-xl {
+.offcanvas-lg {
   --offcanvas-width: 64rem;
 }
 .modal.offcanvas.offcanvas-left {

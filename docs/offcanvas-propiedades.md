@@ -23,10 +23,20 @@ La consulta de detalle se hace únicamente al abrir. En maestros se obtiene adem
 | `title` | Título visible y nombre accesible. |
 | `children` | Contenido libre: propiedades, formularios o listados. |
 | `side` | `right` predeterminado o `left`. |
-| `size` | `sm`, `md` predeterminado, `lg` o `xl`. En móvil ocupa todo el ancho. |
+| `size` | `sm` predeterminado, `md` o `lg`. En móvil ocupa todo el ancho. |
 | `footer` | Acciones propias; por defecto Cerrar a la derecha. `null` oculta el pie. |
 | `busy` | Impide cerrar durante una confirmación; no se usa para bloquear una lectura pendiente. Las acciones personalizadas deben aplicar sus propios estados disabled. |
 | `closeOnBackdrop` | Cierre al pulsar fuera del panel; predeterminado `true`. |
+
+Los anchos se definen una sola vez en offcanvas.css:
+
+| Tamaño | Ancho máximo | Uso previsto |
+| --- | --- | --- |
+| `sm` | 36rem | Propiedades; conserva su ancho anterior. |
+| `md` | 48rem | Listados y selección de registros; inicialmente, las futuras afectaciones de Cobros y pagos. |
+| `lg` | 64rem | Contenidos que necesiten más espacio. |
+
+RecordProperties utiliza `size="sm"` explícitamente para todos los ABM. Cada uso nuevo puede elegir otro tamaño mediante esa propiedad, sin estilos por módulo. El ancho nunca supera la pantalla; hasta 600px todos los tamaños ocupan el ancho completo, con el mismo scroll interior y acciones de cierre.
 
 Utiliza un portal al body y el diálogo nativo de Modal para superponerse sin desplazar el contenido, mantener el foco dentro y bloquear la interacción con el fondo. El cuerpo tiene scroll propio; cabecera y pie permanecen visibles. Se bloquea el scroll exterior conservando el espacio de la barra y se restauran estilos/foco al cerrar. Respeta movimiento reducido y no limita el zoom. Modal conserva sus opciones anteriores por defecto; Escape no se propaga a otro diálogo que lo contenga.
 

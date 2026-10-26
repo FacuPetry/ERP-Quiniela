@@ -53,7 +53,7 @@ export function RecordProperties<T>({
     return () => request.abort();
   }, [loadRecord, retry, onExpired]);
   return (
-    <OffCanvas open title={title} onClose={onClose}>
+    <OffCanvas open title={title} size="sm" onClose={onClose}>
       <div aria-busy={loading}>
         {loading && (
           <p className="muted" role="status">
