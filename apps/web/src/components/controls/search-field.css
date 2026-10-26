@@ -1,48 +1,34 @@
 .sf-line {
-  display: flex;
-  align-items: center;
   gap: 0;
-  min-width: 0;
 }
 .sf-line > .sf-input {
   flex: 1;
   min-width: 0;
   width: 0;
-  border-radius: var(--control-radius) 0 0 var(--control-radius);
+  border-radius: calc(var(--control-radius) - 1px) 0 0
+    calc(var(--control-radius) - 1px);
 }
 .sf-line > .sf-action {
   flex-shrink: 0;
   margin: 0;
-  height: var(--control-height);
-  min-height: var(--control-height);
-  border: 1px solid var(--control-border);
-  border-left: 0;
+  width: var(--control-height);
+  min-height: calc(var(--control-height) - 2px);
+  border: 0;
+  border-left: 1px solid var(--control-border);
   border-radius: 0;
   background: #edf3eb;
   color: #365e3e;
 }
 .sf-input[data-not-found="true"] {
   background: #fff0ed;
-  border-color: #b96e54;
 }
-@media (forced-colors: active) {
-  .sf-input[data-not-found="true"] {
-    outline: 2px solid Highlight;
-    outline-offset: -2px;
-  }
-}
-
 .sf-line > .sf-action:last-child {
-  border-radius: 0 var(--control-radius) var(--control-radius) 0;
+  border-radius: 0 calc(var(--control-radius) - 1px)
+    calc(var(--control-radius) - 1px) 0;
 }
 .sf-line > .sf-action:not(:disabled):hover {
   background: #dcebd6;
   color: #244e3b;
-}
-.sf-line > .sf-action:focus-visible {
-  position: relative;
-  outline: 3px solid var(--control-focus);
-  outline-offset: 2px;
 }
 .sf-line > .sf-action:disabled {
   opacity: 0.65;

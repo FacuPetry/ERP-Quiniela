@@ -78,7 +78,7 @@ SearchField recibe datos y funciones por propiedades; no conoce entidades ni API
 
 Control genérico en `controls/NumeroComprobante.tsx`, con Field y estilos propios en `numero-comprobante.css`, utilizado por MasterForm para el Próximo número de Numerador y por Cuenta corriente. Recibe `value` decimal codificado, `onValueChange`, label, ayuda, errores, required, disabled y readOnly. No consulta la base ni decide numeración o duplicados.
 
-Dos inputs contiguos de cuatro y ocho dígitos, separados únicamente por el guion visual, comparten borde y foco. Inicialmente muestra ceros; al salir de cada parte completa sus ceros. Tab navega entre las partes; pegar `0001-00000025` actualiza ambas. Conserva estados intermedios de edición sin redondear números y sincroniza sugerencias externas al cambiar de comprobante. El formulario y la API validan los límites y el correlativo positivo. Ver [reglas y pruebas](numeracion-comprobantes.md).
+Dos inputs contiguos de cuatro y ocho dígitos, sin guion en el editor y con un divisor vertical fino, comparten borde y foco. El ancho se ajusta a sus dígitos; los listados conservan el formato con guion. Inicialmente muestra ceros; al salir de cada parte completa sus ceros. Tab navega entre las partes; pegar `0001-00000025` actualiza ambas. Conserva estados intermedios de edición sin redondear números y sincroniza sugerencias externas al cambiar de comprobante. El formulario y la API validan los límites y el correlativo positivo. Ver [reglas y pruebas](numeracion-comprobantes.md).
 
 ## Anchos configurables
 
@@ -93,3 +93,9 @@ SF muestra `código - descripción` dentro del input; getDescription debe devolv
 DatePicker combina escritura manual normalizada a dd/MM/yyyy con un calendario nativo disponible mediante el icono adyacente. Emite yyyy-MM-dd o vacío, sin Date ni conversiones de zona horaria sobre la fecha ingresada. Se utiliza en Cuenta corriente, sus filtros y FilterDialog.
 
 AmountBox conserva decimales como strings con punto, sin miles/símbolos ni paso por Number. Formato predeterminado `#,##0.00`, locale es-AR; format permite variar agrupación y decimales. Al salir se presenta con miles y coma decimal. No redondea precisión excedente: informa el error y no entrega un valor válido. Las restricciones comerciales siguen perteneciendo al formulario/API. El Importe de Cuenta corriente lo utiliza con hasta 16 enteros y dos decimales. Ver [guía](controles-fechas-importes.md).
+
+## Foco compartido y Safari móvil
+
+SF, DatePicker y NumeroComprobante comparten la clase control-group de controls.css: borde exterior único, contorno verde semitransparente de 2px y esquinas comunes. No se dibujan anillos individuales superpuestos dentro del grupo. Los botones mantienen una señal interna al recibir foco por teclado; los estados de error y alto contraste se conservan. TextBox, TextArea, DropDown y CheckBox usan el mismo contorno discreto.
+
+En ancho <=860px o con cualquier puntero táctil, las fuentes de entrada son al menos 16px y la altura común es 44px. Incluye inputs internos, filtros y acceso. Escritorio conserva 12px/40px. No se modifica el viewport ni se limita el zoom del usuario. Ver [verificación en Safari iPhone](foco-controles-safari.md).

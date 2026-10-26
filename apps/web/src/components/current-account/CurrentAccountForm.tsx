@@ -298,11 +298,6 @@ export function CurrentAccountForm({
                 readOnly={Boolean(previous)}
                 disabled={busy || loading}
                 onValueChange={(value) => change("NumeroComprobante", value)}
-                hint={
-                  !previous
-                    ? "El próximo número se sugiere automáticamente si el comprobante tiene un numerador activo. Podés editar ambas partes antes de guardar."
-                    : undefined
-                }
               />
             )}
             {previous ? (

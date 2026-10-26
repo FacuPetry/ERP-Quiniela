@@ -39,7 +39,7 @@ export function DatePicker({
   return (
     <Field {...field}>
       {(binding) => (
-        <div className="date-control">
+        <div className="control-group date-control">
           <input
             {...binding}
             className="base-control base-textbox date-text"

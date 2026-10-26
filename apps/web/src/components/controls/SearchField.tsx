@@ -146,7 +146,7 @@ export function SearchField<T>({
     <>
       <Field {...field} invalid={field.invalid || notFound} hint={hint}>
         {(binding) => (
-          <div className="sf-line" aria-busy={busy}>
+          <div className="control-group sf-line" aria-busy={busy}>
             <input
               {...binding}
               ref={input}
@@ -196,7 +196,7 @@ export function SearchField<T>({
           <div className="modal-body">
             <Field label="Buscar por código o descripción">
               {(binding) => (
-                <div className="sf-line">
+                <div className="control-group sf-line">
                   <input
                     {...binding}
                     className="base-control base-textbox sf-input"

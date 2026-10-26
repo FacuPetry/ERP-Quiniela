@@ -26,7 +26,7 @@ Usos actuales: Fecha de origen y Fecha de vencimiento de Cuenta corriente, Desde
 
 ## AmountBox
 
-Textbox monetario reutilizable con Field y los mismos anchos, altura, bordes, foco y estados de TextBox. Alinea el número a la derecha. La ficha Importes mantiene su agrupación sin imponer una altura o tamaño tipográfico diferente al control.
+Textbox monetario reutilizable con Field y los mismos anchos, altura, bordes, foco y estados de TextBox. Alinea el número a la derecha. La ficha Importes es compacta, alineada a la derecha en escritorio y con ancho disponible en móvil, sin imponer una altura o tipografía distinta al control.
 
 - `value` y onValueChange utilizan texto decimal canónico con punto, sin separadores de miles ni símbolos: 1250.50. Este contrato conserva precisión y el uso actual de DECIMAL en la API; no usa Number ni parseFloat sobre importes.
 - `format` predeterminado: `#,##0.00`. Los ceros después del punto determinan los decimales; `0.00` omite miles, `#,##0.000` presenta tres decimales y `#,##0` ninguno. Admite hasta veinte decimales obligatorios. La puntuación de la máscara es convencional, no el separador que se teclea.
@@ -50,7 +50,7 @@ Uso actual: Importe en altas y consultas de Cuenta corriente. No se duplican con
 
 ## SF
 
-La fila une input, Buscar y Limpiar sin espacios. Los botones tienen borde, fondo verde suave, hover y foco visibles, con la altura común. El borde exterior mantiene las esquinas redondeadas. También se aplica al input/botón de búsqueda del selector.
+La fila une input, Buscar y Limpiar sin espacios. Los botones tienen borde, fondo verde suave, hover y foco visibles, con la altura común. El borde exterior mantiene las esquinas redondeadas y comparte un único contorno de foco con los botones. También se aplica al input/botón de búsqueda del selector.
 
 Se mantienen las búsquedas, selección, paginación, validación de identidad, limpieza, cancelación de respuestas tardías y error por cero coincidencias.
 
@@ -73,3 +73,5 @@ Se mantienen las búsquedas, selección, paginación, validación de identidad, 
 6. Probar Buscar/Limpiar del SF, cero/una/múltiples coincidencias, teclado y móvil. Los botones deben verse unidos y conservar el comportamiento.
 
 Verificación automática: tipos, build, pruebas unitarias/HTTP y Chromium contra API y MariaDB efímeras. No se utilizan datos ni credenciales de Hostinger.
+
+La revisión de [foco y Safari](foco-controles-safari.md) establece entradas móviles de 16px como mínimo y mantiene el zoom manual habilitado.

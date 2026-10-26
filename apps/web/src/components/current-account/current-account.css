@@ -8,8 +8,9 @@
 }
 .account-amounts {
   min-width: 0;
-  margin: 26px 0 0;
-  padding: 18px;
+  width: min(100%, 28rem);
+  margin: 22px 0 0 auto;
+  padding: 14px;
   border: 1px solid var(--control-border);
   border-radius: 10px;
   background: #f8faf5;
@@ -20,9 +21,31 @@
   font-size: 14px;
   font-weight: 650;
 }
-
+.account-form .account-amounts > .base-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 16px;
+  max-width: none;
+}
+.account-amounts .base-field > label {
+  margin: 0;
+}
+.account-amounts .base-control {
+  max-width: var(--field-width, 100%);
+  justify-self: end;
+}
+.account-amounts :is(.field-error, .field-hint) {
+  grid-column: 1 / -1;
+}
 
 @media (max-width: 600px) {
+  .account-form .account-amounts > .base-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account-amounts {
+    width: 100%;
+  }
   .account-form .form-heading {
     flex-wrap: wrap;
   }

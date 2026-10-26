@@ -1,12 +1,9 @@
-.date-control {
-  display: flex;
-  min-width: 0;
-}
 .date-control > .date-text {
   min-width: 0;
   flex: 1;
   width: 0;
-  border-radius: var(--control-radius) 0 0 var(--control-radius);
+  border-radius: calc(var(--control-radius) - 1px) 0 0
+    calc(var(--control-radius) - 1px);
 }
 .date-calendar-action {
   position: relative;
@@ -14,20 +11,16 @@
   align-items: center;
   justify-content: center;
   flex: 0 0 var(--control-height);
-  min-height: var(--control-height);
-  border: 1px solid var(--control-border);
-  border-left: 0;
-  border-radius: 0 var(--control-radius) var(--control-radius) 0;
+  min-height: calc(var(--control-height) - 2px);
+  border-left: 1px solid var(--control-border);
+  border-radius: 0 calc(var(--control-radius) - 1px)
+    calc(var(--control-radius) - 1px) 0;
   background: #edf3eb;
   color: #365e3e;
 }
 .date-calendar-action:not(:has(input:disabled)):hover {
   background: #dcebd6;
   color: #244e3b;
-}
-.date-calendar-action:focus-within {
-  outline: 3px solid var(--control-focus);
-  outline-offset: 3px;
 }
 .date-calendar-input {
   position: absolute;

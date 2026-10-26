@@ -8,7 +8,7 @@ Comprobante es el primer campo y recibe el foco al abrir el alta, después de ca
 
 Los datos generales son Comprobante, Número de comprobante, Cliente, fechas y Observaciones. Origen y vencimiento quedan apilados, alineados y con size sm. Cuenta y Naturaleza no se presentan en el formulario, ni en alta ni en consulta. El servidor sigue determinándolas y conservándolas desde la configuración del comprobante; los campos y columnas del listado mantienen su funcionamiento.
 
-La ficha Importes es un fieldset con legend, siempre visible y con el Importe destacado. Una única ficha no necesita navegación de pestañas ni ocultar el campo obligatorio; se pueden incorporar más controles dentro del grupo sin cambiar el envío actual. Estado y motivo de anulación permanecen en la consulta. Los botones de cabecera se acomodan en otra línea si no hay espacio en móvil.
+La ficha Importes es un fieldset con legend, compacto y alineado a la derecha debajo de los datos generales. En escritorio presenta label a la izquierda e importe a la derecha; en móvil ocupa el ancho disponible y apila label/control. Una única ficha no necesita navegación de pestañas ni ocultar el campo obligatorio; se pueden incorporar más controles dentro del grupo sin cambiar el envío actual. Estado y motivo de anulación permanecen en la consulta. Los botones de cabecera se acomodan en otra línea si no hay espacio en móvil.
 
 Se retiran únicamente las tarjetas de Cobrar/Pagar del listado. El cálculo DECIMAL, su alcance por cliente y la respuesta de la API se conservan para futuros informes. No se crea un módulo de reportes en esta entrega.
 
@@ -25,7 +25,7 @@ Se retiran únicamente las tarjetas de Cobrar/Pagar del listado. El cálculo DEC
 
 Se reduce al espacio disponible. Sin size se conserva el diseño anterior. No altera alturas, validaciones ni contenidos. `wide` sigue controlando la ocupación de columnas y puede combinarse con size. MasterField permite configurar el tamaño de cada control del ABM; ReferenceSelect lo transmite a su DropDown. No se impone un tamaño nuevo a todos los maestros existentes.
 
-SF utiliza el mismo Field para el label, acciones, ayuda y error. La lupa y la goma comparten la fila del input y se centran sin márgenes calculados desde el label. El valor visible seleccionado es `código - descripción`; getDescription devuelve la descripción sin repetir el código. El registro/identificador pertenece al estado controlado, no al texto mostrado.
+SF utiliza el mismo Field para el label, acciones, ayuda y error. La lupa y la goma comparten borde exterior y foco con el input, sin márgenes calculados desde el label. El valor visible seleccionado es `código - descripción`; getDescription devuelve la descripción sin repetir el código. El registro/identificador pertenece al estado controlado, no al texto mostrado.
 
 - Escribir solo prepara el criterio; lupa o Enter buscan.
 - Una coincidencia selecciona; varias abren el selector paginado; cero resalta el input en rojo claro y anuncia el resultado.
@@ -54,3 +54,5 @@ SF utiliza el mismo Field para el label, acciones, ayuda y error. La lupa y la g
 9. Revisar en 320, 375, 768 y 1280 px: sin desbordamiento de página, botones alineados, fechas compactas, grupo Importes legible y campos de solo lectura al consultar. Revisar los maestros previos para confirmar que los controles sin size conservan el ancho anterior.
 
 Verificación: `NODE_ENV=production npm run check` y `npm run test:integration:mariadb`, más Chromium contra API/MariaDB efímeras. No se usan credenciales ni datos de Hostinger. Informes sigue pendiente. DatePicker y AmountBox se incorporan en la [revisión de formatos](controles-fechas-importes.md).
+
+La revisión de [foco y Safari](foco-controles-safari.md) retira la ayuda bajo Número de comprobante, muestra sus dos segmentos con divisor y conserva el dato compuesto.
