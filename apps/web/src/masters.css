@@ -121,6 +121,17 @@
   max-width: 300px;
   overflow-wrap: anywhere;
 }
+/* El texto de una fila no se selecciona al activar el registro con doble clic. */
+.data-table tbody tr {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.data-table tbody input,
+.data-table tbody textarea,
+.data-table tbody [contenteditable]:not([contenteditable="false"]) {
+  -webkit-user-select: text;
+  user-select: text;
+}
 .data-table tbody tr:hover {
   background: #fbfcf9;
 }

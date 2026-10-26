@@ -119,3 +119,9 @@ initialListFilters permite inicializar fechas al entrar al módulo y Confirmado 
 FormToolbarActions recibe las acciones dinámicas como children (más annulAction opcional) y el botón Cerrar/Cancelar mediante closeAction obligatorio. Presenta dos zonas: dinámicas a la izquierda y cierre al extremo derecho. MasterForm y Cuenta corriente utilizan la misma base; los próximos formularios deben reutilizarla. Mantiene handlers, type/form, permisos y estados disabled de cada botón.
 
 Comprobar manualmente alta (Guardar / Cancelar), edición de maestros (Guardar / Cancelar), consulta de confirmado (Anular / Cerrar) y consulta sin acciones (Cerrar a la derecha). Esta revisión visual no ejecuta compilaciones ni pruebas automáticas.
+
+## Texto de filas y doble clic
+
+Los estilos compartidos de DataTable en masters.css deshabilitan la selección de texto de las filas (incluido el prefijo de WebKit). Se conserva la edición/selección de texto dentro de inputs, textarea y contenido editable, si una grilla los incorpora. No se interceptan eventos de mouse ni se modifican la selección del registro, el foco o la activación por doble clic. Comprobar manualmente una fila de Clientes y una de Cuenta corriente: deben abrir el registro sin resaltar palabras.
+
+Propiedades mediante panel lateral permanece como propuesta, sin implementación. Puede incorporarse con una acción opcional de ActionToolbar y un panel de lectura configurable por módulo, reutilizando detalle/formatos y el manejo de diálogo/foco existente. La carga se haría al abrir, sin consultas por fila o por entrar al módulo; los identificadores internos continuarían fuera de la presentación.
