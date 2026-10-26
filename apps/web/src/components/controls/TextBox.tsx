@@ -24,6 +24,7 @@ export function TextBox({
   error,
   hint,
   wide,
+  size,
   value,
   onValueChange,
   type = "text",
@@ -31,7 +32,7 @@ export function TextBox({
   ...input
 }: TextBoxProps) {
   return (
-    <Field {...{ id, label, required, invalid, error, hint, wide }}>
+    <Field {...{ id, label, required, invalid, error, hint, wide, size }}>
       {(binding) => (
         <input
           {...input}

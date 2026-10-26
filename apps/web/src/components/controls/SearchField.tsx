@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { TextBox } from "./TextBox";
-import type { FieldProps } from "./Field";
+import { Field, type FieldProps } from "./Field";
 import { Modal } from "../ui/Modal";
 import { DataTable, type TableColumn } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
@@ -42,24 +41,70 @@ export function SearchField<T>({
   const [selected, setSelected] = useState<T | null>(null);
   const [open, setOpen] = useState(false),
     [busy, setBusy] = useState(false),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [notFound, setNotFound] = useState(false);
   const input = useRef<HTMLInputElement>(null),
-    request = useRef<AbortController | null>(null);
+    request = useRef<AbortController | null>(null),
+    editing = useRef(false),
+    previousValue = useRef(value);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
-    if (value) setQuery(getCode(value));
+    if (value) {
+      setQuery(getCode(value));
+      setNotFound(false);
+      setMessage("");
+    } else if (previousValue.current !== null && !editing.current) {
+      setQuery("");
+    }
+    // Un callback nuevo no debe borrar un criterio que aún no tiene selección.
+    previousValue.current = value;
+    editing.current = false;
   }, [value, getCode]);
+  useEffect(() => {
+    if (disabled) {
+      request.current?.abort();
+      setBusy(false);
+      setOpen(false);
+    }
+  }, [disabled]);
+  function changeQuery(text: string) {
+    request.current?.abort();
+    editing.current = true;
+    setQuery(text);
+    setBusy(false);
+    setResult(null);
+    setSelected(null);
+    setMessage("");
+    onValueChange(null);
+  }
   function choose(row: T) {
     onValueChange(row);
     setQuery(getCode(row));
     setOpen(false);
     setMessage("");
+    setNotFound(false);
+    requestAnimationFrame(() => input.current?.focus());
+  }
+  function clear() {
+    request.current?.abort();
+    editing.current = false;
+    setQuery("");
+    setResult(null);
+    setSelected(null);
+    setOpen(false);
+    setBusy(false);
+    setMessage("");
+    setNotFound(false);
+    onValueChange(null);
     requestAnimationFrame(() => input.current?.focus());
   }
   async function find(page = 1) {
+    if (disabled) return;
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
+    editing.current = true;
+    onValueChange(null);
     setBusy(true);
     setMessage("");
     setSelected(null);
@@ -67,10 +112,11 @@ export function SearchField<T>({
       const data = await search(query.trim(), page, controller.signal);
       if (controller.signal.aborted) return;
       setResult(data);
+      setNotFound(data.total === 0);
       if (data.total === 1 && data.registros[0]) choose(data.registros[0]);
-      else if (!data.total && !open)
+      else if (!data.total) {
         setMessage("No se encontraron coincidencias.");
-      else setOpen(true);
+      } else setOpen(true);
     } catch (error) {
       if (!controller.signal.aborted)
         setMessage(
@@ -88,81 +134,98 @@ export function SearchField<T>({
     setOpen(false);
     requestAnimationFrame(() => input.current?.focus());
   }
+  const hint = message ? (
+    <>
+      <span role="status">{message}</span>
+      {field.hint}
+    </>
+  ) : (
+    field.hint
+  );
   return (
-    <div className={field.wide ? "wide sf-field" : "sf-field"}>
-      <div className="sf-line">
-        <TextBox
-          {...field}
-          ref={input}
-          value={query}
-          disabled={disabled || busy}
-          hint={
-            <>
-              {value
-                ? getDescription(value)
-                : "Ingresá código o descripción y presioná Buscar."}
-              {message && (
-                <span role="status" className="field-hint">
-                  {message}
-                </span>
-              )}
-              {field.hint}
-            </>
-          }
-          onValueChange={(text) => {
-            setQuery(text);
-            setMessage("");
-            onValueChange(null);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              void find();
-            }
-          }}
-        />
-        <button
-          type="button"
-          className="icon-button sf-action"
-          aria-label={`Buscar ${title}`}
-          disabled={disabled || busy}
-          onClick={() => {
-            void find();
-          }}
-        >
-          <Icon name="search" />
-        </button>
-      </div>
+    <>
+      <Field {...field} invalid={field.invalid || notFound} hint={hint}>
+        {(binding) => (
+          <div className="sf-line" aria-busy={busy}>
+            <input
+              {...binding}
+              ref={input}
+              className="base-control base-textbox sf-input"
+              data-not-found={notFound || undefined}
+              type="text"
+              value={
+                value ? `${getCode(value)} - ${getDescription(value)}` : query
+              }
+              required={field.required}
+              disabled={disabled || busy}
+              onChange={(event) => changeQuery(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void find();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="icon-button sf-action"
+              aria-label={`Buscar ${title}`}
+              title={`Buscar ${title}`}
+              disabled={disabled || busy}
+              onClick={() => {
+                void find();
+              }}
+            >
+              <Icon name="search" />
+            </button>
+            <button
+              type="button"
+              className="icon-button sf-action"
+              aria-label={`Limpiar ${title}`}
+              title={`Limpiar ${title}`}
+              disabled={disabled}
+              onClick={clear}
+            >
+              <Icon name="eraser" />
+            </button>
+          </div>
+        )}
+      </Field>
       {open && (
         <Modal title={`Seleccionar ${title}`} busy={busy} onClose={close}>
           <div className="modal-body">
-            <div className="sf-line">
-              <TextBox
-                label="Buscar por código o descripción"
-                value={query}
-                onValueChange={(text) => {
-                  setQuery(text);
-                  onValueChange(null);
-                }}
-                disabled={busy}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    void find();
-                  }
-                }}
-              />
-              <button
-                type="button"
-                className="button secondary sf-action"
-                disabled={busy}
-                onClick={() => {
-                  void find();
-                }}
-              >
-                Buscar
-              </button>
-            </div>
+            <Field label="Buscar por código o descripción">
+              {(binding) => (
+                <div className="sf-line">
+                  <input
+                    {...binding}
+                    className="base-control base-textbox sf-input"
+                    type="text"
+                    value={query}
+                    data-not-found={notFound || undefined}
+                    aria-invalid={notFound}
+                    onChange={(event) => changeQuery(event.currentTarget.value)}
+                    disabled={busy}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        void find();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="button secondary sf-action"
+                    disabled={busy}
+                    onClick={() => {
+                      void find();
+                    }}
+                  >
+                    Buscar
+                  </button>
+                </div>
+              )}
+            </Field>
             {message && (
               <p className="notice error" role="alert">
                 {message}
@@ -173,9 +236,10 @@ export function SearchField<T>({
               rows={result?.registros ?? []}
               columns={columns}
               rowKey={getCode}
-              rowLabel={getDescription}
+              rowLabel={(row) => `${getCode(row)} - ${getDescription(row)}`}
               loading={busy}
               selectedKey={selected ? getCode(selected) : null}
+              selectionDisabled={busy}
               onSelectionChange={(code) =>
                 setSelected(
                   result?.registros.find((row) => getCode(row) === code) ??
@@ -218,6 +282,6 @@ export function SearchField<T>({
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

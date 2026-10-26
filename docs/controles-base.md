@@ -19,7 +19,7 @@ Los labels permanecen arriba para conservar la distribución actual en escritori
 
 MasterForm agrupa Código y Registro activo en la fila superior y enfoca Código al abrir un alta, modificación o consulta. El orden de Tab sigue la disposición visual. Ver [apertura y navegación de los ABM](navegacion-abm.md), incluida la carga manual de listados.
 
-Todos reciben `label`, `id` opcional, `value`, `onValueChange`, `required`, `disabled`, `invalid`, `error`, `hint` y `wide`. Si no se proporciona `id`, Field genera uno; los ABM conservan sus identificadores para enfocar el primer campo incorrecto. `wide` ocupa las dos columnas del formulario en escritorio y una en móvil.
+Los controles reciben `label`, `id` opcional, `value`, `onValueChange`, `required`, `disabled`, `invalid`, `error`, `hint`, `wide` y `size` opcional. Si no se proporciona `id`, Field genera uno; los ABM conservan sus identificadores para enfocar el primer campo incorrecto. `wide` ocupa las dos columnas del formulario en escritorio y una en móvil.
 
 TextBox y TextArea admiten las propiedades nativas correspondientes, como `name`, `maxLength` y `ref`; TextBox también admite `type` y `readOnly`. No se utilizan para definir reglas de negocio: MasterForm mantiene sus validaciones actuales y la API conserva las suyas. La presentación de errores sigue siendo inline y mediante el resumen existente.
 
@@ -79,3 +79,11 @@ SearchField recibe datos y funciones por propiedades; no conoce entidades ni API
 Control genérico en `controls/NumeroComprobante.tsx`, con Field y estilos propios en `numero-comprobante.css`, utilizado por MasterForm para el Próximo número de Numerador y por Cuenta corriente. Recibe `value` decimal codificado, `onValueChange`, label, ayuda, errores, required, disabled y readOnly. No consulta la base ni decide numeración o duplicados.
 
 Dos inputs contiguos de cuatro y ocho dígitos, separados únicamente por el guion visual, comparten borde y foco. Inicialmente muestra ceros; al salir de cada parte completa sus ceros. Tab navega entre las partes; pegar `0001-00000025` actualiza ambas. Conserva estados intermedios de edición sin redondear números y sincroniza sugerencias externas al cambiar de comprobante. El formulario y la API validan los límites y el correlativo positivo. Ver [reglas y pruebas](numeracion-comprobantes.md).
+
+## Anchos configurables
+
+Field centraliza `size?: "sm" | "md" | "lg" | "xl"`. Los máximos son 12, 20, 32 y 48 rem respectivamente. Siempre se ajustan al ancho disponible; no crean desplazamiento horizontal ni cambian la altura del control. Sin size se conserva el ancho actual. `wide` indica cuántas columnas ocupa el campo y `size` limita su ancho dentro de ese espacio.
+
+La propiedad llega a TextBox, TextArea, DropDown, CheckBox, NumeroComprobante y SearchField. ReferenceSelect la propaga a DropDown. En los ABM declarativos se configura `size` en MasterField y MasterForm lo transmite, sin crear componentes por módulo. Los campos de fecha nativos también pueden usar `<Field size="sm">`; DatePicker continúa pendiente.
+
+SF muestra `código - descripción` dentro del input; getDescription debe devolver solo la descripción. Conserva por separado el registro T seleccionado. Limpiar elimina texto y selección, aborta búsquedas y devuelve el foco. Cero coincidencias resalta en rojo claro y se anuncia por texto/ARIA, sin depender solamente del color. Editar el criterio invalida la selección y las filas del resultado anterior hasta buscar otra vez. El consumidor valida el registro seleccionado, nunca da por válido el texto escrito. Ver [pruebas](cuenta-corriente-presentacion-sf.md).

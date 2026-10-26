@@ -1,25 +1,40 @@
-.account-balances {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
+.account-general-grid {
+  align-items: start;
 }
-.account-balances .panel {
-  padding: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.account-date-fields {
+  display: grid;
+  gap: 18px;
   min-width: 0;
 }
-.account-balances strong {
-  font-size: 1.5rem;
-  overflow-wrap: anywhere;
+.account-amounts {
+  min-width: 0;
+  margin: 26px 0 0;
+  padding: 18px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: #f8faf5;
 }
-.account-balances > p {
-  grid-column: 1 / -1;
+.account-amounts > legend {
+  padding: 0 8px;
+  color: #365e3e;
+  font-size: 14px;
+  font-weight: 650;
 }
+.account-amounts .base-control {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 @media (max-width: 600px) {
-  .account-balances {
-    grid-template-columns: 1fr;
+  .account-form .form-heading {
+    flex-wrap: wrap;
+  }
+  .account-form .form-heading h2 {
+    flex: 1 0 12rem;
+  }
+  .account-form .form-toolbar-actions {
+    margin-left: auto;
   }
 }

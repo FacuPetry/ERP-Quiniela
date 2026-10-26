@@ -19,6 +19,7 @@ export function TextArea({
   error,
   hint,
   wide,
+  size,
   value,
   onValueChange,
   height = 96,
@@ -28,7 +29,7 @@ export function TextArea({
   ...textarea
 }: TextAreaProps) {
   return (
-    <Field {...{ id, label, required, invalid, error, hint, wide }}>
+    <Field {...{ id, label, required, invalid, error, hint, wide, size }}>
       {(binding) => (
         <textarea
           {...textarea}

@@ -103,15 +103,12 @@ export function CurrentAccountForm({
       });
     return () => request.abort();
   }, [previous, revision, onExpired, input.Comprobante]);
-  const voucher = options.comprobantes.find(
-    (v) => v.Codigo === input.Comprobante,
-  );
   function focusError(fields: Record<string, string>) {
     requestAnimationFrame(() => {
       const name = [
-        "Cliente",
         "Comprobante",
         "NumeroComprobante",
+        "Cliente",
         "FechaOrigen",
         "Vencimiento",
         "Importe",
@@ -125,7 +122,7 @@ export function CurrentAccountForm({
     Comprobante: "Comprobante",
     NumeroComprobante: "Número de comprobante",
     FechaOrigen: "Fecha de origen",
-    Vencimiento: "Vencimiento",
+    Vencimiento: "Fecha de vencimiento",
     Importe: "Importe",
     Observacion: "Observaciones",
   };
@@ -188,7 +185,7 @@ export function CurrentAccountForm({
     error: errors[name],
   });
   return (
-    <section className="panel record-form" aria-busy={busy}>
+    <section className="panel record-form account-form" aria-busy={busy}>
       <div className="form-heading">
         <h2 ref={heading} tabIndex={-1}>
           {previous ? "Consultar movimiento" : "Nuevo movimiento"}
@@ -248,28 +245,11 @@ export function CurrentAccountForm({
               No aplica.
             </p>
           )}
-          <div className="form-grid">
-            {previous ? (
-              <TextBox
-                label="Cliente"
-                value={`${previous.Cliente} · ${previous.ClienteNombre}`}
-                readOnly
-                onValueChange={() => {}}
-              />
-            ) : (
-              <ClientSearch
-                {...presentation("Cliente")}
-                label="Cliente"
-                required
-                value={client}
-                onChange={setClient}
-                onExpired={onExpired}
-                disabled={busy}
-              />
-            )}
+          <div className="form-grid account-general-grid">
             {previous ? (
               <TextBox
                 label="Comprobante"
+                size="md"
                 value={previous.ComprobanteDescripcion}
                 readOnly
                 onValueChange={() => {}}
@@ -278,6 +258,7 @@ export function CurrentAccountForm({
               <DropDown
                 {...presentation("Comprobante")}
                 label="Comprobante"
+                size="md"
                 required
                 value={input.Comprobante}
                 disabled={busy}
@@ -301,6 +282,7 @@ export function CurrentAccountForm({
             {previous && previous.NumeroComprobante === null ? (
               <TextBox
                 label="Número de comprobante"
+                size="md"
                 value="Sin número"
                 readOnly
                 onValueChange={() => {}}
@@ -309,6 +291,7 @@ export function CurrentAccountForm({
               <NumeroComprobante
                 {...presentation("NumeroComprobante")}
                 label="Número de comprobante"
+                size="md"
                 value={input.NumeroComprobante}
                 required={!previous}
                 readOnly={Boolean(previous)}
@@ -321,59 +304,98 @@ export function CurrentAccountForm({
                 }
               />
             )}
-            {(["FechaOrigen", "Vencimiento"] as const).map((name) => (
-              <Field
-                key={name}
-                {...presentation(name)}
-                label={
-                  name === "FechaOrigen" ? "Fecha de origen" : "Vencimiento"
-                }
-                required={!previous && name === "FechaOrigen"}
-              >
-                {(binding) => (
-                  <input
-                    {...binding}
-                    className="base-control"
-                    type="date"
-                    value={input[name] ?? ""}
-                    readOnly={Boolean(previous)}
-                    disabled={busy}
-                    onChange={(event) => {
-                      if (name === "FechaOrigen")
-                        change(name, event.target.value);
-                      else change(name, event.target.value || null);
-                    }}
-                  />
-                )}
-              </Field>
-            ))}
-            <TextBox
-              label="Cuenta"
-              value={
-                (previous?.Cuenta ?? voucher?.Cuenta) === "COBRAR"
-                  ? "Cobrar"
-                  : (previous?.Cuenta ?? voucher?.Cuenta) === "PAGAR"
-                    ? "Pagar"
-                    : ""
-              }
-              readOnly
-              onValueChange={() => {}}
+            {previous ? (
+              <TextBox
+                label="Cliente"
+                size="lg"
+                wide
+                value={`${previous.Cliente} - ${previous.ClienteNombre}`}
+                readOnly
+                onValueChange={() => {}}
+              />
+            ) : (
+              <ClientSearch
+                {...presentation("Cliente")}
+                label="Cliente"
+                size="lg"
+                wide
+                required
+                value={client}
+                onChange={(value) => {
+                  setClient(value);
+                  setErrors((current) => ({ ...current, Cliente: "" }));
+                }}
+                onExpired={onExpired}
+                disabled={busy}
+              />
+            )}
+            <div className="account-date-fields">
+              {(["FechaOrigen", "Vencimiento"] as const).map((name) => (
+                <Field
+                  key={name}
+                  {...presentation(name)}
+                  label={
+                    name === "FechaOrigen"
+                      ? "Fecha de origen"
+                      : "Fecha de vencimiento"
+                  }
+                  size="sm"
+                  required={!previous && name === "FechaOrigen"}
+                >
+                  {(binding) => (
+                    <input
+                      {...binding}
+                      className="base-control"
+                      type="date"
+                      value={input[name] ?? ""}
+                      readOnly={Boolean(previous)}
+                      disabled={busy}
+                      onChange={(event) => {
+                        if (name === "FechaOrigen")
+                          change(name, event.target.value);
+                        else change(name, event.target.value || null);
+                      }}
+                    />
+                  )}
+                </Field>
+              ))}
+            </div>
+            <TextArea
+              {...presentation("Observacion")}
+              label="Observaciones"
+              size="xl"
+              value={input.Observacion ?? ""}
+              maxLength={4000}
+              readOnly={Boolean(previous)}
+              disabled={busy}
+              onValueChange={(value) => change("Observacion", value || null)}
             />
-            <TextBox
-              label="Naturaleza"
-              value={
-                (previous?.Naturaleza ?? voucher?.Naturaleza) === "DEUDA"
-                  ? "Deuda"
-                  : (previous?.Naturaleza ?? voucher?.Naturaleza) === "CREDITO"
-                    ? "Crédito"
-                    : ""
-              }
-              readOnly
-              onValueChange={() => {}}
-            />
+            {previous && (
+              <TextBox
+                label="Estado"
+                size="sm"
+                value={previous.Estado === "ANULADO" ? "Anulado" : "Confirmado"}
+                readOnly
+                onValueChange={() => {}}
+              />
+            )}
+            {previous?.MotivoAnulacion && (
+              <TextArea
+                label="Motivo de anulación"
+                value={previous.MotivoAnulacion}
+                size="xl"
+                wide
+                readOnly
+                onValueChange={() => {}}
+              />
+            )}
+          </div>
+          <fieldset className="account-amounts">
+            <legend>Importes</legend>
             <TextBox
               {...presentation("Importe")}
               label="Importe"
+              size="md"
               value={input.Importe}
               required={!previous}
               inputMode="decimal"
@@ -382,34 +404,7 @@ export function CurrentAccountForm({
               maxLength={19}
               onValueChange={(value) => change("Importe", value)}
             />
-            {previous && (
-              <TextBox
-                label="Estado"
-                value={previous.Estado === "ANULADO" ? "Anulado" : "Confirmado"}
-                readOnly
-                onValueChange={() => {}}
-              />
-            )}
-            <TextArea
-              {...presentation("Observacion")}
-              label="Observaciones"
-              value={input.Observacion ?? ""}
-              maxLength={4000}
-              wide
-              readOnly={Boolean(previous)}
-              disabled={busy}
-              onValueChange={(value) => change("Observacion", value || null)}
-            />
-            {previous?.MotivoAnulacion && (
-              <TextArea
-                label="Motivo de anulación"
-                value={previous.MotivoAnulacion}
-                wide
-                readOnly
-                onValueChange={() => {}}
-              />
-            )}
-          </div>
+          </fieldset>
         </div>
       </form>
     </section>

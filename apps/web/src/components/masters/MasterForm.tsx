@@ -203,6 +203,7 @@ export function MasterForm({
       error: errors[field.name],
       hint,
       wide: field.kind === "textarea",
+      size: field.size,
     };
     if (field.kind === "voucher")
       return (

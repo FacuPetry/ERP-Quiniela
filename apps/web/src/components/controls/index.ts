@@ -1,5 +1,5 @@
 export { Field } from "./Field";
-export type { FieldProps, FieldBinding } from "./Field";
+export type { FieldProps, FieldBinding, FieldSize } from "./Field";
 export { TextBox } from "./TextBox";
 export type { TextBoxProps } from "./TextBox";
 export { TextArea } from "./TextArea";

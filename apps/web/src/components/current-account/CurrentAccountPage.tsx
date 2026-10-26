@@ -196,30 +196,6 @@ export function CurrentAccountPage({
     );
   return (
     <>
-      {data?.saldos && !error && (
-        <section
-          className="account-balances"
-          aria-label="Saldos actuales del cliente"
-        >
-          <div className="panel">
-            <span>
-              Cobrar · {client ? String(client.Nombre) : filters.Cliente}
-            </span>
-            <strong>{amount(data.saldos.Cobrar)}</strong>
-          </div>
-          <div className="panel">
-            <span>
-              Pagar · {client ? String(client.Nombre) : filters.Cliente}
-            </span>
-            <strong>{amount(data.saldos.Pagar)}</strong>
-          </div>
-          <p className="muted small">
-            Saldo actual sobre todos los movimientos confirmados del cliente;
-            independiente del período y los demás filtros del listado. Deuda
-            suma y Crédito resta.
-          </p>
-        </section>
-      )}
       <section className="panel master-panel" aria-label="Cuenta corriente">
         <div className="master-toolbar">
           <div>

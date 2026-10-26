@@ -4,7 +4,7 @@ import { SearchField, type FieldProps } from "../controls";
 import { listMasters } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 const code = (row: MasterRecord) => String(row.Codigo);
-const description = (row: MasterRecord) => `${row.Codigo} · ${row.Nombre}`;
+const description = (row: MasterRecord) => String(row.Nombre);
 const columns = [
   { key: "Codigo", label: "Código", render: code },
   {

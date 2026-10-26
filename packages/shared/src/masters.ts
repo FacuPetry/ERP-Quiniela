@@ -16,7 +16,10 @@ export type MasterKey =
   | "cuentas-bancarias"
   | "comprobantes"
   | "numeraciones";
+export type FieldSize = "sm" | "md" | "lg" | "xl";
+
 export interface MasterField {
+  size?: FieldSize;
   name: string;
   label: string;
   maxLength: number;

@@ -28,13 +28,14 @@ export function CheckBox({
   error,
   hint,
   wide,
+  size,
   value,
   onValueChange,
   className,
   ...input
 }: CheckBoxProps) {
   return (
-    <Field {...{ id, label, required, invalid, error, hint, wide }} inline>
+    <Field {...{ id, label, required, invalid, error, hint, wide, size }} inline>
       {(binding) => (
         <span className="checkbox-control">
           <input
