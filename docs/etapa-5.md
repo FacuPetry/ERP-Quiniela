@@ -114,3 +114,13 @@ Ante un 5xx de Cuenta corriente, la respuesta incluye una referencia que se corr
 La revisión posterior de experiencia de usuario no agrega migraciones ni cambia reglas financieras. Ver [archivos, tamaños y prueba detallada](cuenta-corriente-presentacion-sf.md).
 
 Las altas sugieren hoy en origen/vencimiento e Importe 0,00. Las consultas conservan valores históricos. Ver [inicialización y limpieza](valores-iniciales-abm.md).
+
+## Anular desde la consulta
+
+El formulario de un movimiento confirmado ofrece Anular en su toolbar a quienes tienen permiso de escritura. No aparece en altas ni en movimientos anulados o para usuarios de consulta; se mantiene deshabilitado para movimientos vinculados a Caja, como en la grilla.
+
+Ambas entradas renderizan el mismo CancelMovement y llaman al mismo servicio existente: motivo, versión, idempotencia y restricciones del backend se conservan. Cancelar el diálogo regresa a la consulta sin cerrarla; confirmar cierra formulario/diálogo y actualiza el listado mediante el flujo existente. Con Estado Confirmado, el movimiento anulado deja de verse hasta cambiar el filtro.
+
+FormToolbarActions es una base visual reutilizable con acción annulAction opcional y contenido para las demás acciones. No conoce estados, permisos, tablas ni endpoints: cada módulo decide si la ofrece y conecta su propia operación. No se agregan acciones de anulación a maestros que no tienen ese circuito.
+
+Prueba manual: abrir un confirmado por doble clic, presionar Anular, cancelar y comprobar que la consulta sigue abierta; repetir con motivo y confirmar. Consultar luego el anulado con filtro Anulados/Todos: ya no debe mostrar Anular. Comprobar también que el alta y el perfil de consulta no lo ofrecen y que la grilla mantiene la misma anulación. Esta revisión no ejecutó compilaciones ni pruebas automáticas.

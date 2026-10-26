@@ -109,3 +109,7 @@ MasterForm utiliza initialMasterFieldValue al crear registros: enteros a cero, e
 SearchField recibe placeholder opcional y utiliza por defecto «Ingrese un valor para buscar...», también en el selector. ClientSearch lo propaga para personalización por módulo.
 
 initialListFilters permite inicializar fechas al entrar al módulo y Confirmado para operaciones. La limpieza se configura por separado, sin reintroducir valores al abrir el modal ni disparar consultas. Ver [guía](valores-iniciales-abm.md).
+
+## Acciones de formularios operativos
+
+`components/ui/FormToolbarActions.tsx` agrupa acciones de cabecera y admite `annulAction` opcional con onClick/disabled. Cuenta corriente lo utiliza para conectar el diálogo de anulación existente también desde la consulta. La base no decide permisos/estados ni realiza peticiones; futuros módulos operativos pueden reutilizarla aportando esas decisiones. Los maestros existentes conservan sus acciones. Ver [anulación desde la consulta](etapa-5.md#anular-desde-la-consulta).

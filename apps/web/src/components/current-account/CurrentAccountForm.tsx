@@ -17,6 +17,7 @@ import {
   defaultNumericValue,
 } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
+import { FormToolbarActions } from "../ui/FormToolbarActions";
 import { ClientSearch } from "./ClientSearch";
 import { accountOptions, createAccount } from "../../services/current-account";
 import { ApiRequestError } from "../../services/http";
@@ -26,12 +27,14 @@ export function CurrentAccountForm({
   onClose,
   onSaved,
   onExpired,
+  onAnnul,
 }: {
   detail?: CurrentAccountDetail;
   csrf: string;
   onClose: () => void;
   onSaved: () => void;
   onExpired: () => void;
+  onAnnul?: () => void;
 }) {
   const previous = detail?.registro;
   const [client, setClient] = useState<MasterRecord | null>(null);
@@ -192,7 +195,16 @@ export function CurrentAccountForm({
         <h2 ref={heading} tabIndex={-1}>
           {previous ? "Consultar movimiento" : "Nuevo movimiento"}
         </h2>
-        <div className="form-toolbar-actions">
+        <FormToolbarActions
+          {...(previous?.Estado === "CONFIRMADO" && onAnnul
+            ? {
+                annulAction: {
+                  onClick: onAnnul,
+                  disabled: busy || Boolean(previous.CajaMovimiento),
+                },
+              }
+            : {})}
+        >
           <button
             className="button secondary"
             disabled={busy}
@@ -210,7 +222,7 @@ export function CurrentAccountForm({
               {busy ? "Guardando…" : "Guardar"}
             </button>
           )}
-        </div>
+        </FormToolbarActions>
       </div>
       <form
         ref={form}

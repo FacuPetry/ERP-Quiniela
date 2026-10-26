@@ -187,15 +187,33 @@ export function CurrentAccountPage({
       ),
     },
   ];
+  const cancellationDialog = annulling ? (
+    <CancelMovement
+      detail={annulling}
+      csrf={session.csrfToken}
+      onClose={() => {
+        if (view) setAnnulling(null);
+        else close();
+      }}
+      onSaved={() => close(true)}
+      onExpired={expired}
+    />
+  ) : null;
   if (view)
     return (
-      <CurrentAccountForm
-        {...(view.detail ? { detail: view.detail } : {})}
-        csrf={session.csrfToken}
-        onClose={() => close()}
-        onSaved={() => close(true)}
-        onExpired={expired}
-      />
+      <>
+        <CurrentAccountForm
+          {...(view.detail ? { detail: view.detail } : {})}
+          {...(canWrite && view.detail
+            ? { onAnnul: () => setAnnulling(view.detail!) }
+            : {})}
+          csrf={session.csrfToken}
+          onClose={() => close()}
+          onSaved={() => close(true)}
+          onExpired={expired}
+        />
+        {cancellationDialog}
+      </>
     );
   return (
     <>
@@ -290,15 +308,7 @@ export function CurrentAccountPage({
           }}
         />
       )}
-      {annulling && (
-        <CancelMovement
-          detail={annulling}
-          csrf={session.csrfToken}
-          onClose={() => close()}
-          onSaved={() => close(true)}
-          onExpired={expired}
-        />
-      )}
+      {cancellationDialog}
     </>
   );
 }
