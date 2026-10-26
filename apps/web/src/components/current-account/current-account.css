@@ -1,25 +1,58 @@
-.account-balances {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-  margin-bottom: 1rem;
+.account-general-grid {
+  align-items: start;
 }
-.account-balances .panel {
-  padding: 1.2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.account-date-fields {
+  display: grid;
+  gap: 18px;
   min-width: 0;
 }
-.account-balances strong {
-  font-size: 1.5rem;
-  overflow-wrap: anywhere;
+.account-amounts {
+  min-width: 0;
+  width: min(100%, 28rem);
+  margin: 22px auto 0 0;
+  padding: 14px;
+  border: 1px solid var(--control-border);
+  border-radius: 10px;
+  background: #f8faf5;
 }
-.account-balances > p {
+.account-amounts > legend {
+  padding: 0 8px;
+  color: #365e3e;
+  font-size: 14px;
+  font-weight: 650;
+}
+.account-form .account-amounts > .base-field {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 16px;
+  max-width: none;
+}
+.account-amounts .base-field > label {
+  margin: 0;
+}
+.account-amounts .base-control {
+  max-width: var(--field-width, 100%);
+  justify-self: end;
+}
+.account-amounts :is(.field-error, .field-hint) {
   grid-column: 1 / -1;
 }
+
 @media (max-width: 600px) {
-  .account-balances {
-    grid-template-columns: 1fr;
+  .account-form .account-amounts > .base-field {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .account-amounts {
+    width: 100%;
+  }
+  .account-form .form-heading {
+    flex-wrap: wrap;
+  }
+  .account-form .form-heading h2 {
+    flex: 1 0 12rem;
+  }
+  .account-form .form-toolbar-actions {
+    margin-left: auto;
   }
 }

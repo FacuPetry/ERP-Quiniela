@@ -2,7 +2,8 @@ import { useState } from "react";
 import type { MasterField } from "@erp/shared";
 import { Modal } from "./Modal";
 import { ReferenceSelect } from "../masters/ReferenceSelect";
-import { Field, TextBox, DropDown } from "../controls";
+import { DatePicker, TextBox, DropDown } from "../controls";
+import { initialListFilters } from "./filter-defaults";
 
 export interface FilterField {
   key: string;
@@ -26,7 +27,13 @@ export function FilterDialog({
   onClose: () => void;
   onExpired: () => void;
 }) {
-  const [draft, setDraft] = useState({ ...values });
+  const [draft, setDraft] = useState(() => ({
+    ...initialListFilters(
+      defaults,
+      fields.filter((field) => field.kind === "date").map((field) => field.key),
+    ),
+    ...values,
+  }));
   const [reset, setReset] = useState(0);
   const change = (key: string, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }));
@@ -81,19 +88,13 @@ export function FilterDialog({
                   />
                 );
               return (
-                <Field key={field.key} id={id} label={field.label}>
-                  {(binding) => (
-                    <input
-                      {...binding}
-                      className="base-control"
-                      type="date"
-                      value={draft[field.key] ?? ""}
-                      onChange={(event) =>
-                        change(field.key, event.target.value)
-                      }
-                    />
-                  )}
-                </Field>
+                <DatePicker
+                  key={`${field.key}-${reset}`}
+                  id={id}
+                  label={field.label}
+                  value={draft[field.key] ?? ""}
+                  onValueChange={(value) => change(field.key, value)}
+                />
               );
             })}
           </div>

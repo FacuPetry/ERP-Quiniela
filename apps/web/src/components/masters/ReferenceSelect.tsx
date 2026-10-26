@@ -17,6 +17,7 @@ export function ReferenceSelect({
   error: validationError,
   hint,
   wide,
+  size,
   onExpired,
   query = {},
   optionFilter,
@@ -78,6 +79,7 @@ export function ReferenceSelect({
       invalid={invalid}
       error={validationError}
       wide={wide}
+      size={size}
       placeholder={filter ? "Todos" : "Seleccioná una opción"}
       onValueChange={onChange}
       options={[

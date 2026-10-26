@@ -36,10 +36,11 @@ export function DropDown({
   error,
   hint,
   wide,
+  size,
   ...props
 }: DropDownProps) {
   return (
-    <Field {...{ id, label, required, invalid, error, hint, wide }}>
+    <Field {...{ id, label, required, invalid, error, hint, wide, size }}>
       {(binding) => (
         <Selection {...props} required={Boolean(required)} binding={binding} />
       )}

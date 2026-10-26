@@ -1,5 +1,5 @@
 export { Field } from "./Field";
-export type { FieldProps, FieldBinding } from "./Field";
+export type { FieldProps, FieldBinding, FieldSize } from "./Field";
 export { TextBox } from "./TextBox";
 export type { TextBoxProps } from "./TextBox";
 export { TextArea } from "./TextArea";
@@ -11,3 +11,11 @@ export type { CheckBoxProps } from "./CheckBox";
 export { SearchField } from './SearchField';
 export type { SearchResult } from './SearchField';
 export { NumeroComprobante } from './NumeroComprobante';
+
+export { DatePicker } from "./DatePicker";
+export type { DatePickerProps } from "./DatePicker";
+export { AmountBox } from "./AmountBox";
+export type { AmountBoxProps } from "./AmountBox";
+
+export { defaultNumericValue, initialMasterFieldValue } from "./numeric-defaults";
+export { todayISO } from "./date-value";

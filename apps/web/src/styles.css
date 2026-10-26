@@ -54,8 +54,8 @@ p {
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-  outline: 3px solid #6d9b80;
-  outline-offset: 3px;
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 1px;
 }
 h1:focus {
   outline: none;

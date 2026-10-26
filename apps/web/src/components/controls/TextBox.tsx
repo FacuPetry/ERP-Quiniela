@@ -1,5 +1,7 @@
 import type { ComponentPropsWithRef } from "react";
 import { Field, type FieldProps } from "./Field";
+import { useNumericInitialValue } from "./useNumericInitialValue";
+import { defaultNumericValue } from "./numeric-defaults";
 
 export type TextBoxProps = FieldProps &
   Omit<
@@ -12,7 +14,9 @@ export type TextBoxProps = FieldProps &
     | "children"
   > & {
     type?: "text" | "email" | "password" | "search" | "tel" | "url" | "number";
-    value: string;
+    value?: string;
+    /** Valor de alta para type=number; value explícito siempre tiene prioridad. */
+    initialValue?: string;
     onValueChange: (value: string) => void;
   };
 
@@ -24,14 +28,22 @@ export function TextBox({
   error,
   hint,
   wide,
-  value,
+  size,
+  value: providedValue,
+  initialValue = defaultNumericValue,
   onValueChange,
   type = "text",
   className,
   ...input
 }: TextBoxProps) {
+  const value = useNumericInitialValue(
+    providedValue,
+    initialValue,
+    onValueChange,
+    type === "number",
+  );
   return (
-    <Field {...{ id, label, required, invalid, error, hint, wide }}>
+    <Field {...{ id, label, required, invalid, error, hint, wide, size }}>
       {(binding) => (
         <input
           {...input}

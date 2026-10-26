@@ -52,7 +52,7 @@ export function NumeroComprobante({
     <Field {...field}>
       {(binding) => (
         <div
-          className="base-control voucher-control"
+          className="base-control control-group voucher-control"
           role="group"
           aria-label={label}
           data-disabled={disabled || undefined}
@@ -81,7 +81,6 @@ export function NumeroComprobante({
             }
             onPaste={paste}
           />
-          <span aria-hidden="true">-</span>
           <input
             className="voucher-counter"
             type="text"

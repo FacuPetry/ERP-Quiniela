@@ -1,5 +1,8 @@
 import { useId, type ReactNode } from "react";
 
+import type { FieldSize } from "@erp/shared";
+export type { FieldSize } from "@erp/shared";
+
 export interface FieldProps {
   id?: string | undefined;
   label: ReactNode;
@@ -8,6 +11,8 @@ export interface FieldProps {
   error?: string | undefined;
   hint?: ReactNode;
   wide?: boolean | undefined;
+  /** Ancho máximo del campo; se adapta al espacio disponible. */
+  size?: FieldSize | undefined;
 }
 export interface FieldBinding {
   id: string;
@@ -24,6 +29,7 @@ export function Field({
   error,
   hint,
   wide = false,
+  size,
   inline = false,
   children,
 }: FieldProps & {
@@ -50,6 +56,7 @@ export function Field({
   return (
     <div
       className={`form-field base-field ${wide ? "wide" : ""} ${inline ? "field-inline" : ""}`}
+      data-size={size}
     >
       {inline ? (
         <label htmlFor={controlId} className="field-inline-label">

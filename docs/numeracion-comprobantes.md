@@ -87,11 +87,11 @@ Para desarrollo local, los equivalentes son `npm run db:numbering:check`, `npm r
 ## Prueba completa antes de aprobar el PR
 
 1. En Numerador configurar un comprobante de Cuenta corriente con Próximo número `0001-00000025`. No deben aparecer Serie ni Identificador. Un segundo Numerador para ese mismo comprobante debe rechazarse.
-2. En Cuenta corriente agregar un movimiento, seleccionar cliente por SF y elegir el comprobante. Debe aparecer `0001-00000025` sin selector de Numerador. Probar Tab entre las partes y pegar un número completo.
+2. En Cuenta corriente agregar un movimiento, elegir primero el comprobante y seleccionar cliente por SF. Debe aparecer `0001-00000025` sin selector de Numerador. Probar Tab entre las partes y pegar un número completo.
 3. Guardar importe 10, fecha de origen y vencimiento iguales y Observaciones vacío. Consultar: el número visible permanece completo; el valor guardado es 100000025. El siguiente alta propone `0001-00000026`.
 4. Confirmar un correlativo mayor libre del mismo punto: la sugerencia avanza. Confirmar uno menor libre no debe retrocederla. Intentar duplicarlo, también después de anularlo, debe rechazarse.
 5. Cambiar a otro punto al ingresar un movimiento: se conserva lo ingresado y el Numerador original no cambia. Un comprobante sin Numerador permite ingresar ambas partes manualmente.
 6. Modificar o eliminar el Numerador y consultar movimientos anteriores: conservan sus números. Consultar/buscar tanto `0001-00000025` como `100000025`.
-7. Revisar que siguen funcionando saldos, anulaciones, permisos y carga manual de la grilla. No es necesario refrescar toda la página después de guardar.
+7. Revisar anulaciones, permisos y carga manual de la grilla; el cálculo de saldos continúa en la API, sin tarjetas en el listado. No es necesario refrescar toda la página después de guardar.
 
 Si reaparece el error de guardado, copiar el estado HTTP, la respuesta y su referencia técnica; buscar esa referencia en el registro de ejecución de Node.js. Ver [diagnóstico](diagnostico-guardado-cuenta-corriente.md). Las pruebas aisladas de esta revisión no establecen la causa del fallo original de la vista previa.

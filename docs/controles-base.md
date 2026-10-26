@@ -19,7 +19,7 @@ Los labels permanecen arriba para conservar la distribución actual en escritori
 
 MasterForm agrupa Código y Registro activo en la fila superior y enfoca Código al abrir un alta, modificación o consulta. El orden de Tab sigue la disposición visual. Ver [apertura y navegación de los ABM](navegacion-abm.md), incluida la carga manual de listados.
 
-Todos reciben `label`, `id` opcional, `value`, `onValueChange`, `required`, `disabled`, `invalid`, `error`, `hint` y `wide`. Si no se proporciona `id`, Field genera uno; los ABM conservan sus identificadores para enfocar el primer campo incorrecto. `wide` ocupa las dos columnas del formulario en escritorio y una en móvil.
+Los controles reciben `label`, `id` opcional, `value`, `onValueChange`, `required`, `disabled`, `invalid`, `error`, `hint`, `wide` y `size` opcional. Si no se proporciona `id`, Field genera uno; los ABM conservan sus identificadores para enfocar el primer campo incorrecto. `wide` ocupa las dos columnas del formulario en escritorio y una en móvil.
 
 TextBox y TextArea admiten las propiedades nativas correspondientes, como `name`, `maxLength` y `ref`; TextBox también admite `type` y `readOnly`. No se utilizan para definir reglas de negocio: MasterForm mantiene sus validaciones actuales y la API conserva las suyas. La presentación de errores sigue siendo inline y mediante el resumen existente.
 
@@ -64,7 +64,7 @@ Durante esta entrega pasaron `npm run check` (TypeScript, las 18 pruebas existen
 
 Los controles originales no requieren migraciones por sí mismos. La revisión actual de NumeroComprobante sí requiere una migración de datos y estructura: ver [guía](numeracion-comprobantes.md). No agrega dependencias ni variables.
 
-SF se implementa en la [etapa 5](etapa-5.md#sf-reutilizable); DatePicker sigue pendiente de definir e implementar. El campo nativo de fecha que admite FilterDialog sigue disponible mediante Field; no se lo presenta como un DatePicker nuevo. Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF deberán recibir su fuente de datos y configuración desde el módulo.
+SF se implementa en la [etapa 5](etapa-5.md#sf-reutilizable). DatePicker y AmountBox ya están disponibles: ver [formatos, contratos y pruebas](controles-fechas-importes.md). Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF reciben su fuente y configuración desde el módulo.
 
 ## Identificadores internos en los ABM
 
@@ -78,4 +78,50 @@ SearchField recibe datos y funciones por propiedades; no conoce entidades ni API
 
 Control genérico en `controls/NumeroComprobante.tsx`, con Field y estilos propios en `numero-comprobante.css`, utilizado por MasterForm para el Próximo número de Numerador y por Cuenta corriente. Recibe `value` decimal codificado, `onValueChange`, label, ayuda, errores, required, disabled y readOnly. No consulta la base ni decide numeración o duplicados.
 
-Dos inputs contiguos de cuatro y ocho dígitos, separados únicamente por el guion visual, comparten borde y foco. Inicialmente muestra ceros; al salir de cada parte completa sus ceros. Tab navega entre las partes; pegar `0001-00000025` actualiza ambas. Conserva estados intermedios de edición sin redondear números y sincroniza sugerencias externas al cambiar de comprobante. El formulario y la API validan los límites y el correlativo positivo. Ver [reglas y pruebas](numeracion-comprobantes.md).
+Dos inputs contiguos de cuatro y ocho dígitos, sin guion en el editor y con un divisor vertical fino, comparten borde y foco. El ancho se ajusta a sus dígitos; los listados conservan el formato con guion. Inicialmente muestra ceros; al salir de cada parte completa sus ceros. Tab navega entre las partes; pegar `0001-00000025` actualiza ambas. Conserva estados intermedios de edición sin redondear números y sincroniza sugerencias externas al cambiar de comprobante. El formulario y la API validan los límites y el correlativo positivo. Ver [reglas y pruebas](numeracion-comprobantes.md).
+
+## Anchos configurables
+
+Field centraliza `size?: "sm" | "md" | "lg" | "xl"`. Los máximos son 12, 20, 32 y 48 rem respectivamente. Siempre se ajustan al ancho disponible; no crean desplazamiento horizontal ni cambian la altura del control. Sin size se conserva el ancho actual. `wide` indica cuántas columnas ocupa el campo y `size` limita su ancho dentro de ese espacio.
+
+La propiedad llega a TextBox, TextArea, DropDown, CheckBox, NumeroComprobante y SearchField. ReferenceSelect la propaga a DropDown. En los ABM declarativos se configura `size` en MasterField y MasterForm lo transmite, sin crear componentes por módulo. DatePicker y AmountBox también admiten size y reutilizan Field.
+
+SF muestra `código - descripción` dentro del input; getDescription debe devolver solo la descripción. Conserva por separado el registro T seleccionado. Limpiar elimina texto y selección, aborta búsquedas y devuelve el foco. Cero coincidencias resalta en rojo claro y se anuncia por texto/ARIA, sin depender solamente del color. Editar el criterio invalida la selección y las filas del resultado anterior hasta buscar otra vez. El consumidor valida el registro seleccionado, nunca da por válido el texto escrito. Ver [pruebas](cuenta-corriente-presentacion-sf.md).
+
+## DatePicker y AmountBox
+
+DatePicker combina escritura manual normalizada a dd/MM/yyyy con un calendario nativo disponible mediante el icono adyacente. Emite yyyy-MM-dd o vacío, sin Date ni conversiones de zona horaria sobre la fecha ingresada. Se utiliza en Cuenta corriente, sus filtros y FilterDialog.
+
+AmountBox conserva decimales como strings con punto, sin miles/símbolos ni paso por Number. Formato predeterminado `#,##0.00`, locale es-AR; format permite variar agrupación y decimales. Al salir se presenta con miles y coma decimal. No redondea precisión excedente: informa el error y no entrega un valor válido. Las restricciones comerciales siguen perteneciendo al formulario/API. El Importe de Cuenta corriente lo utiliza con hasta 16 enteros y dos decimales. Ver [guía](controles-fechas-importes.md).
+
+## Foco compartido y Safari móvil
+
+SF, DatePicker y NumeroComprobante comparten la clase control-group de controls.css: borde exterior único, contorno verde semitransparente de 2px y esquinas comunes. No se dibujan anillos individuales superpuestos dentro del grupo. Los botones mantienen una señal interna al recibir foco por teclado; los estados de error y alto contraste se conservan. TextBox, TextArea, DropDown y CheckBox usan el mismo contorno discreto.
+
+En ancho <=860px o con cualquier puntero táctil, las fuentes de entrada son al menos 16px y la altura común es 44px. Incluye inputs internos, filtros y acceso. Escritorio conserva 12px/40px. No se modifica el viewport ni se limita el zoom del usuario. Ver [verificación en Safari iPhone](foco-controles-safari.md).
+
+## Valores iniciales
+
+TextBox de type number y AmountBox permiten omitir value (o usar undefined) para inicializar desde initialValue, que por defecto es "0". La sugerencia se emite una sola vez para sincronizar el modelo. Un value explícito tiene prioridad: "" representa un campo limpiado y nunca se repone con cero, y los valores de edición se conservan. AmountBox muestra el cero con la máscara configurada (0,00, 0,000, etc.). En formularios controlados también se puede inicializar el estado con defaultNumericValue.
+
+MasterForm utiliza initialMasterFieldValue al crear registros: enteros a cero, excepto PK generadas; field.defaultValue tiene prioridad (incluida cadena vacía). Editar utiliza el registro existente, sin ejecutar estas sugerencias. Los códigos de clientes y los ID autogenerados conservan sus mecanismos.
+
+SearchField recibe placeholder opcional y utiliza por defecto «Ingrese un valor para buscar...», también en el selector. ClientSearch lo propaga para personalización por módulo.
+
+initialListFilters permite inicializar fechas al entrar al módulo y Confirmado para operaciones. La limpieza se configura por separado, sin reintroducir valores al abrir el modal ni disparar consultas. Ver [guía](valores-iniciales-abm.md).
+
+## Acciones de formularios operativos
+
+`components/ui/FormToolbarActions.tsx` agrupa acciones de cabecera y admite `annulAction` opcional con onClick/disabled. Cuenta corriente lo utiliza para conectar el diálogo de anulación existente también desde la consulta. La base no decide permisos/estados ni realiza peticiones; futuros módulos operativos pueden reutilizarla aportando esas decisiones. Los maestros existentes conservan sus acciones. Ver [anulación desde la consulta](etapa-5.md#anular-desde-la-consulta).
+
+## Distribución del toolbar de formularios
+
+FormToolbarActions recibe las acciones dinámicas como children (más annulAction opcional) y el botón Cerrar/Cancelar mediante closeAction obligatorio. Presenta dos zonas: dinámicas a la izquierda y cierre al extremo derecho. MasterForm y Cuenta corriente utilizan la misma base; los próximos formularios deben reutilizarla. Mantiene handlers, type/form, permisos y estados disabled de cada botón.
+
+Comprobar manualmente alta (Guardar / Cancelar), edición de maestros (Guardar / Cancelar), consulta de confirmado (Anular / Cerrar) y consulta sin acciones (Cerrar a la derecha). Esta revisión visual no ejecuta compilaciones ni pruebas automáticas.
+
+## Texto de filas y doble clic
+
+Los estilos compartidos de DataTable en masters.css deshabilitan la selección de texto de las filas (incluido el prefijo de WebKit). Se conserva la edición/selección de texto dentro de inputs, textarea y contenido editable, si una grilla los incorpora. No se interceptan eventos de mouse ni se modifican la selección del registro, el foco o la activación por doble clic. Comprobar manualmente una fila de Clientes y una de Cuenta corriente: deben abrir el registro sin resaltar palabras.
+
+Propiedades mediante panel lateral permanece como propuesta, sin implementación. Puede incorporarse con una acción opcional de ActionToolbar y un panel de lectura configurable por módulo, reutilizando detalle/formatos y el manejo de diálogo/foco existente. La carga se haría al abrir, sin consultas por fila o por entrar al módulo; los identificadores internos continuarían fuera de la presentación.

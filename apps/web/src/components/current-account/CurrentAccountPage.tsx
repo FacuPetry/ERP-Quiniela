@@ -16,7 +16,8 @@ import { DataTable, type TableColumn } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { Modal } from "../ui/Modal";
-import { TextBox, DropDown, TextArea, Field } from "../controls";
+import { initialListFilters } from "../ui/filter-defaults";
+import { TextBox, DropDown, TextArea, DatePicker } from "../controls";
 import { ClientSearch } from "./ClientSearch";
 import { CurrentAccountForm } from "./CurrentAccountForm";
 import "./current-account.css";
@@ -26,7 +27,7 @@ function amount(value: string) {
     whole!.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + decimals.padEnd(2, "0")
   );
 }
-const defaults: Record<string, string> = {
+const emptyFilters: Record<string, string> = {
   q: "",
   Cliente: "",
   Cuenta: "",
@@ -41,7 +42,9 @@ export function CurrentAccountPage({
   session: SessionResponse;
   onExpired: () => void;
 }) {
-  const [filters, setFilters] = useState({ ...defaults }),
+  const [filters, setFilters] = useState(() =>
+      initialListFilters(emptyFilters, ["Desde", "Hasta"], "Estado"),
+    ),
     [client, setClient] = useState<MasterRecord | null>(null);
   const [page, setPage] = useState(1),
     [revision, setRevision] = useState(0),
@@ -184,42 +187,36 @@ export function CurrentAccountPage({
       ),
     },
   ];
+  const cancellationDialog = annulling ? (
+    <CancelMovement
+      detail={annulling}
+      csrf={session.csrfToken}
+      onClose={() => {
+        if (view) setAnnulling(null);
+        else close();
+      }}
+      onSaved={() => close(true)}
+      onExpired={expired}
+    />
+  ) : null;
   if (view)
     return (
-      <CurrentAccountForm
-        {...(view.detail ? { detail: view.detail } : {})}
-        csrf={session.csrfToken}
-        onClose={() => close()}
-        onSaved={() => close(true)}
-        onExpired={expired}
-      />
+      <>
+        <CurrentAccountForm
+          {...(view.detail ? { detail: view.detail } : {})}
+          {...(canWrite && view.detail
+            ? { onAnnul: () => setAnnulling(view.detail!) }
+            : {})}
+          csrf={session.csrfToken}
+          onClose={() => close()}
+          onSaved={() => close(true)}
+          onExpired={expired}
+        />
+        {cancellationDialog}
+      </>
     );
   return (
     <>
-      {data?.saldos && !error && (
-        <section
-          className="account-balances"
-          aria-label="Saldos actuales del cliente"
-        >
-          <div className="panel">
-            <span>
-              Cobrar · {client ? String(client.Nombre) : filters.Cliente}
-            </span>
-            <strong>{amount(data.saldos.Cobrar)}</strong>
-          </div>
-          <div className="panel">
-            <span>
-              Pagar · {client ? String(client.Nombre) : filters.Cliente}
-            </span>
-            <strong>{amount(data.saldos.Pagar)}</strong>
-          </div>
-          <p className="muted small">
-            Saldo actual sobre todos los movimientos confirmados del cliente;
-            independiente del período y los demás filtros del listado. Deuda
-            suma y Crédito resta.
-          </p>
-        </section>
-      )}
       <section className="panel master-panel" aria-label="Cuenta corriente">
         <div className="master-toolbar">
           <div>
@@ -248,7 +245,7 @@ export function CurrentAccountPage({
               record?.Estado !== "CONFIRMADO" || Boolean(record.CajaMovimiento)
             }
             filtersActive={Object.entries(filters).some(
-              ([key, value]) => value !== defaults[key],
+              ([key, value]) => value !== emptyFilters[key],
             )}
             onAdd={() => setView({})}
             onEdit={() => {
@@ -311,15 +308,7 @@ export function CurrentAccountPage({
           }}
         />
       )}
-      {annulling && (
-        <CancelMovement
-          detail={annulling}
-          csrf={session.csrfToken}
-          onClose={() => close()}
-          onSaved={() => close(true)}
-          onExpired={expired}
-        />
-      )}
+      {cancellationDialog}
     </>
   );
 }
@@ -392,17 +381,12 @@ function AccountFilters({
               onValueChange={(v) => change("Estado", v)}
             />
             {(["Desde", "Hasta"] as const).map((name) => (
-              <Field key={name} label={name}>
-                {(binding) => (
-                  <input
-                    {...binding}
-                    className="base-control"
-                    type="date"
-                    value={draft[name] ?? ""}
-                    onChange={(e) => change(name, e.target.value)}
-                  />
-                )}
-              </Field>
+              <DatePicker
+                key={`${name}-${reset}`}
+                label={name === "Desde" ? "Fecha desde" : "Fecha hasta"}
+                value={draft[name] ?? ""}
+                onValueChange={(value) => change(name, value)}
+              />
             ))}
           </div>
         </div>
@@ -411,7 +395,7 @@ function AccountFilters({
             type="button"
             className="button secondary"
             onClick={() => {
-              setDraft({ ...defaults });
+              setDraft({ ...emptyFilters });
               setSelected(null);
               setReset((v) => v + 1);
             }}
@@ -470,8 +454,9 @@ function CancelMovement({
       <div className="modal-body">
         <p>
           Vas a anular {detail.registro.ComprobanteDescripcion}{" "}
-          {detail.registro.NumeroComprobanteTexto} de {detail.registro.ClienteNombre}
-          . Se conservará su historia y el número no se reutilizará.
+          {detail.registro.NumeroComprobanteTexto} de{" "}
+          {detail.registro.ClienteNombre}. Se conservará su historia y el número
+          no se reutilizará.
         </p>
         <TextArea
           label="Motivo de anulación"

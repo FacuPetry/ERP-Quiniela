@@ -3,6 +3,8 @@
   --control-background: #fff;
   --control-text: #274833;
   --control-focus: #6d9b80;
+  --control-focus-ring: rgb(65 108 68 / 70%);
+  --control-font-size: 12px;
   --control-radius: 7px;
   --control-height: 40px;
   --control-label-font-size: 11px;
@@ -29,14 +31,14 @@
   background: var(--control-background);
   color: var(--control-text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--control-font-size);
 }
 .base-control::placeholder {
   color: #8b9783;
 }
 .base-control:focus-visible {
-  outline: 3px solid var(--control-focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 1px;
 }
 .base-control[readonly] {
   background: #f3f5ef;
@@ -195,8 +197,8 @@
   background: #315738;
 }
 .base-checkbox:focus-visible {
-  outline: 3px solid var(--control-focus);
-  outline-offset: 3px;
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 1px;
 }
 .base-checkbox[aria-invalid="true"] {
   border-color: #b96e54;
@@ -226,5 +228,105 @@
   }
   .checkbox-control > svg {
     display: none;
+  }
+}
+
+/* Tamaños optativos: no alteran controles que no declaran size. */
+.base-field[data-size] {
+  width: 100%;
+  max-width: var(--field-width);
+  justify-self: start;
+}
+.base-field[data-size="sm"] {
+  --field-width: 12rem;
+}
+.base-field[data-size="md"] {
+  --field-width: 20rem;
+}
+.base-field[data-size="lg"] {
+  --field-width: 32rem;
+}
+.base-field[data-size="xl"] {
+  --field-width: 48rem;
+}
+
+.amount-control {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Un solo borde/foco para los controles con segmentos o acciones integradas. */
+.control-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  background: var(--control-background);
+  color: var(--control-text);
+  font: inherit;
+  font-size: var(--control-font-size);
+}
+.control-group:focus-within {
+  outline: 2px solid var(--control-focus-ring);
+  outline-offset: 1px;
+}
+.control-group > .base-control {
+  min-height: calc(var(--control-height) - 2px);
+  border: 0;
+  border-radius: 0;
+}
+/* Las esquinas internas siguen el borde exterior sin recortar el anillo de foco. */
+.control-group > :first-child {
+  border-top-left-radius: calc(var(--control-radius) - 1px);
+  border-bottom-left-radius: calc(var(--control-radius) - 1px);
+}
+.control-group > :last-child {
+  border-top-right-radius: calc(var(--control-radius) - 1px);
+  border-bottom-right-radius: calc(var(--control-radius) - 1px);
+}
+.control-group :is(input, button):focus,
+.control-group :is(input, button):focus-visible {
+  outline: none;
+}
+.control-group:has([aria-invalid="true"]) {
+  border-color: #b96e54;
+}
+.control-group button:focus-visible,
+.control-group .date-calendar-action:focus-within {
+  background: #dcebd6;
+  box-shadow: inset 0 0 0 1px #8ca88b;
+}
+/* Mantener la señal de foco en los modos de alto contraste. */
+@media (forced-colors: active) {
+  .base-control:focus-visible,
+  .base-checkbox:focus-visible,
+  .control-group:focus-within {
+    outline-color: Highlight;
+  }
+  .control-group button:focus-visible,
+  .control-group .date-calendar-action:focus-within {
+    outline: 1px solid Highlight;
+    outline-offset: -2px;
+  }
+}
+/* iOS amplía inputs con fuentes menores a 16px. No se limita el zoom del viewport. */
+@media (max-width: 860px), (any-pointer: coarse) {
+  :root {
+    --control-font-size: 16px;
+    --control-height: 44px;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  .base-control,
+  .control-group input,
+  .login-form-wrap input,
+  .dropdown-option {
+    font-size: var(--control-font-size);
   }
 }

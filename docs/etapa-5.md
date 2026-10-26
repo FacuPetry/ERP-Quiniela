@@ -5,7 +5,7 @@ Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. L
 ## Alcance acordado
 
 - Alta y consulta de movimientos manuales de deuda o crédito.
-- Saldos actuales separados de Cobrar y Pagar por cliente.
+- Cálculo de saldos actuales separados de Cobrar y Pagar por cliente en la API; su resumen visual queda reservado para futuros informes.
 - Anulación con motivo, usuario y fecha, conservando el movimiento y su número.
 - Sin edición ni eliminación de movimientos guardados: para corregir, anular y cargar uno nuevo.
 - Numerador opcional; su número es una sugerencia editable antes de guardar.
@@ -45,11 +45,11 @@ Los números históricos son independientes del Numerador y no cambian al modifi
 
 ## Formulario y listado
 
-Campos del alta: Cliente mediante SF, Comprobante, Número de comprobante, Fecha de origen, Vencimiento opcional, Cuenta y Naturaleza informativas, Importe y Observaciones. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan controles nativos con Field; no se crea un DatePicker personalizado en esta entrega.
+Orden del formulario: Comprobante primero, Número de comprobante, Cliente mediante SF, fechas compactas de origen y vencimiento una debajo de otra y Observaciones. Una ficha Importes compacta, alineada a la izquierda y siempre visible agrupa el Importe y permite incorporar otros importes más adelante. Cuenta y Naturaleza no se muestran como controles: el backend las determina y conserva desde el comprobante. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan DatePicker: escritura manual con dd/MM/yyyy y calendario nativo. Importe utiliza AmountBox con presentación argentina y valor decimal canónico. Ver [componentes](controles-fechas-importes.md).
 
-El listado comienza sin consultar. Aplicar filtros o Actualizar solicita los datos; no hay refrescos periódicos. Los filtros incluyen búsqueda general, cliente con búsqueda histórica, cuenta, estado y rango de fechas. Se muestran descripciones de las referencias, número formateado y estado, sin IDTabla. Se consulta una fila por selección y el botón del ojo o por doble clic.
+El listado comienza sin consultar, con Fecha desde/hasta sugeridas al día actual y Estado Confirmado. Aplicar filtros o Actualizar solicita los datos; no hay refrescos periódicos. Los filtros incluyen búsqueda general, cliente con búsqueda histórica, cuenta, estado y rango de fechas. Se muestran descripciones de las referencias, número formateado y estado, sin IDTabla. Se consulta una fila por selección y el botón del ojo o por doble clic.
 
-Al filtrar un cliente se muestran sus saldos actuales. Se calculan sobre todos sus movimientos CONFIRMADO, sin aplicar los otros filtros del listado: DEUDA suma y CREDITO resta, por separado en COBRAR y PAGAR. No se descuentan nuevamente las afectaciones. Sin cliente seleccionado no se presenta un saldo global que mezcle distintas cuentas comerciales.
+El listado no muestra tarjetas de saldos. El cálculo permanece en la API para futuros informes: se realiza sobre todos sus movimientos CONFIRMADO, sin aplicar los otros filtros del listado: DEUDA suma y CREDITO resta, por separado en COBRAR y PAGAR. No se descuentan nuevamente las afectaciones. Sin cliente seleccionado no se presenta un saldo global que mezcle distintas cuentas comerciales.
 
 Guardar o anular actualiza los datos solamente si antes se había solicitado el listado. Volver a entrar al módulo comienza sin consultar.
 
@@ -57,10 +57,11 @@ Guardar o anular actualiza los datos solamente si antes se había solicitado el 
 
 `SearchField<T>` recibe la función de búsqueda, las columnas de resultados, cómo obtener código y descripción, el registro seleccionado y su callback. No conoce tablas ni endpoints.
 
-- Lupa o Enter realiza la búsqueda; escribir o entrar al formulario no consulta automáticamente.
+- Lupa o Enter realiza la búsqueda; escribir o entrar al formulario no consulta automáticamente ni establece una selección válida.
 - Cero coincidencias informa el resultado; una selecciona automáticamente; varias abren una ventana de selección.
 - La ventana reutiliza Modal, DataTable y Pagination, sin acciones de ABM. Permite buscar, paginar, seleccionar y confirmar o elegir por doble clic; Escape/Cancelar cierra.
-- Editar el criterio invalida la selección anterior, evitando enviar una FK que ya no corresponde a lo escrito. Se cancelan respuestas anteriores al iniciar otra búsqueda o desmontar el componente.
+- El input muestra `código - descripción` del registro seleccionado, sin otra etiqueta debajo. Editar ese texto invalida la selección anterior. Limpiar borra texto, selección e identificador y cancela la búsqueda pendiente para que una respuesta tardía no restaure el valor.
+- Sin coincidencias se muestra un aviso y el input toma un fondo rojo claro y aria-invalid. Una búsqueda con coincidencias o Limpiar retiran ese estado. La lupa y la goma se alinean con el centro del input.
 
 `ClientSearch` es el adaptador de Cuenta corriente: reutiliza la búsqueda del maestro de Clientes, incluidos código y nombre. Ofrece activos para altas e incluye históricos para filtros. El resto del diseño y comportamiento pertenece al SF genérico. Otros módulos podrán aportar otra fuente y columnas sin crear un nuevo control visual.
 
@@ -86,12 +87,12 @@ Los importes viajan como texto decimal y se suman en SQL DECIMAL. IDTabla y BIGI
 
 1. Aplicar y comprobar la migración de numeración según la [guía de Hostinger](numeracion-comprobantes.md#actualizar-una-base-existente-en-hostinger). No es suficiente que existan las 21 tablas si su estructura aún es la anterior.
 2. Configurar Jugada, Crédito a favor y Premio como en la tabla. En Numerador configurar Jugada con Próximo número `0001-00000025`.
-3. Entrar a Cuenta corriente: la grilla empieza vacía y no consulta hasta Actualizar o aplicar filtros. Agregar y buscar cliente mediante SF.
+3. Entrar a Cuenta corriente: la grilla empieza vacía y no consulta hasta Actualizar o aplicar filtros. Agregar: el foco comienza en Comprobante. Seleccionarlo y buscar el cliente por SF.
 4. Elegir Jugada: debe sugerir `0001-00000025` sin mostrar Numerador. Guardar importe 100,25, vencimiento igual a la fecha de origen y Observaciones vacío. Se conserva NULL en Observaciones y se guarda `100000025` como número.
-5. Actualizar y filtrar por cliente: Cobrar muestra 100,25 y Pagar 0,00. Otro alta de Jugada propone `0001-00000026`.
+5. Actualizar y filtrar por cliente: se muestran sus movimientos sin tarjetas de saldo. La API conserva Cobrar 100,25 y Pagar 0,00. Otro alta de Jugada propone `0001-00000026`.
 6. Cambiar el correlativo sugerido a 50 y guardar: la próxima sugerencia será 51. Un número libre menor puede guardarse sin retroceder el Numerador. Un duplicado debe rechazarse.
 7. Cambiar manualmente el punto a 0002: el número se guarda con ese punto, sin modificar el próximo configurado para 0001. Con un comprobante sin Numerador, ambas partes empiezan en cero y se pueden completar libremente.
-8. Cargar Crédito a favor por 30,05 y Premio por 200: Cobrar queda 70,20 y Pagar 200,00. Consultar por doble clic y anular con motivo: se conserva la numeración y el número anulado no puede reutilizarse.
+8. Cargar Crédito a favor por 30,05 y Premio por 200: el cálculo de la API conserva Cobrar 70,20 y Pagar 200,00, sin mostrarlo en la grilla. Consultar por doble clic y anular con motivo: se conserva la numeración y el número anulado no puede reutilizarse.
 9. Probar edición por teclado de las dos partes, pegado completo, usuario de consulta y móvil. Cambiar el Numerador no debe alterar los números ya guardados.
 
 ## Verificación
@@ -102,8 +103,24 @@ Esto no identifica por sí solo la causa del fallo informado en la vista previa.
 
 ## Pendiente
 
-Cobros y pagos con medios de pago y afectaciones, Tesorería, Valores y aplicaciones entre créditos y deudas. DatePicker sigue pendiente; SF ya está disponible. Las anulaciones de operaciones financieras relacionadas se definirán junto con esos circuitos.
+Cobros y pagos con medios de pago y afectaciones, Tesorería, Valores y aplicaciones entre créditos y deudas. DatePicker, AmountBox y SF ya están disponibles. Las anulaciones de operaciones financieras relacionadas se definirán junto con esos circuitos.
 
 ## Diagnóstico de fallos de guardado
 
 Ante un 5xx de Cuenta corriente, la respuesta incluye una referencia que se correlaciona con un registro técnico acotado en el servidor. Ver [caso reproducido y obtención de la excepción en Hostinger](diagnostico-guardado-cuenta-corriente.md). No atribuir la causa a Observacion NULL: el esquema la admite y ese caso se confirma en integración.
+
+## Ajustes de presentación y SF
+
+La revisión posterior de experiencia de usuario no agrega migraciones ni cambia reglas financieras. Ver [archivos, tamaños y prueba detallada](cuenta-corriente-presentacion-sf.md).
+
+Las altas sugieren hoy en origen/vencimiento e Importe 0,00. Las consultas conservan valores históricos. Ver [inicialización y limpieza](valores-iniciales-abm.md).
+
+## Anular desde la consulta
+
+El formulario de un movimiento confirmado ofrece Anular en su toolbar a quienes tienen permiso de escritura. No aparece en altas ni en movimientos anulados o para usuarios de consulta; se mantiene deshabilitado para movimientos vinculados a Caja, como en la grilla.
+
+Ambas entradas renderizan el mismo CancelMovement y llaman al mismo servicio existente: motivo, versión, idempotencia y restricciones del backend se conservan. Cancelar el diálogo regresa a la consulta sin cerrarla; confirmar cierra formulario/diálogo y actualiza el listado mediante el flujo existente. Con Estado Confirmado, el movimiento anulado deja de verse hasta cambiar el filtro.
+
+FormToolbarActions es una base visual reutilizable con acción annulAction opcional y contenido para las demás acciones. No conoce estados, permisos, tablas ni endpoints: cada módulo decide si la ofrece y conecta su propia operación. No se agregan acciones de anulación a maestros que no tienen ese circuito.
+
+Prueba manual: abrir un confirmado por doble clic, presionar Anular, cancelar y comprobar que la consulta sigue abierta; repetir con motivo y confirmar. Consultar luego el anulado con filtro Anulados/Todos: ya no debe mostrar Anular. Comprobar también que el alta y el perfil de consulta no lo ofrecen y que la grilla mantiene la misma anulación. Esta revisión no ejecutó compilaciones ni pruebas automáticas.

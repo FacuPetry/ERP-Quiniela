@@ -22,8 +22,12 @@ export type IconName =
   | "trash"
   | "filter"
   | "refresh"
-  | "search";
+  | "search"
+  | "eraser"
+  | "calendar";
 const paths: Record<IconName, string> = {
+  calendar: "M8 2v4m8-4v4M3 10h18M3 4h18v18H3ZM7 14h2m4 0h2m-8 4h2m4 0h2",
+  eraser: "m16 3 5 5-12 13H5l-4-4L16 3ZM7 11l8 8M9 21h12",
   search: "M21 21l-5.2-5.2M10.5 3a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15",
   refresh: "M21 2v6h-6M20.49 13a9 9 0 1 1-2.12-9.36L21 8",
   plus: "M12 5v14M5 12h14",
