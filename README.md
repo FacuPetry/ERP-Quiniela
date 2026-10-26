@@ -10,6 +10,8 @@ Los maestros utilizan selección de fila sin radio visible, acciones con íconos
 
 Todos los ABM utilizan la biblioteca propia de TextBox, TextArea, DropDown y CheckBox, con labels, ayuda y errores compartidos. Ver [controles base y pruebas por componente](docs/controles-base.md). SF permite buscar y seleccionar registros; DatePicker admite escritura manual y calendario, y AmountBox centraliza la entrada y presentación de importes. Ver [valores iniciales y filtros](docs/valores-iniciales-abm.md), [formatos y pruebas](docs/controles-fechas-importes.md) y [foco y Safari móvil](docs/foco-controles-safari.md). IDTabla se conserva exclusivamente interno y no se presenta en los ABM.
 
+Los nueve listados incluyen **Propiedades** del registro seleccionado mediante un OffCanvas compartido, superpuesto y de solo lectura, con información configurable por módulo y carga al abrir. Ver [uso y extensión del panel lateral](docs/offcanvas-propiedades.md).
+
 ## Requisitos
 
 - Node.js 24 LTS y npm 11.

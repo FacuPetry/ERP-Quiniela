@@ -46,9 +46,10 @@ export function listMasters(
     signal ? { signal } : undefined,
   );
 }
-export function getMaster(key: MasterKey, code: string) {
+export function getMaster(key: MasterKey, code: string, signal?: AbortSignal) {
   return apiRequest<MasterDetail>(
     `/maestros/${key}/${encodeURIComponent(code)}`,
+    signal ? { signal } : undefined,
   );
 }
 export function saveMaster(

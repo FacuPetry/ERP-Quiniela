@@ -60,6 +60,7 @@ export function ActionToolbar({
   onDelete,
   onFilter,
   onRefresh,
+  onProperties,
   refreshing = false,
   editIcon,
   removeIcon,
@@ -71,6 +72,7 @@ export function ActionToolbar({
     remove: string;
     filter: string;
     refresh?: string;
+    properties?: string;
   };
   selected: boolean;
   busy: boolean;
@@ -81,6 +83,7 @@ export function ActionToolbar({
   onDelete: () => void;
   onFilter: () => void;
   onRefresh?: () => void;
+  onProperties?: () => void;
   refreshing?: boolean;
   editIcon?: IconName;
   removeIcon?: IconName;
@@ -112,6 +115,14 @@ export function ActionToolbar({
           label={labels.remove}
           disabled={!selected || busy || removeDisabled}
           onClick={onDelete}
+        />
+      )}
+      {onProperties && (
+        <IconAction
+          icon="file"
+          label={labels.properties ?? "Propiedades"}
+          disabled={!selected || busy || refreshing}
+          onClick={onProperties}
         />
       )}
       <IconAction
