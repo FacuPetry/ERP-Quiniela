@@ -232,8 +232,10 @@ export function createCurrentAccountStore(pool: Pool) {
         params.push(query.Hasta);
       }
       if (query.q) {
+        // El número formateado no hereda la collation de una columna textual.
+        // Fijarla evita conflictos de LIKE al reutilizar sentencias en MariaDB.
         clauses.push(
-          "(cl.Nombre LIKE ? ESCAPE '!' OR c.Descripcion LIKE ? ESCAPE '!' OR a.Observacion LIKE ? ESCAPE '!' OR a.Cliente LIKE ? ESCAPE '!' OR CONCAT(LPAD((a.NumeroComprobante DIV 100000000), 4, '0'), '-', LPAD(MOD(a.NumeroComprobante,100000000), 8, '0')) LIKE ? ESCAPE '!' OR a.NumeroComprobante = ?)",
+          "(cl.Nombre LIKE ? ESCAPE '!' OR c.Descripcion LIKE ? ESCAPE '!' OR a.Observacion LIKE ? ESCAPE '!' OR a.Cliente LIKE ? ESCAPE '!' OR CONVERT(CONCAT(LPAD((a.NumeroComprobante DIV 100000000), 4, '0'), '-', LPAD(MOD(a.NumeroComprobante,100000000), 8, '0')) USING utf8mb4) COLLATE utf8mb4_unicode_ci LIKE ? ESCAPE '!' OR a.NumeroComprobante = ?)",
         );
         params.push(
           ...Array(5).fill("%" + query.q.replace(/[!%_]/g, "!$&") + "%"),

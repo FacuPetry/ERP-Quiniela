@@ -18,6 +18,7 @@ import { hashPassword } from "../../apps/api/src/auth/crypto.js";
 import { createAuthStore } from "../../apps/api/src/auth/store.js";
 import { createAuthService } from "../../apps/api/src/auth/service.js";
 import { createCurrentAccountStore } from "../../apps/api/src/current-account/store.js";
+import { querySchema } from "../../apps/api/src/current-account/validation.js";
 import { createMasterStore } from "../../apps/api/src/masters/store.js";
 
 test("Cuenta corriente: circuito financiero real en base aislada", async (t) => {
@@ -681,6 +682,42 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         ).status,
         409,
       );
+    },
+  );
+  await t.test(
+    "Búsqueda general conserva resultados con distintas collations de conexión y consultas preparadas",
+    async () => {
+      const { pool: searchPool } = createDatabase(config);
+      const store = createCurrentAccountStore(searchPool);
+      const criteria = [
+        "1",
+        "a",
+        "Jugador de cuenta",
+        "1200000001",
+        "0012-00000001",
+        "%",
+        "sin coincidencias",
+      ];
+      const query = (q: string) => querySchema.parse({ Cliente: "CC_J", q });
+      try {
+        await searchPool.query("SET NAMES utf8mb4 COLLATE utf8mb4_general_ci");
+        const expected = await Promise.all(
+          criteria.map((q) => list("&q=" + encodeURIComponent(q))),
+        );
+        // Reutilizar la misma conexión y las sentencias preparadas tras cambiar
+        // su collation reproduce el conflicto de LIKE en MariaDB.
+        for (const collation of [
+          "utf8mb4_general_ci",
+          "utf8mb4_unicode_ci",
+          "utf8mb4_bin",
+        ]) {
+          await searchPool.query("SET NAMES utf8mb4 COLLATE " + collation);
+          for (let i = 0; i < criteria.length; i++)
+            assert.deepEqual(await store.list(query(criteria[i]!)), expected[i]);
+        }
+      } finally {
+        await searchPool.end();
+      }
     },
   );
 });
