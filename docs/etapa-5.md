@@ -45,7 +45,7 @@ Los números históricos son independientes del Numerador y no cambian al modifi
 
 ## Formulario y listado
 
-Orden del formulario: Comprobante primero, Número de comprobante, Cliente mediante SF, fechas compactas de origen y vencimiento una debajo de otra y Observaciones. Una ficha Importes siempre visible agrupa el Importe y permite incorporar otros importes más adelante. Cuenta y Naturaleza no se muestran como controles: el backend las determina y conserva desde el comprobante. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan controles nativos con Field; no se crea un DatePicker personalizado en esta entrega.
+Orden del formulario: Comprobante primero, Número de comprobante, Cliente mediante SF, fechas compactas de origen y vencimiento una debajo de otra y Observaciones. Una ficha Importes siempre visible agrupa el Importe y permite incorporar otros importes más adelante. Cuenta y Naturaleza no se muestran como controles: el backend las determina y conserva desde el comprobante. Los importes son positivos con hasta dos decimales; Crédito determina la disminución, sin importes negativos. Vencimiento no puede ser anterior a Fecha de origen. Las fechas utilizan DatePicker: escritura manual con dd/MM/yyyy y calendario nativo. Importe utiliza AmountBox con presentación argentina y valor decimal canónico. Ver [componentes](controles-fechas-importes.md).
 
 El listado comienza sin consultar. Aplicar filtros o Actualizar solicita los datos; no hay refrescos periódicos. Los filtros incluyen búsqueda general, cliente con búsqueda histórica, cuenta, estado y rango de fechas. Se muestran descripciones de las referencias, número formateado y estado, sin IDTabla. Se consulta una fila por selección y el botón del ojo o por doble clic.
 
@@ -103,7 +103,7 @@ Esto no identifica por sí solo la causa del fallo informado en la vista previa.
 
 ## Pendiente
 
-Cobros y pagos con medios de pago y afectaciones, Tesorería, Valores y aplicaciones entre créditos y deudas. DatePicker sigue pendiente; SF ya está disponible. Las anulaciones de operaciones financieras relacionadas se definirán junto con esos circuitos.
+Cobros y pagos con medios de pago y afectaciones, Tesorería, Valores y aplicaciones entre créditos y deudas. DatePicker, AmountBox y SF ya están disponibles. Las anulaciones de operaciones financieras relacionadas se definirán junto con esos circuitos.
 
 ## Diagnóstico de fallos de guardado
 

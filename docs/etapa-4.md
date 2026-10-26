@@ -57,7 +57,7 @@ Ambos módulos reutilizan MasterPage, MasterForm, DataTable, filtros, paginació
 
 API: `/api/maestros/comprobantes` y `/api/maestros/numeraciones`, con los mismos métodos y filtros `q`, `estado`, `pagina` y `limite` de los demás maestros. Numeraciones también acepta `referencia` con el código del comprobante. Los detalles y escrituras de numeraciones usan IDTabla en la URL y en el cuerpo de modificación; no incorporan un campo Codigo ficticio. El detalle ya no bloquea campos por referencias históricas al Numerador: dichas referencias se eliminan mediante la migración.
 
-Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y versión If-Match, manteniendo los permisos existentes. SF se incorpora en la etapa 5; DatePicker sigue pendiente.
+Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y versión If-Match, manteniendo los permisos existentes. SF, DatePicker y AmountBox se incorporan con Cuenta corriente; ver [biblioteca](controles-base.md).
 
 ## Cómo probar
 

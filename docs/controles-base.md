@@ -64,7 +64,7 @@ Durante esta entrega pasaron `npm run check` (TypeScript, las 18 pruebas existen
 
 Los controles originales no requieren migraciones por sí mismos. La revisión actual de NumeroComprobante sí requiere una migración de datos y estructura: ver [guía](numeracion-comprobantes.md). No agrega dependencias ni variables.
 
-SF se implementa en la [etapa 5](etapa-5.md#sf-reutilizable); DatePicker sigue pendiente de definir e implementar. El campo nativo de fecha que admite FilterDialog sigue disponible mediante Field; no se lo presenta como un DatePicker nuevo. Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF deberán recibir su fuente de datos y configuración desde el módulo.
+SF se implementa en la [etapa 5](etapa-5.md#sf-reutilizable). DatePicker y AmountBox ya están disponibles: ver [formatos, contratos y pruebas](controles-fechas-importes.md). Los próximos controles compartirán Field y los mismos estilos; las búsquedas del SF reciben su fuente y configuración desde el módulo.
 
 ## Identificadores internos en los ABM
 
@@ -84,6 +84,12 @@ Dos inputs contiguos de cuatro y ocho dígitos, separados únicamente por el gui
 
 Field centraliza `size?: "sm" | "md" | "lg" | "xl"`. Los máximos son 12, 20, 32 y 48 rem respectivamente. Siempre se ajustan al ancho disponible; no crean desplazamiento horizontal ni cambian la altura del control. Sin size se conserva el ancho actual. `wide` indica cuántas columnas ocupa el campo y `size` limita su ancho dentro de ese espacio.
 
-La propiedad llega a TextBox, TextArea, DropDown, CheckBox, NumeroComprobante y SearchField. ReferenceSelect la propaga a DropDown. En los ABM declarativos se configura `size` en MasterField y MasterForm lo transmite, sin crear componentes por módulo. Los campos de fecha nativos también pueden usar `<Field size="sm">`; DatePicker continúa pendiente.
+La propiedad llega a TextBox, TextArea, DropDown, CheckBox, NumeroComprobante y SearchField. ReferenceSelect la propaga a DropDown. En los ABM declarativos se configura `size` en MasterField y MasterForm lo transmite, sin crear componentes por módulo. DatePicker y AmountBox también admiten size y reutilizan Field.
 
 SF muestra `código - descripción` dentro del input; getDescription debe devolver solo la descripción. Conserva por separado el registro T seleccionado. Limpiar elimina texto y selección, aborta búsquedas y devuelve el foco. Cero coincidencias resalta en rojo claro y se anuncia por texto/ARIA, sin depender solamente del color. Editar el criterio invalida la selección y las filas del resultado anterior hasta buscar otra vez. El consumidor valida el registro seleccionado, nunca da por válido el texto escrito. Ver [pruebas](cuenta-corriente-presentacion-sf.md).
+
+## DatePicker y AmountBox
+
+DatePicker combina escritura manual normalizada a dd/MM/yyyy con un calendario nativo disponible mediante el icono adyacente. Emite yyyy-MM-dd o vacío, sin Date ni conversiones de zona horaria sobre la fecha ingresada. Se utiliza en Cuenta corriente, sus filtros y FilterDialog.
+
+AmountBox conserva decimales como strings con punto, sin miles/símbolos ni paso por Number. Formato predeterminado `#,##0.00`, locale es-AR; format permite variar agrupación y decimales. Al salir se presenta con miles y coma decimal. No redondea precisión excedente: informa el error y no entrega un valor válido. Las restricciones comerciales siguen perteneciendo al formulario/API. El Importe de Cuenta corriente lo utiliza con hasta 16 enteros y dos decimales. Ver [guía](controles-fechas-importes.md).

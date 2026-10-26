@@ -16,7 +16,7 @@ import { DataTable, type TableColumn } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { Modal } from "../ui/Modal";
-import { TextBox, DropDown, TextArea, Field } from "../controls";
+import { TextBox, DropDown, TextArea, DatePicker } from "../controls";
 import { ClientSearch } from "./ClientSearch";
 import { CurrentAccountForm } from "./CurrentAccountForm";
 import "./current-account.css";
@@ -368,17 +368,12 @@ function AccountFilters({
               onValueChange={(v) => change("Estado", v)}
             />
             {(["Desde", "Hasta"] as const).map((name) => (
-              <Field key={name} label={name}>
-                {(binding) => (
-                  <input
-                    {...binding}
-                    className="base-control"
-                    type="date"
-                    value={draft[name] ?? ""}
-                    onChange={(e) => change(name, e.target.value)}
-                  />
-                )}
-              </Field>
+              <DatePicker
+                key={name}
+                label={name}
+                value={draft[name] ?? ""}
+                onValueChange={(value) => change(name, value)}
+              />
             ))}
           </div>
         </div>
@@ -446,8 +441,9 @@ function CancelMovement({
       <div className="modal-body">
         <p>
           Vas a anular {detail.registro.ComprobanteDescripcion}{" "}
-          {detail.registro.NumeroComprobanteTexto} de {detail.registro.ClienteNombre}
-          . Se conservará su historia y el número no se reutilizará.
+          {detail.registro.NumeroComprobanteTexto} de{" "}
+          {detail.registro.ClienteNombre}. Se conservará su historia y el número
+          no se reutilizará.
         </p>
         <TextArea
           label="Motivo de anulación"

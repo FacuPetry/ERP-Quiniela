@@ -53,4 +53,4 @@ SF utiliza el mismo Field para el label, acciones, ayuda y error. La lupa y la g
 8. Guardar, consultar por doble clic y anular con motivo. Se conservan importes, configuración del comprobante, numeración, anulados y permisos. Los filtros por cliente muestran movimientos sin tarjetas de saldos; el cálculo permanece en la API.
 9. Revisar en 320, 375, 768 y 1280 px: sin desbordamiento de página, botones alineados, fechas compactas, grupo Importes legible y campos de solo lectura al consultar. Revisar los maestros previos para confirmar que los controles sin size conservan el ancho anterior.
 
-Verificación: `NODE_ENV=production npm run check` y `npm run test:integration:mariadb`, más Chromium contra API/MariaDB efímeras. No se usan credenciales ni datos de Hostinger. Informes y DatePicker siguen pendientes.
+Verificación: `NODE_ENV=production npm run check` y `npm run test:integration:mariadb`, más Chromium contra API/MariaDB efímeras. No se usan credenciales ni datos de Hostinger. Informes sigue pendiente. DatePicker y AmountBox se incorporan en la [revisión de formatos](controles-fechas-importes.md).

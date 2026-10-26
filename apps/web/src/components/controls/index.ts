@@ -11,3 +11,8 @@ export type { CheckBoxProps } from "./CheckBox";
 export { SearchField } from './SearchField';
 export type { SearchResult } from './SearchField';
 export { NumeroComprobante } from './NumeroComprobante';
+
+export { DatePicker } from "./DatePicker";
+export type { DatePickerProps } from "./DatePicker";
+export { AmountBox } from "./AmountBox";
+export type { AmountBoxProps } from "./AmountBox";

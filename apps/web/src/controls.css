@@ -239,3 +239,8 @@
 .base-field[data-size="md"] { --field-width: 20rem; }
 .base-field[data-size="lg"] { --field-width: 32rem; }
 .base-field[data-size="xl"] { --field-width: 48rem; }
+
+.amount-control {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

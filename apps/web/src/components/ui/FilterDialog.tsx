@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { MasterField } from "@erp/shared";
 import { Modal } from "./Modal";
 import { ReferenceSelect } from "../masters/ReferenceSelect";
-import { Field, TextBox, DropDown } from "../controls";
+import { DatePicker, TextBox, DropDown } from "../controls";
 
 export interface FilterField {
   key: string;
@@ -81,19 +81,13 @@ export function FilterDialog({
                   />
                 );
               return (
-                <Field key={field.key} id={id} label={field.label}>
-                  {(binding) => (
-                    <input
-                      {...binding}
-                      className="base-control"
-                      type="date"
-                      value={draft[field.key] ?? ""}
-                      onChange={(event) =>
-                        change(field.key, event.target.value)
-                      }
-                    />
-                  )}
-                </Field>
+                <DatePicker
+                  key={`${field.key}-${reset}`}
+                  id={id}
+                  label={field.label}
+                  value={draft[field.key] ?? ""}
+                  onValueChange={(value) => change(field.key, value)}
+                />
               );
             })}
           </div>

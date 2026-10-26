@@ -20,12 +20,7 @@
   font-size: 14px;
   font-weight: 650;
 }
-.account-amounts .base-control {
-  font-size: 18px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
+
 
 @media (max-width: 600px) {
   .account-form .form-heading {

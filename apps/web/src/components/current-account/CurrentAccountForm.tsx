@@ -10,7 +10,8 @@ import {
   TextBox,
   DropDown,
   TextArea,
-  Field,
+  DatePicker,
+  AmountBox,
   NumeroComprobante,
 } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
@@ -139,7 +140,7 @@ export function CurrentAccountForm({
     const payload = {
       ...input,
       Cliente: client ? String(client.Codigo) : "",
-      Importe: input.Importe.replace(",", "."),
+      Importe: input.Importe,
     };
     const invalid: Record<string, string> = {};
     for (const name of [
@@ -331,7 +332,7 @@ export function CurrentAccountForm({
             )}
             <div className="account-date-fields">
               {(["FechaOrigen", "Vencimiento"] as const).map((name) => (
-                <Field
+                <DatePicker
                   key={name}
                   {...presentation(name)}
                   label={
@@ -341,23 +342,14 @@ export function CurrentAccountForm({
                   }
                   size="sm"
                   required={!previous && name === "FechaOrigen"}
-                >
-                  {(binding) => (
-                    <input
-                      {...binding}
-                      className="base-control"
-                      type="date"
-                      value={input[name] ?? ""}
-                      readOnly={Boolean(previous)}
-                      disabled={busy}
-                      onChange={(event) => {
-                        if (name === "FechaOrigen")
-                          change(name, event.target.value);
-                        else change(name, event.target.value || null);
-                      }}
-                    />
-                  )}
-                </Field>
+                  value={input[name] ?? ""}
+                  readOnly={Boolean(previous)}
+                  disabled={busy}
+                  onValueChange={(value) => {
+                    if (name === "FechaOrigen") change(name, value);
+                    else change(name, value || null);
+                  }}
+                />
               ))}
             </div>
             <TextArea
@@ -392,16 +384,15 @@ export function CurrentAccountForm({
           </div>
           <fieldset className="account-amounts">
             <legend>Importes</legend>
-            <TextBox
+            <AmountBox
               {...presentation("Importe")}
               label="Importe"
               size="md"
               value={input.Importe}
               required={!previous}
-              inputMode="decimal"
               readOnly={Boolean(previous)}
               disabled={busy}
-              maxLength={19}
+              maxIntegerDigits={16}
               onValueChange={(value) => change("Importe", value)}
             />
           </fieldset>
