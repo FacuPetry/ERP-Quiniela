@@ -14,6 +14,7 @@ export interface CurrentAccountRecord {
   Importe: string;
   Estado: string;
   Observacion: string | null;
+  CreadoEn?: string;
   MotivoAnulacion?: string | null;
   AnuladoEn?: string | null;
 }

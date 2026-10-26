@@ -20,6 +20,7 @@ import { initialListFilters } from "../ui/filter-defaults";
 import { TextBox, DropDown, TextArea, DatePicker } from "../controls";
 import { ClientSearch } from "./ClientSearch";
 import { CurrentAccountForm } from "./CurrentAccountForm";
+import { CurrentAccountProperties } from "./CurrentAccountProperties";
 import "./current-account.css";
 function amount(value: string) {
   const [whole, decimals = "00"] = value.split(".");
@@ -57,6 +58,7 @@ export function CurrentAccountPage({
     [view, setView] = useState<{ detail?: CurrentAccountDetail } | null>(null),
     [annulling, setAnnulling] = useState<CurrentAccountDetail | null>(null),
     [filtering, setFiltering] = useState(false);
+  const [propertiesKey, setPropertiesKey] = useState<string | null>(null);
   const handler = useRef(onExpired),
     mounted = useRef(true),
     opening = useRef(false),
@@ -254,6 +256,9 @@ export function CurrentAccountPage({
             onDelete={() => {
               void open(record, true);
             }}
+            onProperties={() => {
+              if (record && !busy && !loading) setPropertiesKey(record.IDTabla);
+            }}
             onFilter={() => setFiltering(true)}
             onRefresh={refresh}
             refreshing={loading}
@@ -292,6 +297,13 @@ export function CurrentAccountPage({
           />
         )}
       </section>
+      {propertiesKey !== null && (
+        <CurrentAccountProperties
+          recordKey={propertiesKey}
+          onClose={() => setPropertiesKey(null)}
+          onExpired={expired}
+        />
+      )}
       {filtering && (
         <AccountFilters
           values={filters}

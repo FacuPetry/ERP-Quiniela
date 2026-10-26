@@ -124,4 +124,6 @@ Comprobar manualmente alta (Guardar / Cancelar), edición de maestros (Guardar /
 
 Los estilos compartidos de DataTable en masters.css deshabilitan la selección de texto de las filas (incluido el prefijo de WebKit). Se conserva la edición/selección de texto dentro de inputs, textarea y contenido editable, si una grilla los incorpora. No se interceptan eventos de mouse ni se modifican la selección del registro, el foco o la activación por doble clic. Comprobar manualmente una fila de Clientes y una de Cuenta corriente: deben abrir el registro sin resaltar palabras.
 
-Propiedades mediante panel lateral permanece como propuesta, sin implementación. Puede incorporarse con una acción opcional de ActionToolbar y un panel de lectura configurable por módulo, reutilizando detalle/formatos y el manejo de diálogo/foco existente. La carga se haría al abrir, sin consultas por fila o por entrar al módulo; los identificadores internos continuarían fuera de la presentación.
+## OffCanvas y Propiedades
+
+OffCanvas es el contenedor lateral compartido, con contenido y acciones configurables. Reutiliza Modal y FormToolbarActions, bloquea el fondo y devuelve el foco al cerrar. RecordProperties agrega lectura bajo demanda y campos públicos configurados por módulo. ActionToolbar admite onProperties opcional; MasterPage y Cuenta corriente lo conectan a sus adaptadores. IDTabla continúa interno, y abrir/cerrar el panel no recarga la grilla ni cambia su selección. Ver [uso, configuración y pruebas](offcanvas-propiedades.md).

@@ -18,9 +18,10 @@ export const accountList = (
     "/cuenta-corriente?" + new URLSearchParams(query),
     { signal },
   );
-export const accountDetail = (id: string) =>
+export const accountDetail = (id: string, signal?: AbortSignal) =>
   apiRequest<CurrentAccountDetail>(
     "/cuenta-corriente/" + encodeURIComponent(id),
+    signal ? { signal } : undefined,
   );
 const writeHeaders = (csrf: string, key: string) => ({
   "Content-Type": "application/json",

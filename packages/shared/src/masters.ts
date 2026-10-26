@@ -43,6 +43,8 @@ export interface MasterDefinition {
   /** Los maestros con IDTabla conservan su PK autoincremental, sin inventar Codigo. */
   primaryKey?: "Codigo" | "IDTabla";
   description: string;
+  /** Campos de Propiedades en orden; omitir utiliza los campos funcionales y Estado. */
+  propertyFields?: readonly string[];
   fields: readonly MasterField[];
   columns: readonly string[];
 }

@@ -20,6 +20,7 @@ import { Modal } from "../ui/Modal";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { MasterForm } from "./MasterForm";
+import { MasterProperties } from "./MasterProperties";
 
 const defaultFilters = { q: "", estado: "todos", referencia: "" };
 
@@ -46,6 +47,7 @@ export function MasterPage({
   const [view, setView] = useState<{ detail?: MasterDetail } | null>(null);
   const [deleting, setDeleting] = useState<MasterDetail | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [propertiesKey, setPropertiesKey] = useState<string | null>(null);
   const listHeading = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(true);
   const opening = useRef(false);
@@ -268,6 +270,10 @@ export function MasterPage({
           onDelete={() => {
             void open("delete");
           }}
+          onProperties={() => {
+            if (selectedRecord && !listBusy && !busy)
+              setPropertiesKey(masterRecordKey(master, selectedRecord));
+          }}
           onFilter={() => setFilterOpen(true)}
           onRefresh={requestList}
           refreshing={loading}
@@ -315,6 +321,14 @@ export function MasterPage({
             setSelected(null);
             setLoading(true);
           }}
+        />
+      )}
+      {propertiesKey !== null && (
+        <MasterProperties
+          master={master}
+          recordKey={propertiesKey}
+          onClose={() => setPropertiesKey(null)}
+          onExpired={expired}
         />
       )}
       {filterOpen && (

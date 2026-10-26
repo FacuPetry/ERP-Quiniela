@@ -1,0 +1,109 @@
+.modal.offcanvas {
+  inset: 0 0 0 auto;
+  margin: 0;
+  width: min(100%, var(--offcanvas-width));
+  max-width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  border-radius: 0;
+  flex-direction: column;
+  overflow: hidden;
+  animation: offcanvas-right-in 160ms ease-out;
+}
+.modal.offcanvas[open] {
+  display: flex;
+}
+.offcanvas-sm {
+  --offcanvas-width: 24rem;
+}
+.offcanvas-md {
+  --offcanvas-width: 36rem;
+}
+.offcanvas-lg {
+  --offcanvas-width: 48rem;
+}
+.offcanvas-xl {
+  --offcanvas-width: 64rem;
+}
+.modal.offcanvas.offcanvas-left {
+  inset: 0 auto 0 0;
+  animation-name: offcanvas-left-in;
+}
+.offcanvas > .modal-heading,
+.offcanvas-footer {
+  flex-shrink: 0;
+}
+.offcanvas-body {
+  min-height: 0;
+  flex: 1;
+  padding: 22px 25px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+.offcanvas-footer {
+  padding: 16px 25px max(16px, env(safe-area-inset-bottom));
+  border-top: 1px solid #e6ece1;
+  background: #fbfcf9;
+}
+.offcanvas-footer .form-toolbar-actions {
+  width: 100%;
+}
+.properties-fields {
+  margin: 0;
+}
+.properties-field {
+  padding: 13px 0;
+  border-bottom: 1px solid #edf0e8;
+}
+.properties-field:first-child {
+  padding-top: 0;
+}
+.properties-field:last-child {
+  border-bottom: 0;
+}
+.properties-field dt {
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #74836b;
+}
+.properties-field dd {
+  margin: 0;
+  font-size: 13px;
+  color: #274833;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.properties-error button {
+  margin-top: 12px;
+}
+@keyframes offcanvas-right-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes offcanvas-left-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+@media (max-width: 600px) {
+  .modal.offcanvas {
+    width: 100%;
+  }
+  .offcanvas-body {
+    padding: 20px 18px;
+  }
+  .offcanvas-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal.offcanvas,
+  .modal.offcanvas.offcanvas-left {
+    animation: none;
+  }
+}
