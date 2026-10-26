@@ -26,7 +26,7 @@ Usos actuales: Fecha de origen y Fecha de vencimiento de Cuenta corriente, Desde
 
 ## AmountBox
 
-Textbox monetario reutilizable con Field y los mismos anchos, altura, bordes, foco y estados de TextBox. Alinea el número a la derecha. La ficha Importes es compacta, alineada a la derecha en escritorio y con ancho disponible en móvil, sin imponer una altura o tipografía distinta al control.
+Textbox monetario reutilizable con Field y los mismos anchos, altura, bordes, foco y estados de TextBox. Alinea el número a la derecha. La ficha Importes es compacta, alineada a la izquierda en escritorio y con ancho disponible en móvil, sin imponer una altura o tipografía distinta al control.
 
 - `value` y onValueChange utilizan texto decimal canónico con punto, sin separadores de miles ni símbolos: 1250.50. Este contrato conserva precisión y el uso actual de DECIMAL en la API; no usa Number ni parseFloat sobre importes.
 - `format` predeterminado: `#,##0.00`. Los ceros después del punto determinan los decimales; `0.00` omite miles, `#,##0.000` presenta tres decimales y `#,##0` ninguno. Admite hasta veinte decimales obligatorios. La puntuación de la máscara es convencional, no el separador que se teclea.

@@ -13,6 +13,8 @@ import {
   DatePicker,
   AmountBox,
   NumeroComprobante,
+  todayISO,
+  defaultNumericValue,
 } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 import { ClientSearch } from "./ClientSearch";
@@ -39,8 +41,9 @@ export function CurrentAccountForm({
   });
   const [loading, setLoading] = useState(!previous),
     [revision, setRevision] = useState(0);
-  const [input, setInput] = useState<CurrentAccountInput>(() =>
-    previous
+  const [input, setInput] = useState<CurrentAccountInput>(() => {
+    const today = todayISO();
+    return previous
       ? {
           Cliente: previous.Cliente,
           Comprobante: previous.Comprobante,
@@ -54,14 +57,12 @@ export function CurrentAccountForm({
           Cliente: "",
           Comprobante: "",
           NumeroComprobante: "0",
-          FechaOrigen: new Intl.DateTimeFormat("sv-SE", {
-            timeZone: "America/Argentina/Buenos_Aires",
-          }).format(new Date()),
-          Vencimiento: null,
-          Importe: "",
+          FechaOrigen: today,
+          Vencimiento: today,
+          Importe: defaultNumericValue,
           Observacion: null,
-        },
-  );
+        };
+  });
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [errors, setErrors] = useState<Record<string, string>>({});

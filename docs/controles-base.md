@@ -99,3 +99,13 @@ AmountBox conserva decimales como strings con punto, sin miles/símbolos ni paso
 SF, DatePicker y NumeroComprobante comparten la clase control-group de controls.css: borde exterior único, contorno verde semitransparente de 2px y esquinas comunes. No se dibujan anillos individuales superpuestos dentro del grupo. Los botones mantienen una señal interna al recibir foco por teclado; los estados de error y alto contraste se conservan. TextBox, TextArea, DropDown y CheckBox usan el mismo contorno discreto.
 
 En ancho <=860px o con cualquier puntero táctil, las fuentes de entrada son al menos 16px y la altura común es 44px. Incluye inputs internos, filtros y acceso. Escritorio conserva 12px/40px. No se modifica el viewport ni se limita el zoom del usuario. Ver [verificación en Safari iPhone](foco-controles-safari.md).
+
+## Valores iniciales
+
+TextBox de type number y AmountBox permiten omitir value (o usar undefined) para inicializar desde initialValue, que por defecto es "0". La sugerencia se emite una sola vez para sincronizar el modelo. Un value explícito tiene prioridad: "" representa un campo limpiado y nunca se repone con cero, y los valores de edición se conservan. AmountBox muestra el cero con la máscara configurada (0,00, 0,000, etc.). En formularios controlados también se puede inicializar el estado con defaultNumericValue.
+
+MasterForm utiliza initialMasterFieldValue al crear registros: enteros a cero, excepto PK generadas; field.defaultValue tiene prioridad (incluida cadena vacía). Editar utiliza el registro existente, sin ejecutar estas sugerencias. Los códigos de clientes y los ID autogenerados conservan sus mecanismos.
+
+SearchField recibe placeholder opcional y utiliza por defecto «Ingrese un valor para buscar...», también en el selector. ClientSearch lo propaga para personalización por módulo.
+
+initialListFilters permite inicializar fechas al entrar al módulo y Confirmado para operaciones. La limpieza se configura por separado, sin reintroducir valores al abrir el modal ni disparar consultas. Ver [guía](valores-iniciales-abm.md).

@@ -19,6 +19,7 @@ import {
   CheckBox,
   DropDown,
   NumeroComprobante,
+  initialMasterFieldValue,
 } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 
@@ -43,7 +44,10 @@ export function MasterForm({
     () =>
       previous?.registro ??
       (Object.fromEntries([
-        ...master.fields.map((field) => [field.name, field.defaultValue ?? ""]),
+        ...master.fields.map((field) => [
+          field.name,
+          initialMasterFieldValue(field, master.primaryKey ?? "Codigo"),
+        ]),
         ["Activo", true],
       ]) as MasterRecord),
   );

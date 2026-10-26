@@ -16,6 +16,7 @@ import { DataTable, type TableColumn } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { Modal } from "../ui/Modal";
+import { initialListFilters } from "../ui/filter-defaults";
 import { TextBox, DropDown, TextArea, DatePicker } from "../controls";
 import { ClientSearch } from "./ClientSearch";
 import { CurrentAccountForm } from "./CurrentAccountForm";
@@ -26,7 +27,7 @@ function amount(value: string) {
     whole!.replace(/\B(?=(\d{3})+(?!\d))/g, ".") + "," + decimals.padEnd(2, "0")
   );
 }
-const defaults: Record<string, string> = {
+const emptyFilters: Record<string, string> = {
   q: "",
   Cliente: "",
   Cuenta: "",
@@ -41,7 +42,9 @@ export function CurrentAccountPage({
   session: SessionResponse;
   onExpired: () => void;
 }) {
-  const [filters, setFilters] = useState({ ...defaults }),
+  const [filters, setFilters] = useState(() =>
+      initialListFilters(emptyFilters, ["Desde", "Hasta"], "Estado"),
+    ),
     [client, setClient] = useState<MasterRecord | null>(null);
   const [page, setPage] = useState(1),
     [revision, setRevision] = useState(0),
@@ -224,7 +227,7 @@ export function CurrentAccountPage({
               record?.Estado !== "CONFIRMADO" || Boolean(record.CajaMovimiento)
             }
             filtersActive={Object.entries(filters).some(
-              ([key, value]) => value !== defaults[key],
+              ([key, value]) => value !== emptyFilters[key],
             )}
             onAdd={() => setView({})}
             onEdit={() => {
@@ -369,8 +372,8 @@ function AccountFilters({
             />
             {(["Desde", "Hasta"] as const).map((name) => (
               <DatePicker
-                key={name}
-                label={name}
+                key={`${name}-${reset}`}
+                label={name === "Desde" ? "Fecha desde" : "Fecha hasta"}
                 value={draft[name] ?? ""}
                 onValueChange={(value) => change(name, value)}
               />
@@ -382,7 +385,7 @@ function AccountFilters({
             type="button"
             className="button secondary"
             onClick={() => {
-              setDraft({ ...defaults });
+              setDraft({ ...emptyFilters });
               setSelected(null);
               setReset((v) => v + 1);
             }}

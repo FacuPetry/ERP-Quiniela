@@ -21,6 +21,7 @@ export function SearchField<T>({
   columns,
   title,
   disabled = false,
+  placeholder = "Ingrese un valor para buscar...",
   ...field
 }: FieldProps & {
   value: T | null;
@@ -35,6 +36,7 @@ export function SearchField<T>({
   columns: readonly TableColumn<T>[];
   title: string;
   disabled?: boolean;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState(() => (value ? getCode(value) : ""));
   const [result, setResult] = useState<SearchResult<T> | null>(null);
@@ -153,6 +155,7 @@ export function SearchField<T>({
               className="base-control base-textbox sf-input"
               data-not-found={notFound || undefined}
               type="text"
+              placeholder={placeholder}
               value={
                 value ? `${getCode(value)} - ${getDescription(value)}` : query
               }
@@ -201,6 +204,7 @@ export function SearchField<T>({
                     {...binding}
                     className="base-control base-textbox sf-input"
                     type="text"
+                    placeholder={placeholder}
                     value={query}
                     data-not-found={notFound || undefined}
                     aria-invalid={notFound}

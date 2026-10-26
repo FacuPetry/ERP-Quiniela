@@ -10,7 +10,7 @@ Los controles simples también utilizan el contorno de 2px. Se conserva el foco 
 
 NumeroComprobante mantiene los dos inputs: cuatro dígitos a la izquierda y ocho a la derecha, contiguos, sin guion visible y con divisor vertical. El ancho se ajusta a los dígitos. Conserva selección al enfocar, Tab/Shift+Tab, ceros al salir y pegado del formato completo con guion. El único BIGINT y las reglas de emisión no cambian; el listado sigue mostrando 0001-00000025. La ayuda explicativa bajo este campo se retira del formulario de Cuenta corriente; Field conserva su capacidad de ayuda para otros usos.
 
-Importes conserva únicamente el importe editable: bloque compacto a la derecha debajo de los datos generales, con etiqueta a la izquierda y valor a la derecha. En móvil ocupa el ancho disponible y apila la etiqueta para dejar espacio al valor. No agrega artículos, totales duplicados ni cálculos.
+Importes conserva únicamente el importe editable: bloque compacto a la izquierda debajo de los datos generales, con etiqueta a la izquierda y valor a la derecha. En móvil ocupa el ancho disponible y apila la etiqueta para dejar espacio al valor. No agrega artículos, totales duplicados ni cálculos.
 
 ## Fuente móvil y zoom
 

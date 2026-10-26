@@ -1,3 +1,10 @@
+/** Fecha civil actual del negocio; se evalúa al abrir cada formulario/módulo. */
+export function todayISO(now = new Date()) {
+  return new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Argentina/Buenos_Aires",
+  }).format(now);
+}
+
 /** Fechas civiles, sin conversión de zona horaria ni normalización por overflow. */
 export function currentYear() {
   return Number(

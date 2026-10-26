@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TextBox } from "./TextBox";
 import type { FieldProps } from "./Field";
+import { useNumericInitialValue } from "./useNumericInitialValue";
+import { defaultNumericValue } from "./numeric-defaults";
 import { amountFormat, formatAmount, parseAmountInput } from "./amount-value";
 export interface AmountBoxProps extends FieldProps {
   /** Decimal canónico con punto, sin miles/símbolos; vacío si no hay valor válido. */
-  value: string;
+  value?: string;
+  initialValue?: string;
   onValueChange: (value: string) => void;
   format?: string;
   locale?: string;
@@ -13,7 +16,8 @@ export interface AmountBoxProps extends FieldProps {
   readOnly?: boolean;
 }
 export function AmountBox({
-  value,
+  value: providedValue,
+  initialValue = defaultNumericValue,
   onValueChange,
   format = "#,##0.00",
   locale = "es-AR",
@@ -22,6 +26,11 @@ export function AmountBox({
   readOnly = false,
   ...field
 }: AmountBoxProps) {
+  const value = useNumericInitialValue(
+    providedValue,
+    initialValue,
+    onValueChange,
+  );
   const config = useMemo(() => amountFormat(format, locale), [format, locale]);
   const [text, setText] = useState(() => formatAmount(value, config));
   const [message, setMessage] = useState("");

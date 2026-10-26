@@ -26,6 +26,7 @@ export function ClientSearch({
   onExpired: () => void;
   historical?: boolean;
   disabled?: boolean;
+  placeholder?: string;
 }) {
   const search = useCallback(
     async (q: string, page: number, signal: AbortSignal) => {

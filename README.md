@@ -8,7 +8,7 @@ Incluye React + TypeScript + Vite + Tailwind, API Express, conexión MySQL/Maria
 
 Los maestros utilizan selección de fila sin radio visible, acciones con íconos, búsqueda y filtros en ventana, combos activos sin buscador y formularios con Guardar/Cancelar en el encabezado. El alta de clientes muestra un código sugerido; el definitivo se asigna con cinco dígitos al guardar, sin tabla adicional. Ver [componentes y correlativo](docs/ajustes-componentes.md), incluidas la conservación de selección, los códigos anteriores y la posible reutilización del último eliminado.
 
-Todos los ABM utilizan la biblioteca propia de TextBox, TextArea, DropDown y CheckBox, con labels, ayuda y errores compartidos. Ver [controles base y pruebas por componente](docs/controles-base.md). SF permite buscar y seleccionar registros; DatePicker admite escritura manual y calendario, y AmountBox centraliza la entrada y presentación de importes. Ver [formatos y pruebas](docs/controles-fechas-importes.md) y [foco y Safari móvil](docs/foco-controles-safari.md). IDTabla se conserva exclusivamente interno y no se presenta en los ABM.
+Todos los ABM utilizan la biblioteca propia de TextBox, TextArea, DropDown y CheckBox, con labels, ayuda y errores compartidos. Ver [controles base y pruebas por componente](docs/controles-base.md). SF permite buscar y seleccionar registros; DatePicker admite escritura manual y calendario, y AmountBox centraliza la entrada y presentación de importes. Ver [valores iniciales y filtros](docs/valores-iniciales-abm.md), [formatos y pruebas](docs/controles-fechas-importes.md) y [foco y Safari móvil](docs/foco-controles-safari.md). IDTabla se conserva exclusivamente interno y no se presenta en los ABM.
 
 ## Requisitos
 
