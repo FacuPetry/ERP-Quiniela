@@ -1,8 +1,11 @@
+import { displayDate } from "../controls/date-value";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   moneyUnits,
   moneyText,
   type CashInput,
+  type CashValue,
+  type ValueDetail,
   type CashDetail,
   type CashOptions,
   type AllocationDetail,
@@ -179,9 +182,17 @@ export function CashForm({
     else if (next?.Cuenta !== voucher?.Cuenta) requestChange(commit);
     else commit();
   }
-  const displayedValues = old
+  const displayedValues: {
+    key: string;
+    details: CashValue | ValueDetail;
+    type: string;
+    bank: string;
+    number: string;
+    amount: string;
+  }[] = old
     ? detail!.valores.map((v, i) => ({
         key: String(i),
+        details: v,
         type: v.Tipo,
         bank: v.CuentaNombre ?? v.BancoNombre,
         number: v.Numero,
@@ -189,6 +200,7 @@ export function CashForm({
       }))
     : values.map((v, i) => ({
         key: String(i),
+        details: v.input,
         type: v.input.Tipo,
         bank: v.bank,
         number: v.number,
@@ -497,37 +509,77 @@ export function CashForm({
                 title: "Afectaciones",
                 content: (
                   <>
-                    <div className="cash-section-toolbar">
-                      <h3>Afectaciones</h3>
-                      {!old && (
-                        <ActionToolbar
-                          labels={{ remove: "Quitar afectación" }}
-                          selected={Boolean(selectedAllocation)}
-                          busy={busy}
-                          readOnly={false}
-                          filtersActive={false}
-                          onDelete={() => {
-                            setAllocations((rows) =>
-                              rows.filter(
-                                (a) => a.CuentaCorriente !== selectedAllocation,
-                              ),
-                            );
-                            setSelectedAllocation(null);
-                          }}
-                          endActions={[
-                            {
-                              key: "affect",
-                              label: "Afectar",
-                              icon: "plus",
-                              showLabel: true,
-                              disabled: !client || !voucher,
-                              onClick: () => setPicker(true),
-                            },
-                          ]}
-                        />
-                      )}
-                    </div>
                     <DataTable
+                      toolbar={(actions) => (
+                        <div className="cash-section-toolbar">
+                          <h3>Afectaciones</h3>
+                          <ActionToolbar
+                            labels={{ remove: "Quitar afectación" }}
+                            selected={actions.selected}
+                            onProperties={actions.onProperties}
+                            busy={busy}
+                            readOnly={readOnly}
+                            filtersActive={false}
+                            onDelete={() => {
+                              setAllocations((rows) =>
+                                rows.filter(
+                                  (a) =>
+                                    a.CuentaCorriente !== selectedAllocation,
+                                ),
+                              );
+                              setSelectedAllocation(null);
+                            }}
+                            endActions={
+                              old
+                                ? []
+                                : [
+                                    {
+                                      key: "affect",
+                                      label: "Afectar",
+                                      icon: "plus",
+                                      showLabel: true,
+                                      disabled: !client || !voucher,
+                                      onClick: () => setPicker(true),
+                                    },
+                                  ]
+                            }
+                          />
+                        </div>
+                      )}
+                      properties={{
+                        fields: [
+                          {
+                            key: "voucher",
+                            label: "Comprobante",
+                            render: (a) => a.ComprobanteDescripcion,
+                          },
+                          {
+                            key: "number",
+                            label: "Número de comprobante",
+                            render: (a) => a.NumeroComprobanteTexto,
+                          },
+                          {
+                            key: "date",
+                            label: "Fecha",
+                            render: (a) => displayDate(a.FechaOrigen),
+                          },
+                          {
+                            key: "original",
+                            label: "Importe original",
+                            render: (a) => amount(a.ImporteOriginal),
+                          },
+                          {
+                            key: "pending",
+                            label: "Pendiente consultado",
+                            render: (a) => amount(a.Pendiente),
+                          },
+                          {
+                            key: "amount",
+                            label: "Importe afectado",
+                            render: (a) => amount(a.Importe),
+                          },
+                        ],
+                      }}
                       caption="Afectaciones del movimiento"
                       rows={allocations}
                       rowKey={(a) => a.CuentaCorriente}
@@ -537,31 +589,23 @@ export function CashForm({
                       onSelectionChange={setSelectedAllocation}
                       columns={[
                         {
-                          key: "number",
+                          key: "voucher",
                           label: "Comprobante",
-                          render: (a) => (
-                            <>
-                              {a.ComprobanteDescripcion}
-                              <br />
-                              {a.NumeroComprobanteTexto}
-                            </>
-                          ),
+                          render: (a) => a.ComprobanteDescripcion,
                         },
                         {
-                          key: "original",
-                          label: "Original",
-                          render: (a) => amount(a.ImporteOriginal),
+                          key: "number",
+                          label: "Número de comprobante",
+                          render: (a) => a.NumeroComprobanteTexto,
                         },
                         {
-                          key: "pending",
-                          label: old
-                            ? "Pendiente actual"
-                            : "Pendiente consultado",
-                          render: (a) => amount(a.Pendiente),
+                          key: "date",
+                          label: "Fecha",
+                          render: (a) => displayDate(a.FechaOrigen),
                         },
                         {
                           key: "amount",
-                          label: "Afectado",
+                          label: "Importe afectado",
                           render: (a) => amount(a.Importe),
                         },
                       ]}
@@ -574,63 +618,149 @@ export function CashForm({
                 title: "Valores",
                 content: (
                   <>
-                    <div className="cash-section-toolbar">
-                      <h3>Valores</h3>
-                      <ActionToolbar
-                        labels={{
-                          add: "Agregar valor",
-                          edit: "Modificar valor",
-                          remove: "Eliminar valor",
-                        }}
-                        selected={selectedValue !== null}
-                        busy={busy}
-                        readOnly={readOnly}
-                        filtersActive={false}
-                        {...(!old
-                          ? {
-                              onAdd: () => setEditor(-1),
-                              addDisabled: !voucher,
-                              onEdit: () => setEditor(Number(selectedValue)),
-                              editDisabled:
-                                values[Number(selectedValue)]?.input.Tipo ===
-                                "CARTERA",
-                              onDelete: () => {
-                                setValues((s) =>
-                                  s.filter(
-                                    (_, i) => String(i) !== selectedValue,
-                                  ),
-                                );
-                                setSelectedValue(null);
-                              },
-                            }
-                          : {})}
-                        endActions={[
-                          ...(!old
-                            ? [
-                                {
-                                  key: "portfolio",
-                                  label: "Seleccionar de cartera",
-                                  icon: "values" as const,
-                                  showLabel: true,
-                                  disabled: sense !== "EGRESO",
-                                  onClick: () => setPortfolio(true),
-                                },
-                              ]
-                            : []),
-                          {
-                            key: "cheque",
-                            label: "Consultar cheque",
-                            icon: "eye",
-                            disabled: !selectedChequeId,
-                            onClick: () => {
-                              if (selectedChequeId)
-                                setConsultingCheque(selectedChequeId);
-                            },
-                          },
-                        ]}
-                      />
-                    </div>
                     <DataTable
+                      toolbar={(actions) => (
+                        <div className="cash-section-toolbar">
+                          <h3>Valores</h3>
+                          <ActionToolbar
+                            labels={{
+                              add: "Agregar valor",
+                              edit: "Modificar valor",
+                              remove: "Eliminar valor",
+                            }}
+                            selected={actions.selected}
+                            onProperties={actions.onProperties}
+                            busy={busy}
+                            readOnly={readOnly}
+                            filtersActive={false}
+                            {...(!old
+                              ? {
+                                  onAdd: () => setEditor(-1),
+                                  addDisabled: !voucher,
+                                  onEdit: () =>
+                                    setEditor(Number(selectedValue)),
+                                  editDisabled:
+                                    values[Number(selectedValue)]?.input
+                                      .Tipo === "CARTERA",
+                                  onDelete: () => {
+                                    setValues((s) =>
+                                      s.filter(
+                                        (_, i) => String(i) !== selectedValue,
+                                      ),
+                                    );
+                                    setSelectedValue(null);
+                                  },
+                                }
+                              : {})}
+                            endActions={[
+                              ...(!old
+                                ? [
+                                    {
+                                      key: "portfolio",
+                                      label: "Seleccionar de cartera",
+                                      icon: "values" as const,
+                                      showLabel: true,
+                                      disabled: sense !== "EGRESO",
+                                      onClick: () => setPortfolio(true),
+                                    },
+                                  ]
+                                : []),
+                              {
+                                key: "cheque",
+                                label: "Consultar cheque",
+                                icon: "eye",
+                                disabled: !selectedChequeId,
+                                onClick: () => {
+                                  if (selectedChequeId)
+                                    setConsultingCheque(selectedChequeId);
+                                },
+                              },
+                            ]}
+                          />
+                        </div>
+                      )}
+                      properties={{
+                        fields: [
+                          {
+                            key: "type",
+                            label: "Tipo",
+                            render: (v) =>
+                              v.type === "TRANSFERENCIA"
+                                ? "Transferencia"
+                                : v.type === "PROPIO"
+                                  ? "Cheque propio"
+                                  : "Cheque de terceros",
+                          },
+                          {
+                            key: "bank",
+                            label: "Banco / Cuenta",
+                            render: (v) => v.bank,
+                          },
+                          {
+                            key: "number",
+                            label: "Número / Referencia",
+                            render: (v) => v.number,
+                          },
+                          {
+                            key: "amount",
+                            label: "Importe",
+                            render: (v) => amount(v.amount),
+                          },
+                          {
+                            key: "date",
+                            label: "Fecha de operación",
+                            render: () => displayDate(input.FechaOrigen),
+                          },
+                          {
+                            key: "emission",
+                            label: "Emisión",
+                            render: (v) =>
+                              "Emision" in v.details
+                                ? displayDate(v.details.Emision)
+                                : null,
+                          },
+                          {
+                            key: "due",
+                            label: "Vencimiento",
+                            render: (v) =>
+                              "Vencimiento" in v.details
+                                ? displayDate(v.details.Vencimiento)
+                                : null,
+                          },
+                          {
+                            key: "issuer",
+                            label: "Librador",
+                            render: (v) =>
+                              "Librador" in v.details
+                                ? String(v.details.Librador ?? "")
+                                : null,
+                          },
+                          {
+                            key: "issuerAccount",
+                            label: "Cuenta libradora",
+                            render: (v) =>
+                              "CuentaLibradora" in v.details
+                                ? v.details.CuentaLibradora
+                                : null,
+                          },
+                          {
+                            key: "document",
+                            label: "Documento",
+                            render: (v) =>
+                              "Documento" in v.details
+                                ? String(v.details.Documento ?? "")
+                                : null,
+                          },
+                          {
+                            key: "state",
+                            label: "Estado",
+                            render: (v) =>
+                              "Estado" in v.details
+                                ? v.details.Estado
+                                : "Borrador",
+                          },
+                        ],
+                      }}
                       caption="Valores del movimiento"
                       rows={displayedValues}
                       rowKey={(v) => v.key}

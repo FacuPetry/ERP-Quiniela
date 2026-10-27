@@ -124,3 +124,6 @@ Ambas entradas renderizan el mismo CancelMovement y llaman al mismo servicio exi
 FormToolbarActions es una base visual reutilizable con acción annulAction opcional y contenido para las demás acciones. No conoce estados, permisos, tablas ni endpoints: cada módulo decide si la ofrece y conecta su propia operación. No se agregan acciones de anulación a maestros que no tienen ese circuito.
 
 Prueba manual: abrir un confirmado por doble clic, presionar Anular, cancelar y comprobar que la consulta sigue abierta; repetir con motivo y confirmar. Consultar luego el anulado con filtro Anulados/Todos: ya no debe mostrar Anular. Comprobar también que el alta y el perfil de consulta no lo ofrecen y que la grilla mantiene la misma anulación. Esta revisión no ejecutó compilaciones ni pruebas automáticas.
+
+
+Cuenta corriente utiliza el FormSections compartido con Caja movimiento: Datos generales contiene la cabecera, cliente, fechas, observaciones y estado; Importes conserva su control de importe y formato. La columna lateral, el comportamiento sticky y los enlaces de desplazamiento son comunes. Las fechas de grillas y consultas se presentan como dd/MM/yyyy sin modificar el valor ISO enviado a la API.

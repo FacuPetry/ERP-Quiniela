@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   masterDefinitions,
@@ -6,6 +7,7 @@ import {
   type CashOpening,
 } from "@erp/shared";
 import { ActionToolbar } from "../ui/ActionToolbar";
+import { Modal } from "../ui/Modal";
 import { MasterProperties } from "../masters/MasterProperties";
 import { OffCanvas } from "../ui/OffCanvas";
 import { DataTable } from "../ui/DataTable";
@@ -89,8 +91,12 @@ export function CashBoxes({
   const retry = useRef({ body: "", key: "" });
   const operationId = useId();
   const [propertyBox, setPropertyBox] = useState<string | null>(null);
+  const [highlighted, setHighlighted] = useState<string | null>(
+    () => selected?.IDTabla ?? null,
+  );
+  const [changeBox, setChangeBox] = useState<CashOpening | null>(null);
   const selectedOpening = data?.aperturas.find(
-    (o) => o.IDTabla === selected?.IDTabla,
+    (o) => o.IDTabla === highlighted,
   );
   async function save() {
     const input = closing
@@ -167,26 +173,21 @@ export function CashBoxes({
             />
           </div>
           <DataTable
+            properties={false}
             caption="Cajas abiertas"
             rows={data?.aperturas ?? []}
             rowKey={(r) => r.IDTabla}
             loading={busy || loading}
-            selectedKey={selected?.IDTabla ?? null}
-            onSelectionChange={(id) => {
-              const opening = data?.aperturas.find((o) => o.IDTabla === id);
-              if (opening && data?.cajas.some((c) => c.Codigo === opening.Caja))
-                select(opening);
-            }}
+            selectedKey={highlighted}
+            onSelectionChange={setHighlighted}
             rowLabel={(o) => o.CajaNombre}
-            onRowActivate={(o) => {
-              if (data?.cajas.some((c) => c.Codigo === o.Caja)) select(o);
-            }}
+            onRowActivate={(o) => setHighlighted(o.IDTabla)}
             columns={[
               { key: "box", label: "Caja", render: (r) => r.CajaNombre },
               {
                 key: "date",
                 label: "Apertura",
-                render: (r) => r.AperturaEn.slice(0, 10),
+                render: (r) => displayDate(r.AperturaEn),
               },
               {
                 key: "initial",
@@ -210,7 +211,12 @@ export function CashBoxes({
                     selected?.IDTabla === r.IDTabla ||
                     !data?.cajas.some((c) => c.Codigo === r.Caja)
                   }
-                  onClick={() => select(r)}
+                  onClick={() => {
+                    setHighlighted(r.IDTabla);
+                    if (selected && selected.IDTabla !== r.IDTabla)
+                      setChangeBox(r);
+                    else select(r);
+                  }}
                 >
                   {selected?.IDTabla === r.IDTabla
                     ? "Seleccionada"
@@ -315,6 +321,53 @@ export function CashBoxes({
           </section>
         )}
       </OffCanvas>
+      {changeBox && (
+        <Modal
+          title="Cambiar caja seleccionada"
+          busy={busy}
+          lockScroll
+          restoreFocus
+          onClose={() => setChangeBox(null)}
+        >
+          <div className="modal-body">
+            <p>¿Estás seguro de que querés cambiar la caja seleccionada?</p>
+            <p>
+              {selected?.CajaNombre} → {changeBox.CajaNombre}
+            </p>
+          </div>
+          <div className="modal-actions">
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => setChangeBox(null)}
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className="button primary"
+              disabled={busy || loading}
+              onClick={() => {
+                const current = data?.aperturas.find(
+                  (o) => o.IDTabla === changeBox.IDTabla,
+                );
+                if (
+                  current &&
+                  data?.cajas.some((c) => c.Codigo === current.Caja)
+                )
+                  select(current);
+                else
+                  setError(
+                    "La caja elegida ya no está disponible. Actualizá el listado.",
+                  );
+                setChangeBox(null);
+              }}
+            >
+              Confirmar
+            </button>
+          </div>
+        </Modal>
+      )}
       {propertyBox && (
         <MasterProperties
           master={masterDefinitions.cajas}

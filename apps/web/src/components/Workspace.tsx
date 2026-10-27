@@ -8,6 +8,11 @@ import {
 import { masterDefinitions, type SessionResponse } from "@erp/shared";
 import { modules, navigate, usePath } from "../navigation";
 import { logout } from "../services/auth";
+import {
+  displayDateTime,
+  formatDateValue,
+  todayISO,
+} from "./controls/date-value";
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
@@ -302,14 +307,7 @@ function WorkspaceContent({
                         : "La dirección que buscás no está disponible."))}
               </p>
             </div>
-            <span className="date-label">
-              {new Intl.DateTimeFormat("es-AR", {
-                timeZone: "America/Argentina/Buenos_Aires",
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              }).format(new Date())}
-            </span>
+            <span className="date-label">{formatDateValue(todayISO())}</span>
           </div>
           {error && (
             <p className="notice error" role="alert">
@@ -427,13 +425,7 @@ function WorkspaceContent({
                 </div>
                 <div>
                   <dt>Vencimiento de la sesión</dt>
-                  <dd>
-                    {new Intl.DateTimeFormat("es-AR", {
-                      timeZone: "America/Argentina/Buenos_Aires",
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    }).format(new Date(session.venceEn))}
-                  </dd>
+                  <dd>{displayDateTime(session.venceEn)}</dd>
                 </div>
               </dl>
               <button

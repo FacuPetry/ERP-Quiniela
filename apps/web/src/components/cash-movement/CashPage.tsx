@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   CashDetail,
@@ -50,7 +51,11 @@ const properties: PropertyField<CashDetail>[] = [
     label: "Cliente",
     render: (d) => d.registro.Cliente + " - " + d.registro.ClienteNombre,
   },
-  { key: "fecha", label: "Fecha", render: (d) => d.registro.FechaOrigen },
+  {
+    key: "fecha",
+    label: "Fecha",
+    render: (d) => displayDate(d.registro.FechaOrigen),
+  },
   { key: "caja", label: "Caja", render: (d) => d.registro.CajaNombre },
   {
     key: "total",
@@ -318,6 +323,7 @@ export function CashPage({
           </p>
         )}
         <DataTable
+          properties={false}
           caption="Cobros y pagos"
           rows={error ? [] : (data?.registros ?? [])}
           rowKey={(r) => r.IDTabla}
@@ -330,7 +336,11 @@ export function CashPage({
           }}
           selectionDisabled={busy}
           columns={[
-            { key: "date", label: "Fecha", render: (r) => r.FechaOrigen },
+            {
+              key: "date",
+              label: "Fecha",
+              render: (r) => displayDate(r.FechaOrigen),
+            },
             {
               key: "voucher",
               label: "Comprobante",

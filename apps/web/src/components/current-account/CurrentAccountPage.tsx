@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   CurrentAccountDetail,
@@ -153,7 +154,7 @@ export function CurrentAccountPage({
     {
       key: "FechaOrigen",
       label: "Fecha",
-      render: (r) => r.FechaOrigen.split("-").reverse().join("/"),
+      render: (r) => displayDate(r.FechaOrigen),
     },
     { key: "Cliente", label: "Cliente", render: (r) => r.ClienteNombre },
     {
@@ -266,6 +267,7 @@ export function CurrentAccountPage({
           </p>
         )}
         <DataTable
+          properties={false}
           caption="Movimientos de cuenta corriente"
           columns={columns}
           rows={error ? [] : (data?.registros ?? [])}

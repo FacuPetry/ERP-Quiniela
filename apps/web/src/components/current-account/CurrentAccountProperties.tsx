@@ -6,20 +6,9 @@ import {
 } from "@erp/shared";
 import { accountDetail } from "../../services/current-account";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
-import { formatDateValue } from "../controls/date-value";
+import { formatDateValue, displayDateTime } from "../controls/date-value";
 import { amountFormat, formatAmount } from "../controls/amount-value";
 const money = amountFormat();
-function dateTime(value: string | null | undefined) {
-  if (!value) return "—";
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : new Intl.DateTimeFormat("es-AR", {
-        timeZone: "America/Argentina/Buenos_Aires",
-        dateStyle: "short",
-        timeStyle: "short",
-      }).format(date);
-}
 /** La configuración es del módulo; el panel no interpreta saldos ni reglas financieras. */
 export const currentAccountPropertyFields: readonly PropertyField<CurrentAccountRecord>[] =
   [
@@ -90,13 +79,13 @@ export const currentAccountPropertyFields: readonly PropertyField<CurrentAccount
     {
       key: "CreadoEn",
       label: "Fecha de registro",
-      render: (r) => dateTime(r.CreadoEn),
+      render: (r) => displayDateTime(r.CreadoEn),
       visible: (r) => Boolean(r.CreadoEn),
     },
     {
       key: "AnuladoEn",
       label: "Fecha de anulación",
-      render: (r) => dateTime(r.AnuladoEn),
+      render: (r) => displayDateTime(r.AnuladoEn),
       visible: (r) => r.Estado === "ANULADO",
     },
     {

@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useCallback } from "react";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
 import { cashCheque } from "../../services/cash-movement";
@@ -18,8 +19,12 @@ const fields: PropertyField<Record<string, string | null>>[] = [
   },
   { key: "librador", label: "Librador", render: (r) => r.Librador },
   { key: "documento", label: "Documento", render: (r) => r.Documento },
-  { key: "emision", label: "Emisión", render: (r) => r.Emision },
-  { key: "vencimiento", label: "Vencimiento", render: (r) => r.Vencimiento },
+  { key: "emision", label: "Emisión", render: (r) => displayDate(r.Emision) },
+  {
+    key: "vencimiento",
+    label: "Vencimiento",
+    render: (r) => displayDate(r.Vencimiento),
+  },
   { key: "importe", label: "Importe", render: (r) => amount(r.Importe ?? "0") },
   { key: "estado", label: "Estado", render: (r) => r.Estado },
 ];

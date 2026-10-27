@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useEffect, useState } from "react";
 import {
   moneyUnits,
@@ -183,7 +184,11 @@ export function AllocationPicker({
               </>
             ),
           },
-          { key: "fecha", label: "Fecha", render: (r) => r.FechaOrigen },
+          {
+            key: "fecha",
+            label: "Fecha",
+            render: (r) => displayDate(r.FechaOrigen),
+          },
           {
             key: "original",
             label: "Original",
@@ -197,6 +202,10 @@ export function AllocationPicker({
           {
             key: "aplicar",
             label: "A afectar",
+            property: (r) =>
+              selected[r.IDTabla]
+                ? amount(selected[r.IDTabla]!.Importe)
+                : "Sin seleccionar",
             render: (r) =>
               selected[r.IDTabla] ? (
                 <AmountBox

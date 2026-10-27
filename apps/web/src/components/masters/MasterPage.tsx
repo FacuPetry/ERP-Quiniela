@@ -300,6 +300,7 @@ export function MasterPage({
         </p>
       )}
       <DataTable
+        properties={false}
         caption={`Listado de ${master.title.toLocaleLowerCase("es-AR")}`}
         columns={columns}
         rows={error ? [] : (data?.registros ?? [])}
