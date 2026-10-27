@@ -7,6 +7,8 @@ import type { AuthService } from './auth/service.js';
 import { masterRouter } from './masters/routes.js';
 import { currentAccountRouter } from './current-account/routes.js';
 import type { CurrentAccountStore } from './current-account/store.js';
+import { cashMovementRouter } from './cash-movement/routes.js';
+import type { CashMovementStore } from './cash-movement/store.js';
 import type { MasterStore } from './masters/store.js';
 
 interface AppOptions {
@@ -16,9 +18,10 @@ interface AppOptions {
   secureCookie?: boolean;
   masters?: MasterStore;
   currentAccount?: CurrentAccountStore;
+  cashMovement?: CashMovementStore;
 }
 
-export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters, currentAccount }: AppOptions) {
+export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters, currentAccount, cashMovement }: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '64kb' }));
@@ -42,6 +45,10 @@ export function createApp({ checkDatabase, webDist, auth, secureCookie = false, 
   if (currentAccount) {
     if (!auth) throw new Error('Cuenta corriente requiere autenticación.');
     app.use('/api/cuenta-corriente', currentAccountRouter(auth, currentAccount));
+  }
+  if (cashMovement) {
+    if (!auth) throw new Error('Cobros y pagos requiere autenticación.');
+    app.use('/api/caja-movimiento', cashMovementRouter(auth, cashMovement));
   }
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Recurso no encontrado.' } satisfies ApiError);

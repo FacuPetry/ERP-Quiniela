@@ -53,7 +53,7 @@ El diagrama resume el circuito; las FK de usuarios y demás referencias se encue
 
 Importes de cheques y transferencias se obtienen desde sus participaciones y registros, no son columnas editables en la cabecera. Una operación puede contener varias transferencias con la misma FK CajaMovimiento. Reutilizar un cheque agrega un evento, no otro cheque.
 
-Los premios se registrarán como deuda en PAGAR y se cancelarán mediante pagos y afectaciones. Un jugador no necesita convertirse en proveedor. El saldo de cuenta corriente y el pendiente por comprobante no se descuentan dos veces.
+Los premios se registran como deuda en PAGAR y se cancelan mediante pagos y afectaciones. Un jugador no necesita convertirse en proveedor. El saldo de cuenta corriente y el pendiente por comprobante no se descuentan dos veces.
 
 ## Decisiones funcionales aún pendientes
 
@@ -61,13 +61,18 @@ No se implementan en esta etapa ni se resuelven agregando tablas por anticipado:
 
 - Aplicación de créditos independientes contra deudas.
 - Redistribución de afectaciones confirmadas conservando la historia.
-- Correcciones posteriores a cierres y operaciones relacionadas.
+- Reversiones parciales, corrección de reversiones y operaciones bancarias conciliadas.
 - Tratamiento contable del rechazo de cheques.
-- Autorización y registro de diferencias de caja.
+- Ajustes contables automáticos de diferencias de caja.
 - Circuito de aperturas y ajustes bancarios independientes.
 
-La existencia de los campos de estado o anulación no significa que los servicios financieros ya estén implementados. Los ABM y las operaciones se incorporarán y probarán por etapas.
+Los servicios de Cobros y pagos y los cierres básicos se incorporan en la etapa 6. Los circuitos indicados arriba continúan pendientes y no se ejecutan automáticamente.
 
 ## Número de comprobante
 
 NUMERACION.ProximoNumero y los campos NumeroComprobante de CUENTACORRIENTE y CAJAMOVIMIENTO almacenan el BIGINT compuesto. No hay FK de movimientos al Numerador ni Serie separada. La migración conserva los números anteriores y sus registros, y exige resolver incompatibilidades antes de convertirlos. Ver [reglas y procedimiento](numeracion-comprobantes.md).
+
+
+## Ampliación de Caja movimiento (etapa 6)
+
+La migración 0003 incorpora ImporteACuenta inicial y CajaMovimientoOrigen en CAJAMOVIMIENTO, CuentaLibradora en CHEQUE, y fecha/usuario en CAJAMOVIMIENTOAFECTACION. No crea tablas. La reversión conserva la operación y el cierre originales, genera una contradeuda y mantiene el vínculo único. Ver [comportamiento y migración](etapa-6.md). Las aplicaciones posteriores de créditos y el tratamiento de rechazos permanecen pendientes.

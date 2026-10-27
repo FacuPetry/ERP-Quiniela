@@ -5,6 +5,7 @@ import { migrate } from 'drizzle-orm/mysql2/migrator';
 import { databaseOptions, projectRoot, readConfig, type AppConfig } from '../config/env.js';
 import type { RowDataPacket } from 'mysql2';
 import { inspectNumberingMigration, NumberingMigrationError } from './numbering-preflight.js';
+import { inspectCashMigration } from './cash-preflight.js';
 import { pathToFileURL } from 'node:url';
 
 export async function applyMigrations(config: AppConfig) {
@@ -14,7 +15,7 @@ export async function applyMigrations(config: AppConfig) {
     const [rows] = await connection.query<RowDataPacket[]>("SELECT GET_LOCK('erp_quiniela_migrations', 15) AS acquired");
     acquired = Number(rows[0]?.acquired) === 1;
     if (!acquired) throw new Error('Hay otra migración en ejecución.');
-    const issues = await inspectNumberingMigration(connection);
+    const issues = [...await inspectNumberingMigration(connection), ...await inspectCashMigration(connection)];
     if (issues.length) throw new NumberingMigrationError(issues.join('\n'));
     await migrate(drizzle(connection), { migrationsFolder: resolve(projectRoot, 'database/migrations') });
   } finally {

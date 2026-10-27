@@ -127,3 +127,8 @@ Los estilos compartidos de DataTable en masters.css deshabilitan la selección d
 ## OffCanvas y Propiedades
 
 OffCanvas es el contenedor lateral compartido, con contenido y acciones configurables. Reutiliza Modal y FormToolbarActions, bloquea el fondo y devuelve el foco al cerrar. RecordProperties agrega lectura bajo demanda y campos públicos configurados por módulo. ActionToolbar admite onProperties opcional; MasterPage y Cuenta corriente lo conectan a sus adaptadores. IDTabla continúa interno, y abrir/cerrar el panel no recarga la grilla ni cambia su selección. Ver [uso, configuración y pruebas](offcanvas-propiedades.md).
+
+
+## Selección múltiple opcional
+
+DataTable conserva selección simple de forma predeterminada. selectionMode="multiple" agrega el CheckBox base por fila y utiliza selectedKeys/onMultipleSelectionChange; no cambia el modo de los ABM existentes. Los módulos conservan sus selecciones entre páginas y aportan la lógica de importes. Los selectores de pendientes y cartera de Caja movimiento reutilizan esta misma tabla dentro de OffCanvas md. Ver [etapa 6](etapa-6.md).
