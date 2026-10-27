@@ -64,3 +64,10 @@ NUMERACION usa la FK Comprobante y su índice único de comprobante–serie. Las
 `current-account` separa validación, rutas y persistencia, y se integra en `/api/cuenta-corriente`. El frontend reutiliza controles y listados, agrega SearchField genérico y ClientSearch como adaptador. IDTabla no se muestra en las pantallas.
 
 La numeración es opcional: sin Numerador se deriva el prefijo fijo 0000, sin agregar campos. Las altas bloquean el espacio de comprobante/prefijo mediante GET_LOCK antes de la transacción y comprueban duplicados, incluidos anulados y CAJAMOVIMIENTO; con Numerador bloquean y actualizan además su fila. Los reintentos usan SOLICITUD y la auditoría se confirma en la misma transacción. Las futuras escrituras financieras deben compartir el protocolo, bloquear las cuentas a afectar y no descontar dos veces cancelaciones. Ver [alcance y pruebas](etapa-5.md).
+
+
+## Caja movimiento (etapa 6)
+
+El módulo cash-movement agrega rutas/validación/persistencia e interfaz en /cobros-pagos. Reutiliza financialTransactions con el protocolo de numeración e idempotencia existente; Cuenta corriente conserva su aislamiento anterior y Caja movimiento usa READ COMMITTED junto con bloqueos de apertura, documentos e instrumentos. Las consultas de listados siguen siendo a demanda. Selección múltiple es una opción de DataTable y OffCanvas no conoce entidades.
+
+ImporteACuenta conserva el importe original; las aplicaciones tienen fecha y usuario. CajaMovimientoOrigen vincula una reversión completa sin modificar la operación ni el cierre anteriores. Solo el efectivo afecta CAJASALDO. Los cheques conservan su identidad y eventos, y las transferencias generan un único movimiento bancario. Ver [alcance, migración y pruebas](etapa-6.md).

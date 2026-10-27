@@ -22,6 +22,13 @@
       "when": 1792983227097,
       "tag": "0002_numero_comprobante_completo",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1793102457516,
+      "tag": "0003_caja_movimiento",
+      "breakpoints": true
     }
   ]
 }

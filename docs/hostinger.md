@@ -62,3 +62,8 @@ Comprobantes y Numerador aparecen en Maestros. La revisión actual requiere la m
 ## Cuenta corriente (etapa 5)
 
 La revisión de numeración cambia columnas de CUENTACORRIENTE, CAJAMOVIMIENTO y NUMERACION: requiere migración controlada, copia de seguridad y detener escrituras. El Numerador es interno y opcional; sin él se ingresan ambas partes manualmente. Ver [preparación y prueba](etapa-5.md#cómo-probar). Cobros y pagos siguen pendientes. La vista previa de Hostinger también necesita migrar su base, aunque el PR no esté fusionado; comprobar qué DB_NAME utiliza antes de intervenir.
+
+
+## Actualizar a Cobros y pagos
+
+La etapa 6 requiere aplicar la migración 0003 antes de utilizar el módulo. Agrega columnas e índices a las tablas existentes, preserva registros y comprueba incompatibilidades antes del DDL. Las variables de hPanel deben estar disponibles también en la terminal que ejecuta npm run db:migrate:prod. Ver [preparación y prueba de Caja movimiento](etapa-6.md#preparación-en-hostinger). El despliegue de código no ejecuta migraciones automáticamente.

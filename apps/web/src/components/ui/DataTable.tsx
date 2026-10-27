@@ -1,5 +1,7 @@
 import { useId, type ReactNode, type MouseEvent } from "react";
 
+import { CheckBox } from "../controls/CheckBox";
+
 function interactiveTarget(event: MouseEvent<HTMLTableRowElement>) {
   return (event.target as Element).closest(
     'a,button,input,select,textarea,label,[role="button"],[role="link"],[contenteditable]:not([contenteditable="false"])',
@@ -20,6 +22,9 @@ export function DataTable<T>({
   loading,
   actions,
   selectedKey = null,
+  selectionMode = "single",
+  selectedKeys = [],
+  onMultipleSelectionChange,
   onSelectionChange,
   onRowActivate,
   selectionDisabled = false,
@@ -34,6 +39,9 @@ export function DataTable<T>({
   loading: boolean;
   actions?: (row: T) => ReactNode;
   selectedKey?: string | null;
+  selectionMode?: "single" | "multiple";
+  selectedKeys?: readonly string[];
+  onMultipleSelectionChange?: (keys: string[]) => void;
   onSelectionChange?: (key: string) => void;
   /** Acción principal sobre la fila; comparte permisos y carga con el toolbar. */
   onRowActivate?: (row: T) => void;
@@ -42,7 +50,22 @@ export function DataTable<T>({
   emptyMessage?: ReactNode;
 }) {
   const selectionGroup = useId();
-  const selectable = Boolean(onSelectionChange);
+  const multiple = selectionMode === "multiple";
+  const selectable = multiple
+    ? Boolean(onMultipleSelectionChange)
+    : Boolean(onSelectionChange);
+  const isSelected = (row: T) =>
+    multiple ? selectedKeys.includes(rowKey(row)) : selectedKey === rowKey(row);
+  const toggle = (row: T) => {
+    const key = rowKey(row);
+    if (multiple)
+      onMultipleSelectionChange?.(
+        selectedKeys.includes(key)
+          ? selectedKeys.filter((k) => k !== key)
+          : [...selectedKeys, key],
+      );
+    else onSelectionChange?.(key);
+  };
   return (
     <div
       className="table-scroll"
@@ -55,6 +78,11 @@ export function DataTable<T>({
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
+            {multiple && (
+              <th className="selection-column" scope="col">
+                <span className="sr-only">Seleccionar</span>
+              </th>
+            )}
             {columns.map((column) => (
               <th key={column.key} scope="col">
                 {column.label}
@@ -72,9 +100,7 @@ export function DataTable<T>({
             rows.map((row) => (
               <tr
                 key={rowKey(row)}
-                {...(selectable
-                  ? { "aria-selected": selectedKey === rowKey(row) }
-                  : {})}
+                {...(selectable ? { "aria-selected": isSelected(row) } : {})}
                 onClick={(event) => {
                   if (
                     !selectable ||
@@ -83,7 +109,7 @@ export function DataTable<T>({
                     interactiveTarget(event)
                   )
                     return;
-                  onSelectionChange?.(rowKey(row));
+                  toggle(row);
                   event.currentTarget
                     .querySelector<HTMLInputElement>(".row-selector")
                     ?.focus({ preventScroll: true });
@@ -94,9 +120,21 @@ export function DataTable<T>({
                   onRowActivate?.(row);
                 }}
               >
+                {multiple && (
+                  <td className="selection-column">
+                    <CheckBox
+                      label={
+                        <span className="sr-only">{`Seleccionar ${rowLabel(row)}`}</span>
+                      }
+                      value={isSelected(row)}
+                      disabled={loading || selectionDisabled || !selectable}
+                      onValueChange={() => toggle(row)}
+                    />
+                  </td>
+                )}
                 {columns.map((column, index) => (
                   <td key={column.key}>
-                    {selectable && index === 0 && (
+                    {selectable && !multiple && index === 0 && (
                       <input
                         className="row-selector sr-only"
                         type="radio"
@@ -116,7 +154,9 @@ export function DataTable<T>({
           ) : (
             <tr>
               <td
-                colSpan={columns.length + Number(Boolean(actions))}
+                colSpan={
+                  columns.length + Number(Boolean(actions)) + Number(multiple)
+                }
                 className="table-empty"
               >
                 {loading ? "Cargando registros…" : emptyMessage}

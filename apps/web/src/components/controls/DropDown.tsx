@@ -213,10 +213,17 @@ function Selection({
     };
   }, [expanded, visible.length]);
   useEffect(() => {
-    if (expanded)
-      document
-        .getElementById(optionId(active))
-        ?.scrollIntoView({ block: "nearest" });
+    if (!expanded) return;
+    const container = list.current;
+    const option = document.getElementById(optionId(active));
+    if (!container || !option) return;
+    // Desplazar solo las opciones: scrollIntoView también puede mover la página
+    // y dejar fuera de pantalla un desplegable fijo en formularios largos.
+    const bounds = container.getBoundingClientRect();
+    const item = option.getBoundingClientRect();
+    if (item.top < bounds.top) container.scrollTop -= bounds.top - item.top;
+    else if (item.bottom > bounds.bottom)
+      container.scrollTop += item.bottom - bounds.bottom;
   }, [expanded, active, binding.id]);
 
   return (

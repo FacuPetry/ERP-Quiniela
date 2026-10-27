@@ -11,6 +11,7 @@ import { logout } from "../services/auth";
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
+import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
 
@@ -222,7 +223,7 @@ export function Workspace({
         </nav>
         <div className="sidebar-footer">
           <span className="status-dot online" />
-          <span className="nav-label">Etapa 5 · Cuenta corriente</span>
+          <span className="nav-label">Etapa 6 · Cobros y pagos</span>
         </div>
       </aside>
       <div className="workspace-body" inert={mobileOpen}>
@@ -346,7 +347,7 @@ export function Workspace({
                 <div className="section-heading">
                   <h2 id="shortcuts-title">Módulos del sistema</h2>
                   <span className="muted small">
-                    Cuenta corriente disponible
+                    Cuenta corriente y Cobros y pagos disponibles
                   </span>
                 </div>
                 <div className="module-grid">
@@ -364,7 +365,7 @@ export function Workspace({
                         <h3>{item.title}</h3>
                         <p>{item.description}</p>
                         <span className="module-card-footer">
-                          {item.path === "/cuenta-corriente"
+                          {["/cuenta-corriente", "/cobros-pagos"].includes(item.path)
                             ? "Abrir módulo"
                             : "Ver alcance"}{" "}
                           <Icon name="arrow" size={16} />
@@ -449,6 +450,8 @@ export function Workspace({
               session={session}
               onExpired={onLogout}
             />
+          ) : path === "/cobros-pagos" ? (
+            <CashPage key={path} session={session} onExpired={onLogout} />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -487,7 +490,7 @@ export function Workspace({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 5 · Cuenta corriente</span>
+            <span>Etapa 6 · Cobros y pagos</span>
           </footer>
         </main>
       </div>

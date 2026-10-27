@@ -23,7 +23,7 @@ import {
   NumberingMigrationError,
 } from "../../apps/api/src/database/numbering-preflight.js";
 
-test("Migración de numeración: conserva datos y detiene conversiones ambiguas antes del DDL", async (t) => {
+test("Migraciones financieras: conservan datos y detienen conversiones ambiguas antes del DDL", async (t) => {
   assert.equal(process.env.TEST_DATABASE_ISOLATED, "1");
   const config = readConfig();
   assert.equal(config.DB_NAME, "erp_quiniela_test");
@@ -158,6 +158,17 @@ test("Migración de numeración: conserva datos y detiene conversiones ambiguas 
         "SELECT NumeroComprobante FROM CAJAMOVIMIENTO",
       );
       assert.equal(String(cash[0]!.NumeroComprobante), "100000024");
+      const [cashExtra] = await connection.query<RowDataPacket[]>(
+        "SELECT ImporteACuenta,CajaMovimientoOrigen FROM CAJAMOVIMIENTO",
+      );
+      assert.equal(cashExtra[0]!.ImporteACuenta, "5.25");
+      assert.equal(cashExtra[0]!.CajaMovimientoOrigen, null);
+      const [allocationExtra] = await connection.query<RowDataPacket[]>(
+        "SELECT Usuario,CreadoEn FROM CAJAMOVIMIENTOAFECTACION",
+      );
+      assert.equal(String(allocationExtra[0]!.Usuario), "100000001");
+      assert.ok(allocationExtra[0]!.CreadoEn);
+
       const [affected] = await connection.query<RowDataPacket[]>(
         "SELECT * FROM CAJAMOVIMIENTOAFECTACION",
       );
@@ -234,6 +245,42 @@ test("Migración de numeración: conserva datos y detiene conversiones ambiguas 
         "SELECT ProximoNumero FROM NUMERACION",
       );
       assert.equal(String(rows[0]!.ProximoNumero), "26");
+    },
+  );
+  await t.test(
+    "Caja: rechaza afectaciones inválidas, instrumentos duplicados y DDL parcial antes de alterar tablas",
+    async () => {
+      await old();
+      await connection.query("UPDATE CAJAMOVIMIENTOAFECTACION SET Importe=20");
+      await assert.rejects(applyMigrations(config), /afectaciones superiores/);
+      let [fields] = await connection.query<RowDataPacket[]>(
+        "SHOW COLUMNS FROM CAJAMOVIMIENTO LIKE 'ImporteACuenta'",
+      );
+      assert.equal(fields.length, 0);
+      await old();
+      await connection.query(
+        "INSERT INTO BANCO (Codigo,Nombre) VALUES ('B','Banco')",
+      );
+      await connection.query(
+        "INSERT INTO BANCOCUENTA (Codigo,Banco,Nombre,Titular) VALUES ('CTA','B','Cuenta','ERP')",
+      );
+      for (let i = 0; i < 2; i++)
+        await connection.query(
+          "INSERT INTO CHEQUE (Comprobante,Tipo,Numero,Banco,BancoCuenta,Emision,Vencimiento,Importe,Estado,Usuario,CreadoEn) VALUES ('ING','PROPIO','123','B','CTA','2026-10-25','2026-10-25',10,'EMITIDO',100000001,'2026-10-25')",
+        );
+      await assert.rejects(applyMigrations(config), /cheques duplicados/);
+      [fields] = await connection.query<RowDataPacket[]>(
+        "SHOW COLUMNS FROM CHEQUE LIKE 'CuentaLibradora'",
+      );
+      assert.equal(fields.length, 0);
+      await old();
+      await connection.query(
+        "ALTER TABLE CAJAMOVIMIENTO ADD CajaMovimientoOrigen bigint",
+      );
+      await assert.rejects(
+        applyMigrations(config),
+        /Caja movimiento incompleta/,
+      );
     },
   );
 });
