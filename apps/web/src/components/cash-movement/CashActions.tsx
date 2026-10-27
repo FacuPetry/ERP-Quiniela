@@ -1,5 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import type { CashOptions, CashDetail, CashOpening } from "@erp/shared";
+import { useEffect, useId, useRef, useState } from "react";
+import {
+  masterDefinitions,
+  type CashOptions,
+  type CashDetail,
+  type CashOpening,
+} from "@erp/shared";
+import { ActionToolbar } from "../ui/ActionToolbar";
+import { MasterProperties } from "../masters/MasterProperties";
 import { OffCanvas } from "../ui/OffCanvas";
 import { DataTable } from "../ui/DataTable";
 import { FormToolbarActions } from "../ui/FormToolbarActions";
@@ -17,9 +24,11 @@ import { amount, message } from "./format";
 function useCashOptions(onExpired: () => void) {
   const [data, setData] = useState<CashOptions | null>(null),
     [error, setError] = useState(""),
-    [revision, setRevision] = useState(0);
+    [revision, setRevision] = useState(0),
+    [loading, setLoading] = useState(true);
   useEffect(() => {
     const req = new AbortController();
+    setLoading(true);
     void cashOptions(req.signal)
       .then((d) => {
         if (!req.signal.aborted) {
@@ -31,6 +40,9 @@ function useCashOptions(onExpired: () => void) {
         if (req.signal.aborted) return;
         if (e instanceof ApiRequestError && e.status === 401) onExpired();
         else setError(message(e));
+      })
+      .finally(() => {
+        if (!req.signal.aborted) setLoading(false);
       });
     return () => req.abort();
   }, [onExpired, revision]);
@@ -39,7 +51,13 @@ function useCashOptions(onExpired: () => void) {
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
   }, []);
-  return { data, error, setError, reload: () => setRevision((n) => n + 1) };
+  return {
+    data,
+    error,
+    setError,
+    loading,
+    reload: () => setRevision((n) => n + 1),
+  };
 }
 export function CashBoxes({
   csrf,
@@ -52,7 +70,7 @@ export function CashBoxes({
   onChanged?: () => void;
   onExpired: () => void;
 }) {
-  const { data, error, setError, reload } = useCashOptions(onExpired);
+  const { data, error, setError, reload, loading } = useCashOptions(onExpired);
   const { selected, select, validate } = useActiveCash();
   useEffect(() => {
     if (data)
@@ -69,6 +87,11 @@ export function CashBoxes({
     [note, setNote] = useState(""),
     [busy, setBusy] = useState(false);
   const retry = useRef({ body: "", key: "" });
+  const operationId = useId();
+  const [propertyBox, setPropertyBox] = useState<string | null>(null);
+  const selectedOpening = data?.aperturas.find(
+    (o) => o.IDTabla === selected?.IDTabla,
+  );
   async function save() {
     const input = closing
       ? { SaldoContado: counted, Observacion: note || null }
@@ -108,52 +131,55 @@ export function CashBoxes({
     }
   }
   return (
-    <OffCanvas
-      open
-      title="Administrar cajas"
-      size="lg"
-      busy={busy}
-      onClose={onClose}
-    >
-      {error && (
-        <p className="notice error" role="alert">
-          {error}{" "}
-          <button type="button" onClick={reload}>
-            Actualizar opciones
-          </button>
-        </p>
-      )}
-      {!data ? (
-        <p role="status">Cargando cajas…</p>
-      ) : (
-        <>
-          <p role="status">
-            {selected
-              ? `Caja seleccionada: ${selected.CajaNombre}`
-              : "Seleccioná una caja abierta para registrar movimientos."}
+    <>
+      <OffCanvas
+        open
+        title="Administrar cajas"
+        size="lg"
+        busy={busy}
+        onClose={onClose}
+      >
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
           </p>
-          <button
-            type="button"
-            className="button secondary"
-            disabled={busy}
-            onClick={reload}
-          >
-            Actualizar cajas
-          </button>
+        )}
+        <section
+          className="cash-box-list"
+          aria-label="Listado de cajas abiertas"
+        >
+          <div className="cash-section-toolbar">
+            <h3>Cajas abiertas</h3>
+            <ActionToolbar
+              labels={{
+                refresh: "Actualizar listado",
+                properties: "Propiedades",
+              }}
+              selected={Boolean(selectedOpening)}
+              busy={busy}
+              readOnly
+              filtersActive={false}
+              refreshing={loading}
+              onRefresh={reload}
+              onProperties={() => {
+                if (selectedOpening) setPropertyBox(selectedOpening.Caja);
+              }}
+            />
+          </div>
           <DataTable
             caption="Cajas abiertas"
-            rows={data.aperturas}
+            rows={data?.aperturas ?? []}
             rowKey={(r) => r.IDTabla}
-            loading={busy}
+            loading={busy || loading}
             selectedKey={selected?.IDTabla ?? null}
             onSelectionChange={(id) => {
-              const opening = data.aperturas.find((o) => o.IDTabla === id);
-              if (opening && data.cajas.some((c) => c.Codigo === opening.Caja))
+              const opening = data?.aperturas.find((o) => o.IDTabla === id);
+              if (opening && data?.cajas.some((c) => c.Codigo === opening.Caja))
                 select(opening);
             }}
             rowLabel={(o) => o.CajaNombre}
             onRowActivate={(o) => {
-              if (data.cajas.some((c) => c.Codigo === o.Caja)) select(o);
+              if (data?.cajas.some((c) => c.Codigo === o.Caja)) select(o);
             }}
             columns={[
               { key: "box", label: "Caja", render: (r) => r.CajaNombre },
@@ -174,14 +200,15 @@ export function CashBoxes({
               },
             ]}
             actions={(r) => (
-              <>
+              <div className="cash-box-row-actions">
                 <button
                   type="button"
                   className="button secondary"
                   disabled={
                     busy ||
+                    loading ||
                     selected?.IDTabla === r.IDTabla ||
-                    !data.cajas.some((c) => c.Codigo === r.Caja)
+                    !data?.cajas.some((c) => c.Codigo === r.Caja)
                   }
                   onClick={() => select(r)}
                 >
@@ -191,7 +218,7 @@ export function CashBoxes({
                 </button>
                 <button
                   className="button secondary"
-                  disabled={busy}
+                  disabled={busy || loading}
                   onClick={() => {
                     setClosing(r);
                     setCounted(r.SaldoActual);
@@ -200,88 +227,103 @@ export function CashBoxes({
                 >
                   Preparar cierre
                 </button>
-              </>
+              </div>
             )}
           />
-          <h3>{closing ? "Cerrar " + closing.CajaNombre : "Abrir caja"}</h3>
-          <div className="cash-value-fields">
-            {closing ? (
-              <>
-                <AmountBox
-                  label="Saldo teórico"
-                  value={closing.SaldoActual}
-                  readOnly
-                  onValueChange={() => {}}
-                />
-                <AmountBox
-                  label="Efectivo contado"
-                  value={counted}
-                  onValueChange={setCounted}
-                  disabled={busy}
-                />
-                <TextArea
-                  label="Observación de cierre"
-                  value={note}
-                  onValueChange={setNote}
-                  disabled={busy}
-                  hint="Si el contado difiere del teórico, la observación es obligatoria. La diferencia se registra sin crear ajustes automáticos."
-                />
-              </>
-            ) : (
-              <>
-                <DropDown
-                  label="Caja"
-                  value={box}
-                  onValueChange={setBox}
-                  disabled={busy}
-                  options={[
-                    { value: "", label: "Seleccioná una caja" },
-                    ...data.cajas
-                      .filter(
-                        (c) => !data.aperturas.some((o) => o.Caja === c.Codigo),
-                      )
-                      .map((c) => ({ value: c.Codigo, label: c.Nombre })),
-                  ]}
-                />
-                <AmountBox
-                  label="Saldo inicial"
-                  value={initial}
-                  onValueChange={setInitial}
-                  disabled={busy}
-                />
-              </>
-            )}
-            <FormToolbarActions
-              closeAction={
-                closing ? (
-                  <button
-                    className="button secondary"
-                    disabled={busy}
-                    onClick={() => setClosing(null)}
-                  >
-                    Cancelar cierre
-                  </button>
-                ) : null
-              }
-            >
-              <button
-                className="button primary"
-                disabled={busy || (!closing && !box)}
-                onClick={() => {
-                  void save();
-                }}
+        </section>
+        {data && (
+          <section className="cash-box-operation" aria-labelledby={operationId}>
+            <h3 id={operationId}>
+              {closing ? "Cerrar " + closing.CajaNombre : "Abrir caja"}
+            </h3>
+            <div className="cash-value-fields">
+              {closing ? (
+                <>
+                  <AmountBox
+                    label="Saldo teórico"
+                    value={closing.SaldoActual}
+                    readOnly
+                    onValueChange={() => {}}
+                  />
+                  <AmountBox
+                    label="Efectivo contado"
+                    value={counted}
+                    onValueChange={setCounted}
+                    disabled={busy || loading}
+                  />
+                  <TextArea
+                    label="Observación de cierre"
+                    value={note}
+                    onValueChange={setNote}
+                    disabled={busy || loading}
+                    hint="Si el contado difiere del teórico, la observación es obligatoria. La diferencia se registra sin crear ajustes automáticos."
+                  />
+                </>
+              ) : (
+                <>
+                  <DropDown
+                    label="Caja"
+                    value={box}
+                    onValueChange={setBox}
+                    disabled={busy || loading}
+                    options={[
+                      { value: "", label: "Seleccioná una caja" },
+                      ...data.cajas
+                        .filter(
+                          (c) =>
+                            !data.aperturas.some((o) => o.Caja === c.Codigo),
+                        )
+                        .map((c) => ({ value: c.Codigo, label: c.Nombre })),
+                    ]}
+                  />
+                  <AmountBox
+                    label="Saldo inicial"
+                    value={initial}
+                    onValueChange={setInitial}
+                    disabled={busy || loading}
+                  />
+                </>
+              )}
+              <FormToolbarActions
+                closeAction={
+                  closing ? (
+                    <button
+                      className="button secondary"
+                      disabled={busy || loading}
+                      onClick={() => setClosing(null)}
+                    >
+                      Cancelar cierre
+                    </button>
+                  ) : null
+                }
               >
-                {busy
-                  ? "Guardando…"
-                  : closing
-                    ? "Confirmar cierre"
-                    : "Abrir caja"}
-              </button>
-            </FormToolbarActions>
-          </div>
-        </>
+                <button
+                  className="button primary"
+                  disabled={busy || loading || (!closing && !box)}
+                  onClick={() => {
+                    void save();
+                  }}
+                >
+                  {busy
+                    ? "Guardando…"
+                    : closing
+                      ? "Confirmar cierre"
+                      : "Abrir caja"}
+                </button>
+              </FormToolbarActions>
+            </div>
+          </section>
+        )}
+      </OffCanvas>
+      {propertyBox && (
+        <MasterProperties
+          master={masterDefinitions.cajas}
+          recordKey={propertyBox}
+          onClose={() => setPropertyBox(null)}
+          onExpired={onExpired}
+        />
       )}
-    </OffCanvas>
+    </>
   );
 }
 export function ReverseCash({
@@ -425,7 +467,7 @@ export function ReverseCash({
             value={
               box
                 ? selected!.CajaNombre
-                : "Seleccioná una caja abierta desde Cajas."
+                : "Seleccioná una caja abierta desde el listado de Cobros y pagos."
             }
             readOnly
             onValueChange={() => {}}

@@ -86,7 +86,7 @@ export const modules: {
     icon: "box",
     description: "Identificación de las cajas del negocio.",
     detail:
-      "Abrí o cerrá cajas y seleccioná la apertura que vas a utilizar para registrar cobros y pagos.",
+      "Administrá los registros de las cajas. Sus aperturas y la selección para operar se gestionan desde Cobros y pagos.",
   },
   {
     path: "/bancos",

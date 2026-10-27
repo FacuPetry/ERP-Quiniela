@@ -10,9 +10,23 @@
 .form-sections {
   display: grid;
   grid-template-columns: 155px minmax(0, 1fr);
-  align-items: start;
-  gap: 24px;
+  align-items: stretch;
+  gap: 0;
   min-width: 0;
+}
+.panel.record-form:has(.form-sections) .form-body {
+  padding: 0;
+}
+.panel.record-form:has(.form-sections) .form-body > .notice {
+  margin: 20px 27px;
+}
+.panel.record-form:has(.form-sections) .form-body > button {
+  margin: 20px 27px;
+}
+.form-sections-sidebar {
+  min-width: 0;
+  background: #f8faf5;
+  border-right: 1px solid #dce5d9;
 }
 .form-sections-nav {
   position: sticky;
@@ -24,9 +38,8 @@
   flex-direction: column;
   gap: 6px;
   padding: 8px;
-  border: 1px solid #dce5d9;
-  border-radius: 10px;
-  background: #f8faf5;
+  border: 0;
+  background: transparent;
 }
 .form-sections-nav a {
   display: block;
@@ -39,6 +52,7 @@
   background: #e8f1df;
 }
 .form-sections-content {
+  padding: 23px 27px;
   min-width: 0;
 }
 .form-section {
@@ -61,11 +75,20 @@
   .form-sections {
     display: block;
   }
+  .form-sections-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    border-right: 0;
+    border-bottom: 1px solid #dce5d9;
+  }
   .form-sections-nav {
-    top: 8px;
-    margin-bottom: 18px;
+    position: static;
     flex-direction: row;
     flex-wrap: wrap;
+  }
+  .form-sections-content {
+    padding: 20px 18px;
   }
   .form-section {
     scroll-margin-top: calc(var(--form-sections-nav-height, 120px) + 24px);

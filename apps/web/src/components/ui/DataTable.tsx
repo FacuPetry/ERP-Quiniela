@@ -21,6 +21,7 @@ export function DataTable<T>({
   rowLabel = rowKey,
   loading,
   actions,
+  bordered,
   selectedKey = null,
   selectionMode = "single",
   selectedKeys = [],
@@ -38,6 +39,8 @@ export function DataTable<T>({
   rowLabel?: (row: T) => string;
   loading: boolean;
   actions?: (row: T) => ReactNode;
+  /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
+  bordered?: boolean;
   selectedKey?: string | null;
   selectionMode?: "single" | "multiple";
   selectedKeys?: readonly string[];
@@ -69,6 +72,7 @@ export function DataTable<T>({
   return (
     <div
       className="table-scroll"
+      data-bordered={bordered}
       tabIndex={0}
       role="region"
       aria-label={caption}

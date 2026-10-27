@@ -84,11 +84,6 @@
   gap: 8px;
 }
 
-.cash-selection {
-  padding: 0 26px 18px;
-  margin: 0;
-  color: #526d55;
-}
 .cash-form .cash-amounts {
   margin-top: 0;
 }
@@ -123,4 +118,29 @@
     grid-column: 1;
     grid-row: auto;
   }
+}
+
+.cash-box-list {
+  margin: 4px 0 28px;
+}
+.cash-box-list .cash-section-toolbar {
+  margin-bottom: 18px;
+}
+.cash-box-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 0;
+}
+.cash-box-operation {
+  border-top: 1px solid #dce5d9;
+  padding-top: 24px;
+  margin-top: 28px;
+}
+.cash-box-operation h3 {
+  margin: 0;
+  color: #365e3e;
+}
+.cash-box-operation .form-toolbar-actions {
+  margin-top: 8px;
 }

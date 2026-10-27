@@ -625,3 +625,10 @@
   padding: 0 12px;
   gap: 7px;
 }
+
+/* Los listados internos se delimitan sin alterar los listados principales. */
+.table-scroll[data-bordered="true"],
+:is(.record-form, .offcanvas-body, .modal) .table-scroll:not([data-bordered="false"]) {
+  border: 1px solid #dce5d9;
+  border-radius: 8px;
+}

@@ -26,28 +26,30 @@ export function FormSections({
   }, []);
   return (
     <div ref={layout} className="form-sections">
-      <nav
-        ref={navigation}
-        className="form-sections-nav"
-        aria-label="Fichas del formulario"
-      >
-        {sections.map((section) => (
-          <a
-            key={section.key}
-            href={"#" + idPrefix + "-" + section.key}
-            onClick={(event) => {
-              event.preventDefault();
-              const target = document.getElementById(
-                idPrefix + "-" + section.key,
-              );
-              target?.scrollIntoView({ block: "start" });
-              target?.focus({ preventScroll: true });
-            }}
-          >
-            {section.title}
-          </a>
-        ))}
-      </nav>
+      <div className="form-sections-sidebar">
+        <nav
+          ref={navigation}
+          className="form-sections-nav"
+          aria-label="Fichas del formulario"
+        >
+          {sections.map((section) => (
+            <a
+              key={section.key}
+              href={"#" + idPrefix + "-" + section.key}
+              onClick={(event) => {
+                event.preventDefault();
+                const target = document.getElementById(
+                  idPrefix + "-" + section.key,
+                );
+                target?.scrollIntoView({ block: "start" });
+                target?.focus({ preventScroll: true });
+              }}
+            >
+              {section.title}
+            </a>
+          ))}
+        </nav>
+      </div>
       <div className="form-sections-content">
         {sections.map((section) => (
           <section

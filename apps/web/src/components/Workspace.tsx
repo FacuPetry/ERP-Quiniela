@@ -12,7 +12,6 @@ import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
 import { ActiveCashProvider } from "./cash-movement/ActiveCash";
-import { CajasPage } from "./cash-movement/CajasPage";
 import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
@@ -456,13 +455,6 @@ function WorkspaceContent({
             />
           ) : path === "/cobros-pagos" ? (
             <CashPage key={path} session={session} onExpired={onLogout} />
-          ) : master?.key === "cajas" ? (
-            <CajasPage
-              key={master.key}
-              master={master}
-              session={session}
-              onExpired={onLogout}
-            />
           ) : master ? (
             <MasterPage
               key={master.key}
