@@ -1,3 +1,12 @@
+/* hidden crea un contenedor de scroll y anula el sticky de la navegación. */
+.panel.record-form:has(.form-sections) {
+  overflow: visible;
+}
+@supports (overflow: clip) {
+  .panel.record-form:has(.form-sections) {
+    overflow: clip;
+  }
+}
 .form-sections {
   display: grid;
   grid-template-columns: 155px minmax(0, 1fr);
@@ -8,6 +17,9 @@
 .form-sections-nav {
   position: sticky;
   top: 16px;
+  z-index: 2;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -33,20 +45,30 @@
   scroll-margin-top: 20px;
   min-width: 0;
 }
+.form-section-title {
+  margin: 0 0 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #dce5d9;
+  color: #365e3e;
+  font-size: 17px;
+  font-weight: 650;
+}
 .form-section + .form-section {
   margin-top: 30px;
   padding-top: 24px;
-  border-top: 1px solid #dce5d9;
 }
 @media (max-width: 1000px) {
   .form-sections {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 18px;
+    display: block;
   }
   .form-sections-nav {
-    position: static;
+    top: 8px;
+    margin-bottom: 18px;
     flex-direction: row;
     flex-wrap: wrap;
+  }
+  .form-section {
+    scroll-margin-top: calc(var(--form-sections-nav-height, 120px) + 24px);
   }
   .form-sections-nav a {
     padding: 8px;

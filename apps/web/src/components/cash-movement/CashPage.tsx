@@ -14,9 +14,8 @@ import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { initialListFilters } from "../ui/filter-defaults";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
 import { CashForm } from "./CashForm";
-import { ReverseCash } from "./CashActions";
+import { CashBoxes, ReverseCash } from "./CashActions";
 import { useActiveCash } from "./ActiveCash";
-import { navigate } from "../../navigation";
 import { amount, message } from "./format";
 import "./cash-movement.css";
 const defaults = { q: "", Estado: "TODOS", Desde: "", Hasta: "" };
@@ -143,6 +142,7 @@ export function CashPage({
     [selected, setSelected] = useState<string | null>(null),
     [view, setView] = useState<{ detail?: CashDetail } | null>(null),
     [filtering, setFiltering] = useState(false),
+    [managingBoxes, setManagingBoxes] = useState(false),
     [reverse, setReverse] = useState<CashDetail | null>(null),
     [property, setProperty] = useState<string | null>(null);
   const handler = useRef(onExpired),
@@ -279,10 +279,10 @@ export function CashPage({
                 ? [
                     {
                       key: "cajas",
-                      label: "Ir a Cajas",
+                      label: activeBox?.CajaNombre ?? "Administrar caja",
                       icon: "box",
                       showLabel: true,
-                      onClick: () => navigate("/cajas"),
+                      onClick: () => setManagingBoxes(true),
                     },
                   ]
                 : []
@@ -312,13 +312,6 @@ export function CashPage({
             }}
           />
         </div>
-        {canWrite && (
-          <p className="cash-selection" role="status">
-            {activeBox
-              ? `Caja seleccionada: ${activeBox.CajaNombre}`
-              : "Seleccioná una caja abierta en el módulo Cajas para registrar movimientos."}
-          </p>
-        )}
         {error && (
           <p className="notice error" role="alert">
             {error}
@@ -395,6 +388,13 @@ export function CashPage({
             refresh();
             setFiltering(false);
           }}
+        />
+      )}
+      {managingBoxes && (
+        <CashBoxes
+          csrf={session.csrfToken}
+          onClose={() => setManagingBoxes(false)}
+          onExpired={expired}
         />
       )}
       {property && (

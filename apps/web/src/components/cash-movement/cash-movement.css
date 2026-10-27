@@ -92,3 +92,35 @@
 .cash-form .cash-amounts {
   margin-top: 0;
 }
+
+/* Distribución local: no altera el tamaño del SF en otros módulos. */
+.cash-general-grid {
+  align-items: start;
+}
+.cash-general-grid > .base-field:not(.wide) {
+  grid-column: 1;
+}
+.cash-voucher-summary {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+}
+.cash-box-note {
+  margin: 0;
+  color: #74836b;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.cash-general-grid > .notice {
+  grid-column: 1 / -1;
+}
+@media (max-width: 600px) {
+  .cash-voucher-summary {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

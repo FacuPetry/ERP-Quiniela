@@ -374,10 +374,11 @@ export function CashForm({
                 key: "general",
                 title: "Datos generales",
                 content: (
-                  <div className="form-grid">
+                  <div className="form-grid cash-general-grid">
                     {old ? (
                       <TextBox
                         label="Comprobante"
+                        size="lg"
                         value={old.ComprobanteDescripcion}
                         readOnly
                         onValueChange={() => {}}
@@ -385,6 +386,7 @@ export function CashForm({
                     ) : (
                       <DropDown
                         label="Comprobante"
+                        size="lg"
                         required
                         value={input.Comprobante}
                         loading={loading}
@@ -399,18 +401,27 @@ export function CashForm({
                         ]}
                       />
                     )}
-                    <NumeroComprobante
-                      label="Número de comprobante"
-                      value={input.NumeroComprobante}
-                      onValueChange={(v) => change("NumeroComprobante", v)}
-                      readOnly={readOnly}
-                      disabled={busy}
-                      size="md"
-                    />
+                    <div className="cash-voucher-summary">
+                      <NumeroComprobante
+                        label="Número de comprobante"
+                        value={input.NumeroComprobante}
+                        onValueChange={(v) => change("NumeroComprobante", v)}
+                        readOnly={readOnly}
+                        disabled={busy}
+                        size="md"
+                      />
+                      <p className="cash-box-note" role="status">
+                        Caja:{" "}
+                        {old?.CajaNombre ??
+                          (input.CajaSaldo && activeBox
+                            ? activeBox.CajaNombre
+                            : "Sin caja abierta seleccionada")}
+                      </p>
+                    </div>
                     {old ? (
                       <TextBox
                         label="Cliente"
-                        wide
+                        size="lg"
                         value={old.Cliente + " - " + old.ClienteNombre}
                         readOnly
                         onValueChange={() => {}}
@@ -420,7 +431,7 @@ export function CashForm({
                         key={clientRevision}
                         label="Cliente"
                         required
-                        wide
+                        size="lg"
                         value={client}
                         onChange={(value) =>
                           requestChange(() => {
@@ -433,17 +444,6 @@ export function CashForm({
                         disabled={busy}
                       />
                     )}
-                    <TextBox
-                      label="Caja"
-                      value={
-                        old?.CajaNombre ??
-                        (input.CajaSaldo && activeBox
-                          ? activeBox.CajaNombre
-                          : "Seleccioná una caja abierta desde Cajas.")
-                      }
-                      readOnly
-                      onValueChange={() => {}}
-                    />
                     <DatePicker
                       label="Fecha de origen"
                       size="sm"
@@ -486,7 +486,7 @@ export function CashForm({
                     {!old && !loading && !input.CajaSaldo && (
                       <p className="notice" role="status">
                         No hay una caja abierta seleccionada. Volvé al listado y
-                        elegí una desde el módulo Cajas.
+                        elegí una desde Administrar caja.
                       </p>
                     )}
                   </div>
