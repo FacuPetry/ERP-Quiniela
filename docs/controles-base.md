@@ -131,4 +131,11 @@ OffCanvas es el contenedor lateral compartido, con contenido y acciones configur
 
 ## Selección múltiple opcional
 
-DataTable conserva selección simple de forma predeterminada. selectionMode="multiple" agrega el CheckBox base por fila y utiliza selectedKeys/onMultipleSelectionChange; no cambia el modo de los ABM existentes. Los módulos conservan sus selecciones entre páginas y aportan la lógica de importes. Los selectores de pendientes y cartera de Caja movimiento reutilizan esta misma tabla dentro de OffCanvas md. Ver [etapa 6](etapa-6.md).
+DataTable conserva selección simple de forma predeterminada. selectionMode="multiple" agrega el CheckBox base por fila y utiliza selectedKeys/onMultipleSelectionChange; no cambia el modo de los ABM existentes. Los módulos conservan sus selecciones entre páginas y aportan la lógica de importes. Los selectores de pendientes y cartera de Caja movimiento reutilizan esta misma tabla dentro de OffCanvas (lg para pendientes, md para cartera). Ver [etapa 6](etapa-6.md).
+
+
+## Extensiones del toolbar y secciones de formularios
+
+ActionToolbar acepta `startActions` y `endActions`: listas de `{ key, label, icon, onClick, disabled?, showLabel? }` situadas antes o después de las acciones estándar. El icono y tooltip se reutilizan; showLabel muestra texto en acciones particulares. El módulo decide permisos y disponibilidad de las acciones personalizadas. Los callbacks estándar opcionales permiten reutilizar el toolbar en sublistas, sin agregar filtros o edición cuando no corresponden. `addDisabled` y `editDisabled` complementan los bloqueos generales. MasterPage expone ambos grupos y listNotice para componer pantallas sin duplicar el ABM; Cajas lo utiliza para Administrar cajas.
+
+FormSections recibe idPrefix y secciones `{ key, title, content }`: mantiene todo el contenido montado, coloca enlaces laterales y desplaza/enfoca la sección al activarlos. No altera hash, ruta, valores ni lógica del formulario. En pantallas angostas la navegación se distribuye arriba; no son pestañas que oculten controles. Caja movimiento es su primer consumidor.

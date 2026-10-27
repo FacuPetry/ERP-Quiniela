@@ -14,7 +14,9 @@ import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { initialListFilters } from "../ui/filter-defaults";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
 import { CashForm } from "./CashForm";
-import { CashBoxes, ReverseCash } from "./CashActions";
+import { ReverseCash } from "./CashActions";
+import { useActiveCash } from "./ActiveCash";
+import { navigate } from "../../navigation";
 import { amount, message } from "./format";
 import "./cash-movement.css";
 const defaults = { q: "", Estado: "TODOS", Desde: "", Hasta: "" };
@@ -141,7 +143,6 @@ export function CashPage({
     [selected, setSelected] = useState<string | null>(null),
     [view, setView] = useState<{ detail?: CashDetail } | null>(null),
     [filtering, setFiltering] = useState(false),
-    [boxes, setBoxes] = useState(false),
     [reverse, setReverse] = useState<CashDetail | null>(null),
     [property, setProperty] = useState<string | null>(null);
   const handler = useRef(onExpired),
@@ -150,6 +151,7 @@ export function CashPage({
   handler.current = onExpired;
   const expired = useCallback(() => handler.current(), []);
   const canWrite = session.usuario.rol.codigo === "ADMIN";
+  const { selected: activeBox } = useActiveCash();
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -271,6 +273,20 @@ export function CashPage({
               filter: "Filtrar",
             }}
             selected={Boolean(row)}
+            addDisabled={!activeBox}
+            endActions={
+              canWrite
+                ? [
+                    {
+                      key: "cajas",
+                      label: "Ir a Cajas",
+                      icon: "box",
+                      showLabel: true,
+                      onClick: () => navigate("/cajas"),
+                    },
+                  ]
+                : []
+            }
             busy={busy}
             readOnly={!canWrite}
             editIcon="eye"
@@ -297,15 +313,11 @@ export function CashPage({
           />
         </div>
         {canWrite && (
-          <div className="cash-page-actions">
-            <button
-              className="button secondary"
-              disabled={busy}
-              onClick={() => setBoxes(true)}
-            >
-              Administrar cajas
-            </button>
-          </div>
+          <p className="cash-selection" role="status">
+            {activeBox
+              ? `Caja seleccionada: ${activeBox.CajaNombre}`
+              : "Seleccioná una caja abierta en el módulo Cajas para registrar movimientos."}
+          </p>
         )}
         {error && (
           <p className="notice error" role="alert">
@@ -383,16 +395,6 @@ export function CashPage({
             refresh();
             setFiltering(false);
           }}
-        />
-      )}
-      {boxes && (
-        <CashBoxes
-          csrf={session.csrfToken}
-          onClose={() => setBoxes(false)}
-          onChanged={() => {
-            if (requested) setRevision((n) => n + 1);
-          }}
-          onExpired={expired}
         />
       )}
       {property && (

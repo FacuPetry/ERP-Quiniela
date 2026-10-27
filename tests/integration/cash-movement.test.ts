@@ -8,6 +8,7 @@ import type {
   CashDetail,
   CashOptions,
   PendingList,
+  CurrentAccountList,
   SessionResponse,
 } from "@erp/shared";
 import { createDatabase } from "../../apps/api/src/database/client.js";
@@ -292,6 +293,79 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
       assert.equal(b.length, 1);
       assert.equal(b[0]!.Importe, "40.00");
       assert.ok(!(await pending()).registros.some((r) => r.IDTabla === debtId));
+    },
+  );
+  await t.test(
+    "el listado de Cuenta corriente oculta asientos de caja sin cambiar saldos ni trazabilidad",
+    async () => {
+      const list = await good<CurrentAccountList>(
+        await fetch(base + "/api/cuenta-corriente?Cliente=CM_A&Estado=TODOS", {
+          headers: { Cookie: admin.cookie },
+        }),
+      );
+      assert.ok(list.registros.some((r) => r.IDTabla === debtId));
+      assert.ok(list.registros.some((r) => r.IDTabla === prizeId));
+      assert.ok(list.registros.every((r) => r.CajaMovimiento === null));
+      assert.equal(list.total, list.registros.length);
+      assert.deepEqual(list.saldos, { Cobrar: "-20.00", Pagar: "70.00" });
+      const search = await good<CurrentAccountList>(
+        await fetch(base + "/api/cuenta-corriente?q=CM_C&Estado=TODOS", {
+          headers: { Cookie: admin.cookie },
+        }),
+      );
+      assert.ok(search.registros.every((r) => r.CajaMovimiento === null));
+      const [credit] = await pool.execute<RowDataPacket[]>(
+        "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=?",
+        [first.registro.IDTabla],
+      );
+      const d = await good<{ registro: { IDTabla: string } }>(
+        await fetch(base + "/api/cuenta-corriente/" + credit[0]!.IDTabla, {
+          headers: { Cookie: admin.cookie },
+        }),
+      );
+      assert.equal(d.registro.IDTabla, String(credit[0]!.IDTabla));
+      assert.equal(
+        (await good<CashDetail>(await req("/" + first.registro.IDTabla)))
+          .registro.DisponibleACuenta,
+        "20.00",
+      );
+    },
+  );
+  await t.test(
+    "la exclusión de afectaciones en borrador respeta filtros, totales y paginación sin alterar pendientes",
+    async () => {
+      const ids = [];
+      for (let i = 0; i < 23; i++) ids.push(await debt("CM_J", "100", "CM_B"));
+      const list = (exclude = "", page = 1, search = "") =>
+        req(
+          "/pendientes?" +
+            new URLSearchParams({
+              Cliente: "CM_B",
+              Comprobante: "CM_C",
+              Excluir: exclude,
+              pagina: String(page),
+              q: search,
+            }),
+        );
+      const before = await good<PendingList>(await list());
+      assert.equal(before.total, 23);
+      const exclude = ids.slice(0, 4).join(",");
+      const filtered = await good<PendingList>(await list(exclude));
+      assert.equal(filtered.total, 19);
+      assert.equal(filtered.registros.length, 19);
+      assert.ok(
+        filtered.registros.every((r) => !ids.slice(0, 4).includes(r.IDTabla)),
+      );
+      const second = await good<PendingList>(await list(ids[0], 2));
+      assert.equal(second.total, 22);
+      assert.equal(second.registros.length, 2);
+      const search = await good<PendingList>(await list(exclude, 1, "CM_J"));
+      assert.equal(search.total, 19);
+      const restored = await good<PendingList>(await list());
+      assert.equal(restored.total, 23);
+      assert.ok(restored.registros.every((r) => r.Pendiente === "100.00"));
+      assert.equal((await list("1) OR 1=1")).status, 400);
+      assert.equal((await list(Array(101).fill(ids[0]).join(","))).status, 400);
     },
   );
   await t.test(
@@ -609,6 +683,23 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
         [oldBox],
       );
       assert.deepEqual(stillClosed, closed);
+      const status = await good<{ Estado: string }>(
+        await req("/cajas/" + oldBox + "/estado"),
+      );
+      assert.equal(status.Estado, "CERRADO");
+      assert.equal(
+        (await good<{ Estado: string }>(await req("/cajas/" + box + "/estado")))
+          .Estado,
+        "ABIERTO",
+      );
+      // Los asientos vinculados a la reversión siguen disponibles para afectar, aunque el listado principal no los exponga.
+      const visible = await good<CurrentAccountList>(
+        await fetch(
+          base + "/api/cuenta-corriente?Cliente=CM_A&Estado=TODOS&limite=100",
+          { headers: { Cookie: admin.cookie } },
+        ),
+      );
+      assert.ok(visible.registros.every((row) => row.CajaMovimiento === null));
       assert.ok(!(await pending()).registros.some((r) => r.IDTabla === d));
       const [pendingNew] = await pool.execute<RowDataPacket[]>(
         "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=?",

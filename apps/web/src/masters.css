@@ -618,3 +618,10 @@
 
 .data-table .selection-column { width: 48px; min-width: 48px; }
 .selection-column .base-field { margin: 0; }
+
+/* Acciones opcionales del toolbar: conservan icono, tooltip y estados base. */
+.action-toolbar .action-with-label {
+  width: auto;
+  padding: 0 12px;
+  gap: 7px;
+}

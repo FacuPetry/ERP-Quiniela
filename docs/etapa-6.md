@@ -5,9 +5,9 @@ El módulo usa las tablas existentes y comparte controles, tabla, filtros, toolb
 ## Alcance
 
 - Alta y consulta de cobros/pagos; los confirmados no se editan ni eliminan.
-- Apertura y cierre explícitos desde **Administrar cajas**. Toda operación exige una caja activa abierta, aunque solo el efectivo altera su saldo físico.
-- Comprobante primero, Número de comprobante de dos inputs y BIGINT único, Cliente por SF, caja abierta, fecha, concepto y observaciones.
-- Fichas Datos generales, Afectaciones y Valores. La ficha Importes muestra los medios a la izquierda y su aplicación a la derecha; en móvil se apilan.
+- Apertura, cierre y selección de caja desde **Cajas → Administrar cajas** (OffCanvas lg). Toda operación exige una caja activa abierta, aunque solo el efectivo altera su saldo físico.
+- Comprobante primero, Número de comprobante de dos inputs y BIGINT único, Cliente por SF, caja seleccionada de solo lectura, fecha, concepto y observaciones.
+- Secciones Datos generales, Afectaciones, Valores e Importes visibles simultáneamente mediante scroll. FormSections ofrece navegación lateral; en pantallas angostas pasa a enlaces superiores que se distribuyen en filas. Importes muestra los medios a la izquierda y su aplicación a la derecha; en móvil se apilan.
 - Listado bajo demanda, filtros en modal, consulta por doble clic y Propiedades de solo lectura. No hay recarga periódica de registros.
 - ADMIN escribe; usuarios de consulta acceden a listados, detalles y Propiedades.
 
@@ -55,15 +55,21 @@ Solo puede existir una apertura activa por Caja. La apertura bloquea el maestro 
 
 El efectivo disponible es el saldo inicial más ingresos menos egresos confirmados asignados a esa apertura. Transferencias y cheques no aumentan el efectivo. No se permiten egresos por encima del efectivo disponible ni saldos que excedan el rango monetario de la tabla.
 
-El cierre registra fecha, usuario, saldo teórico, contado y observación. Una diferencia exige observación y se conserva como contado menos teórico; no genera ajustes automáticos. El usuario define el saldo inicial de la siguiente apertura. Administrar cajas también está disponible dentro del formulario, sin perder el borrador. Actualizar opciones vuelve a consultar referencias y aperturas; si la seleccionada ya cerró, exige elegir otra. Una caja cerrada no admite nuevas operaciones. Sus registros y cifras de cierre no se recalculan por reversiones posteriores.
+El cierre registra fecha, usuario, saldo teórico, contado y observación. Una diferencia exige observación y se conserva como contado menos teórico; no genera ajustes automáticos. El usuario define el saldo inicial de la siguiente apertura. En **Cajas → Administrar cajas**, luego de abrir debe seleccionar explícitamente la apertura con Usar caja o seleccionando su fila. Abrir no elige ni cambia automáticamente la caja. La selección se conserva por usuario/sesión en sessionStorage de la pestaña, al navegar y recargar; no se comparte entre usuarios ni obliga a todas las pestañas a operar en la misma caja.
+
+Cobros y pagos y su reversión toman esa selección: no ofrecen otro selector ni Administrar cajas/Actualizar opciones dentro del formulario. El listado permite Ir a Cajas; el alta está deshabilitada sin selección. Las consultas históricas siguen habilitadas y muestran su caja original. GET /api/caja-movimiento/cajas/:id/estado comprueba solo la apertura elegida al navegar o recuperar el foco, sin consultar listados, bancos ni saldos. No hay sondeo periódico. Al abrir el formulario se validan también las referencias, y el guardado conserva el bloqueo y la comprobación transaccional original.
+
+Si se cierra o desactiva la caja, se invalida la selección sin elegir otra automáticamente ni borrar el resto del borrador abierto. Un fallo de red no equivale a cierre: el servidor sigue siendo la autoridad. Cerrar desde el panel invalida la preferencia inmediatamente. Cada pestaña detecta cierres externos al volver o al operar. Una caja cerrada no admite nuevas operaciones. Sus registros y cifras de cierre no se recalculan por reversiones posteriores.
 
 ## Afectaciones
 
-Afectar abre OffCanvas md y consulta pendientes únicamente con cliente y comprobante válidos. Cobros ofrece deudas de Cobrar y Pagos ofrece deudas de Pagar. No limita los documentos al comprobante de la cabecera ni al día actual; los pendientes históricos siguen disponibles.
+Afectar abre OffCanvas lg y consulta pendientes únicamente con cliente y comprobante válidos. Cobros ofrece deudas de Cobrar y Pagos ofrece deudas de Pagar. No limita los documentos al comprobante de la cabecera ni al día actual; los pendientes históricos siguen disponibles.
 
 La tabla base tiene selectionMode opcional: single continúa por defecto; multiple incorpora el CheckBox base visible por fila, selectedKeys y onMultipleSelectionChange. Los ABM existentes conservan su modo simple.
 
-Seleccionar sugiere todo el pendiente y permite un importe parcial positivo. El panel conserva selecciones al paginar/filtrar. Confirmar actualiza el borrador; Cancelar/Escape no modifica sus afectaciones anteriores. Al reabrir conserva los importes elegidos. La ficha permite modificar el importe o quitar filas sin tocar la deuda original.
+Seleccionar sugiere todo el pendiente y permite un importe parcial positivo. El panel conserva selecciones al paginar/filtrar. Confirmar actualiza el borrador; Cancelar/Escape no modifica sus afectaciones anteriores. La ficha muestra los importes como solo lectura y permite quitar filas mediante la papelera del ActionToolbar. Para cambiar un importe se quita la afectación y se vuelve a incorporar desde el panel.
+
+Al confirmar se agregan únicamente las nuevas selecciones, conservando las anteriores. Al reabrir, los ID de las afectaciones ya incorporadas se envían en Excluir (hasta 100 IDs validados); el servidor aplica NOT IN parametrizado antes del conteo y paginación. Se excluye todo el documento dentro del borrador actual, aunque la aplicación sea parcial. Quitar la fila lo vuelve a ofrecer con su pendiente real. Esta consulta no reserva ni reduce saldos; una operación futura puede afectar el remanente después del guardado.
 
 Cambiar de cliente pide descartar las afectaciones y el importe a cuenta; cancelar conserva la selección. Comprobantes de la misma cuenta/sentido conservan afectaciones; cambiar a otra operación pide confirmación y descarta datos incompatibles. Las consultas pendientes se cancelan al cerrar el selector.
 
@@ -71,7 +77,7 @@ El pendiente individual es importe original menos afectaciones vigentes. Se vuel
 
 ## Valores
 
-Agregar valor permite registrar transferencia, cheque recibido o cheque propio según el sentido de la operación, sin ingresar a otro módulo. Los valores nuevos se editan o quitan mientras son borrador. Consultar cheque abre sus propiedades sin modificar el instrumento.
+Agregar valor permite registrar transferencia, cheque recibido o cheque propio según el sentido de la operación, sin ingresar a otro módulo. Los valores nuevos se editan o quitan mientras son borrador mediante los iconos Agregar/Modificar/Eliminar del ActionToolbar base, con tooltips. Las acciones específicas de cartera y consulta usan sus acciones opcionales. Consultar cheque abre sus propiedades sin modificar el instrumento.
 
 | Instrumento | Registro |
 | --- | --- |
@@ -94,7 +100,7 @@ Total de valores = efectivo + transferencias + cheques propios + terceros. Debe 
 
 Importe a cobrar/pagar se calcula desde las afectaciones. Adelanto recibido (cobro) o Anticipo entregado (pago) es manual y nunca se completa automáticamente con la diferencia. Neto es positivo y su dirección depende del comprobante.
 
-Se genera un solo crédito de Cuenta corriente por el total, vinculado a CajaMovimiento. Las afectaciones distribuyen su cancelación entre deudas: no vuelven a descontarse del saldo global. Por ejemplo: deuda 80, cobro 100, afectación 80 e importe a cuenta 20 producen crédito 100 y disponible 20.
+Se genera un solo crédito de Cuenta corriente por el total, vinculado a CajaMovimiento. El listado principal de Cuenta corriente (datos y total) muestra solo filas con CajaMovimiento IS NULL. Los asientos internos de cobros, pagos y sus reversiones se conservan: continúan en los cálculos de saldo, detalle, pendientes, anticipos y trazabilidad; se consultan operativamente desde Cobros y pagos. No se filtra por la configuración actual del maestro del comprobante, que puede cambiar después de emitir un movimiento. Las afectaciones distribuyen su cancelación entre deudas: no vuelven a descontarse del saldo global. Por ejemplo: deuda 80, cobro 100, afectación 80 e importe a cuenta 20 producen crédito 100 y disponible 20.
 
 ImporteACuenta conserva la intención original. DisponibleACuenta se consulta como total menos aplicaciones de una operación vigente; se presenta en Propiedades. Esta entrega registra anticipos; la pantalla para aplicarlos posteriormente a nuevas deudas se mantiene pendiente y no se simula con un cobro adicional.
 
@@ -112,14 +118,16 @@ Aperturas, cierres, confirmaciones y reversiones son transaccionales y auditados
 
 1. Aplicar la migración, crear los comprobantes de ejemplo y sus numeradores si se desean sugerencias. Preparar Caja, Banco, Cuenta bancaria y Cliente activos.
 2. En Cuenta corriente cargar una jugada por 50, otra por 30 y un premio por 100.
-3. Entrar en Cobros y pagos: la grilla empieza vacía. Administrar cajas → abrir con saldo inicial conocido.
-4. Nuevo cobro → comprobante, cliente SF y caja abierta. Afectaciones → Afectar → seleccionar ambas jugadas, aplicar 40 y 30. Total 70. Cancelar el panel debe conservar el borrador anterior; confirmar lo incorpora.
+3. En Cajas → Administrar cajas, abrir con saldo inicial conocido y presionar Usar caja. Entrar en Cobros y pagos: la grilla empieza vacía y muestra la caja seleccionada. Navegar o recargar conserva esa preferencia en la pestaña.
+4. Nuevo cobro → comprobante y cliente SF; la caja aparece de solo lectura. Afectaciones → Afectar → seleccionar ambas jugadas, aplicar 40 y 30. Total 70. Cancelar el panel debe conservar el borrador anterior; confirmar lo incorpora.
 5. Valores → agregar transferencia 40 y cheque de terceros 30, con banco/cuenta libradora/número. Neto 70, importe a cuenta 0. Guardar. El banco recibe 40; el cheque queda en cartera; quedan 10 pendientes de la primera jugada.
 6. Nuevo pago → elegir el premio y afectar 30. Seleccionar de cartera → elegir el cheque recibido por 30. Guardar. El cheque pasa a endosado y no vuelve a ofrecerse.
 7. Registrar un cobro con efectivo 100, afectación 80 e importe a cuenta manual 20. Propiedades debe mostrar inicial y disponible 20. No se debe guardar si los medios no coinciden con el Neto.
 8. Registrar un pago con cheque propio: exige cuenta propia y deja el cheque emitido sin débito bancario inmediato.
 9. Cerrar caja con contado igual al teórico; abrir la siguiente y revertir una operación sin eventos posteriores. Comprobar cierre anterior intacto, vínculo, nuevo movimiento y deuda recuperada. Un cheque utilizado posteriormente debe impedir la reversión de su recepción original.
-10. Verificar consulta por doble clic/Propiedades, permisos de lector, filtros y anchos móviles. Los demás listados deben seguir seleccionando una sola fila sin CheckBox visibles.
+10. Agregar una afectación parcial, reabrir Afectar y comprobar que no aparece; quitarla mediante la papelera y verificar que vuelve a ofrecer su pendiente real. La grilla de afectaciones no debe permitir editar importes.
+11. Cerrar desde otra ventana la caja seleccionada, volver al formulario y comprobar selección invalidada, Guardar bloqueado y borrador conservado. Elegir otra apertura explícitamente desde Cajas. Consultar Cuenta corriente y comprobar que no aparecen los cobros/pagos, pero sus pendientes y saldos permanecen correctos.
+12. Verificar navegación por enlaces y scroll entre todas las secciones, consulta por doble clic/Propiedades, permisos de lector, filtros y anchos móviles. Los demás listados deben seguir seleccionando una sola fila sin CheckBox visibles.
 
 ## Verificación interna
 
@@ -128,3 +136,5 @@ Aperturas, cierres, confirmaciones y reversiones son transaccionales y auditados
 Pendientes para próximas entregas: aplicación posterior y devolución parcial independiente de anticipos, depósito/acreditación/rechazo de cheques, conciliación bancaria, ajustes de diferencias de caja y correcciones de reversiones ya registradas. Ninguno se ejecuta implícitamente al confirmar una operación.
 
 El ajuste de DropDown limita el desplazamiento de la opción activa a su propia lista. Evita que formularios largos en móvil desplacen la página y dejen las opciones fuera de pantalla; conserva la selección por mouse y teclado.
+
+La revisión de experiencia de Caja movimiento no agrega migraciones ni tablas: solo requiere el despliegue normal del código, teniendo ya aplicada 0003. Las pruebas de integración cubren también las exclusiones de borrador antes de paginar, consultas de apertura cerrada/abierta, asientos internos conservados y saldos calculados sin filtrarlos.

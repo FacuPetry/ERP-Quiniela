@@ -11,6 +11,8 @@ import { logout } from "../services/auth";
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
+import { ActiveCashProvider } from "./cash-movement/ActiveCash";
+import { CajasPage } from "./cash-movement/CajasPage";
 import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
@@ -48,7 +50,7 @@ function AppLink({
   );
 }
 
-export function Workspace({
+function WorkspaceContent({
   session,
   onLogout,
 }: {
@@ -365,7 +367,9 @@ export function Workspace({
                         <h3>{item.title}</h3>
                         <p>{item.description}</p>
                         <span className="module-card-footer">
-                          {["/cuenta-corriente", "/cobros-pagos"].includes(item.path)
+                          {["/cuenta-corriente", "/cobros-pagos"].includes(
+                            item.path,
+                          )
                             ? "Abrir módulo"
                             : "Ver alcance"}{" "}
                           <Icon name="arrow" size={16} />
@@ -452,6 +456,13 @@ export function Workspace({
             />
           ) : path === "/cobros-pagos" ? (
             <CashPage key={path} session={session} onExpired={onLogout} />
+          ) : master?.key === "cajas" ? (
+            <CajasPage
+              key={master.key}
+              master={master}
+              session={session}
+              onExpired={onLogout}
+            />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -495,5 +506,17 @@ export function Workspace({
         </main>
       </div>
     </div>
+  );
+}
+
+export function Workspace(props: {
+  session: SessionResponse;
+  onLogout: () => void;
+}) {
+  const key = `erp_caja_${props.session.usuario.id}_${props.session.venceEn}`;
+  return (
+    <ActiveCashProvider key={key} storageKey={key} onExpired={props.onLogout}>
+      <WorkspaceContent {...props} />
+    </ActiveCashProvider>
   );
 }

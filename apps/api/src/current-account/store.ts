@@ -84,7 +84,7 @@ export function createCurrentAccountStore(pool: Pool) {
       };
     },
     async list(query: AccountQuery): Promise<CurrentAccountList> {
-      const clauses: string[] = [],
+      const clauses: string[] = ["a.CajaMovimiento IS NULL"],
         params: (string | number)[] = [];
       for (const field of ["Cliente", "Comprobante", "Cuenta"] as const)
         if (query[field]) {

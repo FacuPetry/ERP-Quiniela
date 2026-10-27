@@ -4,7 +4,9 @@ export const code = z.string().trim().min(1).max(20);
 export const id = z
   .string()
   .regex(/^[1-9]\d{0,18}$/)
-  .refine((v) => BigInt(v) <= 9223372036854775807n);
+  .refine(
+    (v) => /^[1-9]\d{0,18}$/.test(v) && BigInt(v) <= 9223372036854775807n,
+  );
 export const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -150,6 +152,12 @@ export const pendingQuery = z
   .object({
     Cliente: code,
     Comprobante: code,
+    Excluir: z
+      .string()
+      .max(2000)
+      .default("")
+      .transform((v) => (v ? v.split(",") : []))
+      .pipe(z.array(id).max(100)),
     q: z.string().trim().max(100).default(""),
     pagina: z.coerce.number().int().min(1).max(100000).default(1),
     limite: z.coerce.number().int().min(1).max(100).default(20),

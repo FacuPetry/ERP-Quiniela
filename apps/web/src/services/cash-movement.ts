@@ -10,6 +10,14 @@ import { apiRequest } from "./http";
 const base = "/caja-movimiento";
 export const cashOptions = (signal?: AbortSignal) =>
   apiRequest<CashOptions>(base + "/opciones", signal ? { signal } : undefined);
+export const cashOpeningStatus = (id: string, signal: AbortSignal) =>
+  apiRequest<{
+    IDTabla: string;
+    Caja: string;
+    CajaNombre: string;
+    Estado: string;
+    Activo: string;
+  }>(base + "/cajas/" + encodeURIComponent(id) + "/estado", { signal });
 export const cashList = (q: Record<string, string>, signal: AbortSignal) =>
   apiRequest<CashList>(base + "?" + new URLSearchParams(q), { signal });
 export const cashDetail = (id: string, signal?: AbortSignal) =>

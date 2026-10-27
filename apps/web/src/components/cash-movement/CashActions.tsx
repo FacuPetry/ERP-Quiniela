@@ -11,6 +11,8 @@ import {
   cashReverse,
 } from "../../services/cash-movement";
 import { ApiRequestError } from "../../services/http";
+import { useActiveCash } from "./ActiveCash";
+import { TextBox } from "../controls";
 import { amount, message } from "./format";
 function useCashOptions(onExpired: () => void) {
   const [data, setData] = useState<CashOptions | null>(null),
@@ -32,6 +34,11 @@ function useCashOptions(onExpired: () => void) {
       });
     return () => req.abort();
   }, [onExpired, revision]);
+  useEffect(() => {
+    const refresh = () => setRevision((n) => n + 1);
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, []);
   return { data, error, setError, reload: () => setRevision((n) => n + 1) };
 }
 export function CashBoxes({
@@ -42,10 +49,19 @@ export function CashBoxes({
 }: {
   csrf: string;
   onClose: () => void;
-  onChanged: () => void;
+  onChanged?: () => void;
   onExpired: () => void;
 }) {
   const { data, error, setError, reload } = useCashOptions(onExpired);
+  const { selected, select, validate } = useActiveCash();
+  useEffect(() => {
+    if (data)
+      validate(
+        data.aperturas.filter((o) =>
+          data.cajas.some((c) => c.Codigo === o.Caja),
+        ),
+      );
+  }, [data, validate]);
   const [box, setBox] = useState(""),
     [initial, setInitial] = useState("0.00"),
     [closing, setClosing] = useState<CashOpening | null>(null),
@@ -63,27 +79,30 @@ export function CashBoxes({
     setBusy(true);
     setError("");
     try {
-      if (closing)
+      if (closing) {
         await cashClose(
           closing.IDTabla,
           input as { SaldoContado: string; Observacion: string | null },
           csrf,
           retry.current.key,
         );
-      else
+        if (selected?.IDTabla === closing.IDTabla) select(null);
+      } else
         await cashOpen(
           input as { Caja: string; SaldoInicial: string },
           csrf,
           retry.current.key,
         );
-      onChanged();
+      onChanged?.();
       setClosing(null);
       setNote("");
       setBox("");
       reload();
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) onExpired();
-      else setError(message(e));
+      else {
+        setError(message(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -92,7 +111,7 @@ export function CashBoxes({
     <OffCanvas
       open
       title="Administrar cajas"
-      size="md"
+      size="lg"
       busy={busy}
       onClose={onClose}
     >
@@ -108,11 +127,34 @@ export function CashBoxes({
         <p role="status">Cargando cajas…</p>
       ) : (
         <>
+          <p role="status">
+            {selected
+              ? `Caja seleccionada: ${selected.CajaNombre}`
+              : "Seleccioná una caja abierta para registrar movimientos."}
+          </p>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            onClick={reload}
+          >
+            Actualizar cajas
+          </button>
           <DataTable
             caption="Cajas abiertas"
             rows={data.aperturas}
             rowKey={(r) => r.IDTabla}
             loading={busy}
+            selectedKey={selected?.IDTabla ?? null}
+            onSelectionChange={(id) => {
+              const opening = data.aperturas.find((o) => o.IDTabla === id);
+              if (opening && data.cajas.some((c) => c.Codigo === opening.Caja))
+                select(opening);
+            }}
+            rowLabel={(o) => o.CajaNombre}
+            onRowActivate={(o) => {
+              if (data.cajas.some((c) => c.Codigo === o.Caja)) select(o);
+            }}
             columns={[
               { key: "box", label: "Caja", render: (r) => r.CajaNombre },
               {
@@ -132,17 +174,33 @@ export function CashBoxes({
               },
             ]}
             actions={(r) => (
-              <button
-                className="button secondary"
-                disabled={busy}
-                onClick={() => {
-                  setClosing(r);
-                  setCounted(r.SaldoActual);
-                  setNote("");
-                }}
-              >
-                Preparar cierre
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="button secondary"
+                  disabled={
+                    busy ||
+                    selected?.IDTabla === r.IDTabla ||
+                    !data.cajas.some((c) => c.Codigo === r.Caja)
+                  }
+                  onClick={() => select(r)}
+                >
+                  {selected?.IDTabla === r.IDTabla
+                    ? "Seleccionada"
+                    : "Usar caja"}
+                </button>
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setClosing(r);
+                    setCounted(r.SaldoActual);
+                    setNote("");
+                  }}
+                >
+                  Preparar cierre
+                </button>
+              </>
             )}
           />
           <h3>{closing ? "Cerrar " + closing.CajaNombre : "Abrir caja"}</h3>
@@ -242,10 +300,21 @@ export function ReverseCash({
   const { data, error, setError, reload } = useCashOptions(onExpired),
     [code, setCode] = useState(""),
     [number, setNumber] = useState("0"),
-    [box, setBox] = useState(""),
     [reason, setReason] = useState(""),
     [busy, setBusy] = useState(false);
   const retry = useRef({ body: "", key: "" });
+  const { selected, validate } = useActiveCash();
+  useEffect(() => {
+    if (data)
+      validate(
+        data.aperturas.filter((o) =>
+          data.cajas.some((c) => c.Codigo === o.Caja),
+        ),
+      );
+  }, [data, validate]);
+  const box = data?.aperturas.some((o) => o.IDTabla === selected?.IDTabla)
+    ? selected!.IDTabla
+    : "";
   const sense = detail.registro.Sentido === "INGRESO" ? "EGRESO" : "INGRESO";
   const compatible =
     data?.comprobantes.filter(
@@ -271,7 +340,9 @@ export function ReverseCash({
       onSaved();
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) onExpired();
-      else setError(message(e));
+      else {
+        setError(message(e));
+      }
     } finally {
       setBusy(false);
     }
@@ -349,18 +420,15 @@ export function ReverseCash({
             onValueChange={setNumber}
             disabled={busy}
           />
-          <DropDown
-            label="Caja abierta"
-            value={box}
-            onValueChange={setBox}
-            disabled={busy}
-            options={[
-              { value: "", label: "Seleccioná una apertura" },
-              ...data.aperturas.map((o) => ({
-                value: o.IDTabla,
-                label: o.CajaNombre,
-              })),
-            ]}
+          <TextBox
+            label="Caja seleccionada"
+            value={
+              box
+                ? selected!.CajaNombre
+                : "Seleccioná una caja abierta desde Cajas."
+            }
+            readOnly
+            onValueChange={() => {}}
           />
           <TextArea
             label="Motivo"
