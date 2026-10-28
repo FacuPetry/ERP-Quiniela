@@ -1,14 +1,15 @@
 import { useCallback } from "react";
-import type { MasterRecord } from "@erp/shared";
+import { listSortQuery, type ListSort, type MasterRecord } from "@erp/shared";
 import { SearchField, type FieldProps } from "../controls";
 import { listMasters } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 const code = (row: MasterRecord) => String(row.Codigo);
 const description = (row: MasterRecord) => String(row.Nombre);
 const columns = [
-  { key: "Codigo", label: "Código", render: code },
+  { key: "Codigo", sort: "Codigo", label: "Código", render: code },
   {
     key: "Nombre",
+    sort: "Nombre",
     label: "Nombre",
     render: (row: MasterRecord) => String(row.Nombre),
   },
@@ -29,12 +30,18 @@ export function ClientSearch({
   placeholder?: string;
 }) {
   const search = useCallback(
-    async (q: string, page: number, signal: AbortSignal) => {
+    async (
+      q: string,
+      page: number,
+      signal: AbortSignal,
+      sort?: ListSort | null,
+    ) => {
       try {
         return await listMasters(
           "clientes",
           {
             q,
+            ...listSortQuery(sort ?? null),
             pagina: String(page),
             limite: "20",
             estado: historical ? "todos" : "activo",

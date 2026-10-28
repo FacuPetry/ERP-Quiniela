@@ -1,3 +1,4 @@
+import { useListSorting } from "../ui/useListSorting";
 import {
   useCallback,
   useEffect,
@@ -60,6 +61,7 @@ export function MasterPage({
   const [deleting, setDeleting] = useState<MasterDetail | null>(null);
   const [filterOpen, setFilterOpen] = useState(false);
   const [propertiesKey, setPropertiesKey] = useState<string | null>(null);
+  const sorting = useListSorting(setPage);
   const listHeading = useRef<HTMLHeadingElement>(null);
   const mounted = useRef(true);
   const opening = useRef(false);
@@ -119,6 +121,7 @@ export function MasterPage({
         q: filters.q?.trim() ?? "",
         estado: filters.estado ?? "todos",
         pagina: String(page),
+        ...sorting.query,
         ...(filters.referencia ? { referencia: filters.referencia } : {}),
       },
       request.signal,
@@ -153,7 +156,15 @@ export function MasterPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [master.key, filters, page, revision, expired, hasRequestedList]);
+  }, [
+    master.key,
+    filters,
+    page,
+    revision,
+    expired,
+    hasRequestedList,
+    sorting.value,
+  ]);
   function requestList() {
     setHasRequestedList(true);
     setLoading(true);
@@ -199,6 +210,7 @@ export function MasterPage({
   const columns: TableColumn<MasterRecord>[] = [
     ...masterListColumns(master).map((key) => ({
       key,
+      sort: key,
       label: master.fields.find((field) => field.name === key)!.label,
       render: (row: MasterRecord) => {
         const description = data?.descripciones?.[key]?.[String(row[key])];
@@ -225,6 +237,7 @@ export function MasterPage({
     })),
     {
       key: "Activo",
+      sort: "Activo",
       label: "Estado",
       render: (row) => (
         <span className={`record-status ${row.Activo ? "active" : "inactive"}`}>
@@ -301,6 +314,9 @@ export function MasterPage({
       )}
       <DataTable
         properties={false}
+        sort={sorting.value}
+        onSortChange={sorting.onChange}
+        sortingDisabled={!hasRequestedList}
         caption={`Listado de ${master.title.toLocaleLowerCase("es-AR")}`}
         columns={columns}
         rows={error ? [] : (data?.registros ?? [])}

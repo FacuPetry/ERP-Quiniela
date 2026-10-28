@@ -1,3 +1,4 @@
+import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useEffect, useState } from "react";
 import {
@@ -40,12 +41,14 @@ export function AllocationPicker({
     [revision, setRevision] = useState(0),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
+  const sorting = useListSorting(setPage);
   useEffect(() => {
     const request = new AbortController();
     setLoading(true);
     setError("");
     void pendingList(
       {
+        ...sorting.query,
         Cliente: client,
         Comprobante: voucher,
         q: search,
@@ -82,7 +85,16 @@ export function AllocationPicker({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [client, voucher, initial, search, page, revision, onExpired]);
+  }, [
+    client,
+    voucher,
+    initial,
+    search,
+    page,
+    revision,
+    onExpired,
+    sorting.value,
+  ]);
   function choose(keys: string[]) {
     setSelected((current) => {
       const next = Object.fromEntries(
@@ -164,6 +176,8 @@ export function AllocationPicker({
         </p>
       )}
       <DataTable
+        sort={sorting.value}
+        onSortChange={sorting.onChange}
         caption="Movimientos pendientes"
         rows={rows}
         rowKey={(r) => r.IDTabla}
@@ -175,6 +189,7 @@ export function AllocationPicker({
         columns={[
           {
             key: "numero",
+            sort: "Comprobante",
             label: "Comprobante",
             render: (r) => (
               <>
@@ -186,16 +201,19 @@ export function AllocationPicker({
           },
           {
             key: "fecha",
+            sort: "FechaOrigen",
             label: "Fecha",
             render: (r) => displayDate(r.FechaOrigen),
           },
           {
             key: "original",
+            sort: "Importe",
             label: "Original",
             render: (r) => amount(r.Importe),
           },
           {
             key: "pendiente",
+            sort: "Pendiente",
             label: "Pendiente",
             render: (r) => amount(r.Pendiente),
           },

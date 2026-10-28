@@ -1,3 +1,4 @@
+import { listOrderFields } from "../database/list-order-validation.js";
 import { z } from "zod";
 import { voucherNumberError } from "@erp/shared";
 export const code = z.string().trim().min(1).max(20);
@@ -136,6 +137,7 @@ export const creation = z
   );
 export const query = z
   .object({
+    ...listOrderFields,
     q: z.string().trim().max(100).default(""),
     Estado: z.enum(["TODOS", "CONFIRMADO", "REVERTIDO"]).default("TODOS"),
     Desde: date.optional(),
@@ -150,6 +152,7 @@ export const query = z
   );
 export const pendingQuery = z
   .object({
+    ...listOrderFields,
     Cliente: code,
     Comprobante: code,
     Excluir: z
