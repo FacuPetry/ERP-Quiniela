@@ -6,13 +6,14 @@ import {
 } from "express";
 import { randomUUID } from "node:crypto";
 import type { z } from "zod";
-import type { SessionResponse } from "@erp/shared";
+import type { SessionResponse, CashModule } from "@erp/shared";
 import { requireSession, requireMasterWrite } from "../auth/middleware.js";
 import type { AuthService } from "../auth/service.js";
 import { MasterRequestError } from "../masters/validation.js";
 import type { CashMovementStore } from "./store.js";
 import {
   creation,
+  treasuryCreation,
   query,
   pendingQuery,
   opening,
@@ -50,49 +51,67 @@ function user(res: Response) {
 export function cashMovementRouter(
   auth: AuthService,
   store: CashMovementStore,
+  module: CashModule = "COBROSPAGOS",
 ) {
   const r = Router();
   r.use(requireSession(auth));
   r.get("/opciones", async (_req, res) => {
     res.json(await store.options());
   });
-  r.get("/pendientes", async (req, res) => {
-    res.json(await store.pending(parse(pendingQuery, req.query)));
-  });
-  r.get("/cheques/:id", async (req, res) => {
-    res.json(await store.cheque(String(req.params.id)));
-  });
-  r.get("/cartera", async (req, res) => {
-    const q = parse(query, req.query);
-    res.json(await store.portfolio(q));
-  });
-  r.get("/cajas/:id/estado", async (req, res) => {
-    res.json(await store.openingStatus(String(req.params.id)));
-  });
-  r.post("/cajas", ...requireMasterWrite, async (req, res) => {
-    res
-      .status(201)
-      .json(await store.open(parse(opening, req.body), user(res), key(req)));
-  });
-  r.post("/cajas/:id/cerrar", ...requireMasterWrite, async (req, res) => {
-    res.json(
-      await store.close(
-        String(req.params.id),
-        parse(closing, req.body),
-        user(res),
-        key(req),
-      ),
-    );
-  });
+  if (module === "COBROSPAGOS") {
+    r.get("/pendientes", async (req, res) => {
+      res.json(await store.pending(parse(pendingQuery, req.query)));
+    });
+    r.get("/cheques/:id", async (req, res) => {
+      res.json(await store.cheque(String(req.params.id)));
+    });
+    r.get("/cartera", async (req, res) => {
+      const q = parse(query, req.query);
+      res.json(await store.portfolio(q));
+    });
+  }
+  if (module === "COBROSPAGOS") {
+    r.get("/cajas/:id/estado", async (req, res) => {
+      res.json(await store.openingStatus(String(req.params.id)));
+    });
+    r.post("/cajas", ...requireMasterWrite, async (req, res) => {
+      res
+        .status(201)
+        .json(await store.open(parse(opening, req.body), user(res), key(req)));
+    });
+    r.post("/cajas/:id/cerrar", ...requireMasterWrite, async (req, res) => {
+      res.json(
+        await store.close(
+          String(req.params.id),
+          parse(closing, req.body),
+          user(res),
+          key(req),
+        ),
+      );
+    });
+  }
   r.get("/", async (req, res) => {
     res.json(await store.list(parse(query, req.query)));
   });
   r.post("/", ...requireMasterWrite, async (req, res) => {
-    const result = await store.create(
-      parse(creation, req.body),
-      user(res),
-      key(req),
-    );
+    const treasury =
+      module === "TESORERIA" ? parse(treasuryCreation, req.body) : null;
+    const input = treasury
+      ? {
+          Comprobante: treasury.Comprobante,
+          NumeroComprobante: treasury.NumeroComprobante,
+          CajaSaldo: treasury.CajaSaldo,
+          Concepto: treasury.Concepto,
+          FechaOrigen: treasury.FechaOrigen,
+          Observacion: treasury.Observacion,
+          ImporteEfectivo: treasury.Importe,
+          ImporteACuenta: "0.00",
+          Cliente: "",
+          Afectaciones: [],
+          Valores: [],
+        }
+      : parse(creation, req.body);
+    const result = await store.create(input, user(res), key(req));
     res
       .set("ETag", '"' + result.version + '"')
       .status(201)
@@ -152,7 +171,8 @@ export function cashMovementRouter(
     >;
     console.error(
       JSON.stringify({
-        evento: "caja_movimiento.error",
+        evento:
+          module === "TESORERIA" ? "tesoreria.error" : "caja_movimiento.error",
         referencia,
         metodo: req.method,
         ruta: req.route?.path,

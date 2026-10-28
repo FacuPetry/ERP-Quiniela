@@ -16,18 +16,19 @@ import { DataTable } from "../ui/DataTable";
 import { FormToolbarActions } from "../ui/FormToolbarActions";
 import { DropDown, AmountBox, TextArea, NumeroComprobante } from "../controls";
 import {
-  cashOptions,
+  cashServices,
+  type MovementServices,
   cashOpen,
   cashClose,
-  cashReverse,
-  cashReversalPreview,
-  cashAnnul,
 } from "../../services/cash-movement";
 import { ApiRequestError } from "../../services/http";
 import { useActiveCash } from "./ActiveCash";
 import { TextBox, CheckBox } from "../controls";
 import { amount, message } from "./format";
-function useCashOptions(onExpired: () => void) {
+export function useCashOptions(
+  onExpired: () => void,
+  services: MovementServices = cashServices,
+) {
   const [data, setData] = useState<CashOptions | null>(null),
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0),
@@ -35,7 +36,8 @@ function useCashOptions(onExpired: () => void) {
   useEffect(() => {
     const req = new AbortController();
     setLoading(true);
-    void cashOptions(req.signal)
+    void services
+      .options(req.signal)
       .then((d) => {
         if (!req.signal.aborted) {
           setData(d);
@@ -51,7 +53,7 @@ function useCashOptions(onExpired: () => void) {
         if (!req.signal.aborted) setLoading(false);
       });
     return () => req.abort();
-  }, [onExpired, revision]);
+  }, [onExpired, revision, services]);
   useEffect(() => {
     const refresh = () => setRevision((n) => n + 1);
     window.addEventListener("focus", refresh);
@@ -392,19 +394,23 @@ export function CashBoxes({
   );
 }
 export function ReverseCash({
+  services = cashServices,
+  treasury = false,
   detail,
   csrf,
   onClose,
   onSaved,
   onExpired,
 }: {
+  services?: MovementServices;
+  treasury?: boolean;
   detail: CashDetail;
   csrf: string;
   onClose: () => void;
   onSaved: () => void;
   onExpired: () => void;
 }) {
-  const { data, error, setError, reload } = useCashOptions(onExpired),
+  const { data, error, setError, reload } = useCashOptions(onExpired, services),
     [preview, setPreview] = useState<CashReversalPreview>(),
     [previewLoading, setPreviewLoading] = useState(true),
     [previewError, setPreviewError] = useState(""),
@@ -429,7 +435,8 @@ export function ReverseCash({
     setPreview(undefined);
     setPreviewLoading(true);
     setPreviewError("");
-    void cashReversalPreview(detail.registro.IDTabla, request.signal)
+    void services
+      .reversalPreview(detail.registro.IDTabla, request.signal)
       .then((result) => {
         if (!request.signal.aborted) setPreview(result);
       })
@@ -442,7 +449,7 @@ export function ReverseCash({
         if (!request.signal.aborted) setPreviewLoading(false);
       });
     return () => request.abort();
-  }, [detail.registro.IDTabla, revision, onExpired]);
+  }, [detail.registro.IDTabla, revision, onExpired, services]);
   function refresh() {
     reload();
     setRevision((value) => value + 1);
@@ -459,7 +466,7 @@ export function ReverseCash({
     setBusy(true);
     setError("");
     try {
-      await cashReverse(detail, input, csrf, retry.current.key);
+      await services.reverse(detail, input, csrf, retry.current.key);
       onSaved();
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) onExpired();
@@ -473,7 +480,9 @@ export function ReverseCash({
   return (
     <OffCanvas
       open
-      title="Revertir cobro o pago"
+      title={
+        treasury ? "Revertir movimiento de Tesorería" : "Revertir cobro o pago"
+      }
       busy={busy}
       onClose={onClose}
       footer={
@@ -568,12 +577,16 @@ export function ReverseCash({
 }
 
 export function AnnulCash({
+  services = cashServices,
+  treasury = false,
   detail,
   csrf,
   onClose,
   onSaved,
   onExpired,
 }: {
+  services?: MovementServices;
+  treasury?: boolean;
   detail: CashDetail;
   csrf: string;
   onClose: () => void;
@@ -608,7 +621,7 @@ export function AnnulCash({
     setBusy(true);
     setError("");
     try {
-      await cashAnnul(detail, input, csrf, retry.current.key);
+      await services.annul(detail, input, csrf, retry.current.key);
       onSaved();
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) onExpired();
@@ -618,12 +631,19 @@ export function AnnulCash({
     }
   }
   return (
-    <Modal title="Anular cobro o pago" busy={busy} onClose={onClose}>
+    <Modal
+      title={
+        treasury ? "Anular movimiento de Tesorería" : "Anular cobro o pago"
+      }
+      busy={busy}
+      onClose={onClose}
+    >
       <div className="modal-body">
         <p>
           Se anulará {detail.registro.ComprobanteDescripcion}{" "}
           {detail.registro.NumeroComprobanteTexto} en su misma apertura de caja.
-          Se conservará su historial y se liberarán sus afectaciones.
+          Se conservará su historial
+          {treasury ? "." : " y se liberarán sus afectaciones."}
         </p>
         {!available && (
           <p className="notice" role="status">

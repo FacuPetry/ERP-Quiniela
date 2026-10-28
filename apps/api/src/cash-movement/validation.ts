@@ -186,3 +186,16 @@ export const annulment = z
     ConfirmarCorreccionBancaria: z.boolean().default(false),
   })
   .strict();
+
+/** No admite clientes, valores ni afectaciones en una operación interna. */
+export const treasuryCreation = z
+  .object({
+    Comprobante: code,
+    NumeroComprobante: number,
+    CajaSaldo: id,
+    Concepto: code,
+    FechaOrigen: date,
+    Importe: positive,
+    Observacion: text,
+  })
+  .strict();

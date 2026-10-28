@@ -33,3 +33,8 @@ Recomendación: resolverlo desde la próxima etapa de Tesorería, con comprobant
 No utilizar un cobro ficticio o un adelanto de cliente para fondear una caja: el circuito actual genera un crédito en Cuenta corriente y alteraría indebidamente su saldo. Tampoco editar el saldo inicial después de operar ni cambiar una caja cerrada. Las correcciones de operaciones históricas deben conservar los cierres y seguir el circuito de contramovimientos acordado.
 
 El alcance inicial de Tesorería puede comenzar por ingresos/egresos internos simples; los traspasos y el control de disponibilidad bancaria se incorporan con su origen/destino y política definidos. Reutilizar CAJAMOVIMIENTO, BANCOMOVIMIENTO y los vínculos existentes cuando correspondan; revisar el enlace de traspasos antes de afirmar que no requiere ajustes. CajaMovimientoOrigen ya identifica reversiones y no debe reutilizarse indiscriminadamente para otro circuito. No se crean tablas, campos ni flujos nuevos en esta entrega.
+
+
+## Implementación de efectivo interno
+
+La primera entrega de [Tesorería, etapa 7](etapa-7.md) implementa aportes y retiros de efectivo sin Cuenta corriente, conservando aperturas, saldo inicial y cierres históricos. Banco–caja y los traspasos quedan pendientes. La disponibilidad bancaria y los ajustes automáticos de diferencias no se incorporan en esta entrega.

@@ -76,3 +76,8 @@ NUMERACION.ProximoNumero y los campos NumeroComprobante de CUENTACORRIENTE y CAJ
 ## Ampliación de Caja movimiento (etapa 6)
 
 La migración 0003 incorpora ImporteACuenta inicial y CajaMovimientoOrigen en CAJAMOVIMIENTO, CuentaLibradora en CHEQUE, y fecha/usuario en CAJAMOVIMIENTOAFECTACION. No crea tablas. La reversión conserva la operación y el cierre originales, genera una contradeuda y mantiene el vínculo único. Ver [comportamiento y migración](etapa-6.md). Las aplicaciones posteriores de créditos y el tratamiento de rechazos permanecen pendientes.
+
+
+## Tesorería de efectivo (etapa 7)
+
+Reutiliza CAJAMOVIMIENTO sin cliente ni asiento de CUENTACORRIENTE, con ImporteTotal=ImporteEfectivo e ImporteACuenta=0. Aperturas y saldos físicos incluyen los movimientos confirmados de ambos módulos; los listados/detalles/correcciones separan los registros comerciales de los internos por sus relaciones persistidas, sin depender del maestro actual. No agrega columnas o tablas. Concepto es obligatorio. Las correcciones internas no generan deudas/créditos de cliente. Ver [alcance y pruebas](etapa-7.md).

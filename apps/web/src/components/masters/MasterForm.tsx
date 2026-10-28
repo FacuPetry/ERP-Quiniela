@@ -9,7 +9,8 @@ import {
   integerFieldError,
   masterFormFields,
   voucherNumberError,
-  compatibleCashReversal,
+  compatibleReversal,
+  isTreasuryVoucher,
 } from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
@@ -271,16 +272,25 @@ export function MasterForm({
             disabled ||
             (field.name === "ComprobanteReversion" &&
               (record.EsReversion === true ||
-                record.ModuloOrigen !== "COBROSPAGOS" ||
-                record.Naturaleza !== "CREDITO"))
+                (!(
+                  record.ModuloOrigen === "COBROSPAGOS" &&
+                  record.Naturaleza === "CREDITO"
+                ) &&
+                  !isTreasuryVoucher({
+                    ModuloOrigen: record.ModuloOrigen,
+                    Cuenta: record.Cuenta,
+                    Naturaleza: record.Naturaleza,
+                    SentidoFondos: record.SentidoFondos,
+                  }))))
           }
           optionFilter={
             field.name === "ComprobanteReversion"
               ? (option) =>
                   option.Codigo !== record.Codigo &&
                   !option.ComprobanteReversion &&
-                  compatibleCashReversal(
+                  compatibleReversal(
                     {
+                      ModuloOrigen: record.ModuloOrigen,
                       Cuenta: record.Cuenta,
                       SentidoFondos: record.SentidoFondos,
                     },

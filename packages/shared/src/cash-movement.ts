@@ -36,15 +36,15 @@ export interface CashInput {
   Valores: CashValue[];
 }
 export interface CashRecord {
-  Cuenta: string;
+  Cuenta: string | null;
   DisponibleACuenta: string;
   IDTabla: string;
   Comprobante: string;
   ComprobanteDescripcion: string;
   NumeroComprobante: string;
   NumeroComprobanteTexto: string;
-  Cliente: string;
-  ClienteNombre: string;
+  Cliente: string | null;
+  ClienteNombre: string | null;
   FechaOrigen: string;
   CajaSaldo: string;
   CajaNombre: string;
@@ -205,4 +205,15 @@ export interface CashReversalPreview {
   Comprobante: string;
   ComprobanteDescripcion: string;
   NumeroComprobante: string;
+}
+
+export type CashModule = "COBROSPAGOS" | "TESORERIA";
+export interface TreasuryInput {
+  Comprobante: string;
+  NumeroComprobante: string;
+  CajaSaldo: string;
+  Concepto: string;
+  FechaOrigen: string;
+  Importe: string;
+  Observacion: string | null;
 }

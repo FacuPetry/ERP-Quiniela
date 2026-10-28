@@ -19,9 +19,10 @@ interface AppOptions {
   masters?: MasterStore;
   currentAccount?: CurrentAccountStore;
   cashMovement?: CashMovementStore;
+  treasury?: CashMovementStore;
 }
 
-export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters, currentAccount, cashMovement }: AppOptions) {
+export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters, currentAccount, cashMovement, treasury }: AppOptions) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '64kb' }));
@@ -49,6 +50,10 @@ export function createApp({ checkDatabase, webDist, auth, secureCookie = false, 
   if (cashMovement) {
     if (!auth) throw new Error('Cobros y pagos requiere autenticación.');
     app.use('/api/caja-movimiento', cashMovementRouter(auth, cashMovement));
+  }
+  if (treasury) {
+    if (!auth) throw new Error('Tesorería requiere autenticación.');
+    app.use('/api/tesoreria', cashMovementRouter(auth, treasury, 'TESORERIA'));
   }
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'Recurso no encontrado.' } satisfies ApiError);

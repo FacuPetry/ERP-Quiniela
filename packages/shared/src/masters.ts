@@ -122,7 +122,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         label: "Exclusivo para reversiones",
         maxLength: 5,
         kind: "boolean",
-        hint: "Solo para comprobantes de Cobros y pagos que contrarrestan una operación anterior.",
+        hint: "Para comprobantes de Cobros y pagos o Tesorería que contrarrestan una operación anterior.",
       },
       {
         name: "ComprobanteReversion",

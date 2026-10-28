@@ -15,6 +15,7 @@ const app = createApp({
   masters: createMasterStore(pool),
   currentAccount: createCurrentAccountStore(pool),
   cashMovement: createCashMovementStore(pool),
+  treasury: createCashMovementStore(pool, "TESORERIA"),
   secureCookie: config.NODE_ENV === 'production',
   checkDatabase: async () => { await pool.query('SELECT 1'); },
   ...(config.NODE_ENV === 'production' ? { webDist: resolve(projectRoot, 'apps/web/dist') } : {}),

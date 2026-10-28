@@ -77,3 +77,45 @@ export function compatibleCashReversal(
           : "")
   );
 }
+
+/** Tesorería mueve efectivo sin deuda ni crédito de cliente. */
+export function isTreasuryVoucher(v: {
+  ModuloOrigen: unknown;
+  Cuenta: unknown;
+  Naturaleza: unknown;
+  SentidoFondos: unknown;
+}) {
+  return (
+    v.ModuloOrigen === "TESORERIA" &&
+    v.Cuenta === "NOAPLICA" &&
+    v.Naturaleza === "NOAPLICA" &&
+    (v.SentidoFondos === "INGRESO" || v.SentidoFondos === "EGRESO")
+  );
+}
+export function isReversalVoucher(
+  v: Parameters<typeof isCashReversalVoucher>[0],
+) {
+  return (
+    isCashReversalVoucher(v) || (v.EsReversion === true && isTreasuryVoucher(v))
+  );
+}
+export function compatibleReversal(
+  source: { ModuloOrigen: unknown; Cuenta: unknown; SentidoFondos: unknown },
+  target: Parameters<typeof isCashReversalVoucher>[0],
+) {
+  return (
+    source.ModuloOrigen === target.ModuloOrigen &&
+    (source.ModuloOrigen === "COBROSPAGOS"
+      ? compatibleCashReversal(source, target)
+      : source.ModuloOrigen === "TESORERIA" &&
+        source.Cuenta === "NOAPLICA" &&
+        target.EsReversion === true &&
+        isTreasuryVoucher(target) &&
+        target.SentidoFondos ===
+          (source.SentidoFondos === "INGRESO"
+            ? "EGRESO"
+            : source.SentidoFondos === "EGRESO"
+              ? "INGRESO"
+              : ""))
+  );
+}

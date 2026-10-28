@@ -34,7 +34,7 @@ export const modules: {
     icon: "wallet",
     description: "Cajas, aperturas, cierres y movimientos de fondos.",
     detail:
-      "La carga independiente de tesorería acompañará al registro integrado desde Cobros y pagos.",
+      "Ingresos y retiros de efectivo con caja abierta, conceptos y trazabilidad, sin afectar Cuenta corriente.",
   },
   {
     path: "/valores",
