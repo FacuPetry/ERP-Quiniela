@@ -26,6 +26,7 @@ NUMERACIONUSO es un registro técnico de emisiones, sin ABM: conserva Numerador 
 - Anular o revertir no libera números ni retrocede la secuencia.
 - Cambiar qué numerador utiliza un comprobante afecta las operaciones futuras; no traslada ni elimina sus consumos anteriores.
 - Un numerador utilizado se desactiva; no se elimina aunque ya no tenga comprobantes asociados.
+- Para eliminarlo, no debe tener comprobantes asociados ni emisiones en NUMERACIONUSO. El mensaje de eliminación distingue ambas dependencias. Caja es una referencia del numerador hacia el maestro y, por sí sola, no impide borrar un numerador sin uso. Las FK antiguas desde CUENTACORRIENTE/CAJAMOVIMIENTO se eliminaron en la migración 0002; el historial de consumos fue incorporado en la 0006 y es una dependencia vigente.
 - Al editar o reactivar un numerador, su Próximo número debe superar los consumidos en ese punto, incluyendo anulados, consumos de comprobantes antes asociados e historia de los actualmente asociados.
 - Asociar un comprobante con historia anterior requiere un próximo número seguro. Si debe ajustarse, se informa en el campo Numerador y no se cambia silenciosamente su configuración ni los movimientos. Crear GENERAL con un valor superior al máximo histórico es una forma de agrupar comprobantes anteriores.
 - Las emisiones manuales anteriores siguen protegidas por comprobante/número. Si ocupan valores de una secuencia asociada posteriormente, la asignación automática evita reutilizarlos.

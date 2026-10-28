@@ -388,11 +388,34 @@ export function createMasterStore(pool: Pool) {
             `UPDATE ${tableName(master)} SET ${fields.map((field) => "`" + field + "` = ?").join(", ")} WHERE \`${primaryKey(master)}\` = ?`,
             [...fields.map((field) => input[field] ?? null), code],
           );
-        } else if (action === "BAJA")
+        } else if (action === "BAJA") {
+          if (master.key === "numeraciones") {
+            // La fila del numerador ya está bloqueada. Desasociar comprobantes
+            // no elimina sus consumos ni habilita la reutilización de números.
+            const [uses] = await connection.execute<RowDataPacket[]>(
+              "SELECT u.IDTabla FROM NUMERACIONUSO u JOIN NUMERACION n ON n.IDTabla=u.Numerador WHERE n.Codigo=? LIMIT 1",
+              [code],
+            );
+            if (uses.length)
+              throw new MasterRequestError(
+                409,
+                "El numerador tiene números de comprobante ya emitidos y no puede eliminarse. Ese historial se conserva aunque ya no tenga comprobantes asociados. Podés desactivarlo desde Modificar.",
+              );
+            const [vouchers] = await connection.execute<RowDataPacket[]>(
+              "SELECT Codigo FROM COMPROBANTE WHERE Numerador=? LIMIT 1",
+              [code],
+            );
+            if (vouchers.length)
+              throw new MasterRequestError(
+                409,
+                "El numerador tiene comprobantes asociados y no puede eliminarse. Quitá esas asociaciones desde Comprobantes o desactivalo desde Modificar.",
+              );
+          }
           await connection.execute(
             `DELETE FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ?`,
             [code],
           );
+        }
         const after = input ? { ...input } : null;
         await connection.execute(
           "INSERT INTO AUDITORIA (Usuario, Accion, Tabla, Registro, Fecha, Detalle) VALUES (?, ?, ?, ?, ?, ?)",

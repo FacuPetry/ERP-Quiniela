@@ -127,6 +127,91 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
       ),
     );
   };
+  await t.test(
+    "solo Comprobantes y el historial de consumos referencian al Numerador; las operaciones no tienen FK directa",
+    async () => {
+      const dependencies = await rows(
+        "SELECT TABLE_NAME AS tabla,COLUMN_NAME AS columna,REFERENCED_COLUMN_NAME AS destino FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME='NUMERACION' ORDER BY TABLE_NAME,COLUMN_NAME",
+      );
+      assert.deepEqual(
+        dependencies.map((r) => ({ ...r })),
+        [
+          { tabla: "COMPROBANTE", columna: "Numerador", destino: "Codigo" },
+          { tabla: "NUMERACIONUSO", columna: "Numerador", destino: "IDTabla" },
+        ],
+      );
+    },
+  );
+  await t.test(
+    "un numerador sin consumos se elimina después de quitar sus comprobantes asociados",
+    async () => {
+      await good(
+        await master("numeraciones", {
+          Codigo: "NS_UNUSED",
+          ProximoNumero: "100000001",
+          Caja: "NS_A",
+          Activo: true,
+        }),
+        201,
+      );
+      await good(
+        await master("comprobantes", {
+          Codigo: "NS_UNUSED_C",
+          Descripcion: "Sin emisiones",
+          ModuloOrigen: "CUENTACORRIENTE",
+          Cuenta: "COBRAR",
+          Naturaleza: "DEUDA",
+          SentidoFondos: "NOAPLICA",
+          Numerador: "NS_UNUSED",
+          Activo: true,
+        }),
+        201,
+      );
+      const n = await readN("NS_UNUSED");
+      const linked = await req(
+        "maestros/numeraciones/NS_UNUSED",
+        "DELETE",
+        {},
+        n.version,
+      );
+      assert.equal(linked.status, 409);
+      assert.match(
+        ((await linked.json()) as { error: string }).error,
+        /tiene comprobantes asociados/,
+      );
+      const c = await good<MasterDetail>(
+        await req("maestros/comprobantes/NS_UNUSED_C"),
+      );
+      await good(
+        await req(
+          "maestros/comprobantes/NS_UNUSED_C",
+          "PUT",
+          { ...c.registro, Numerador: null },
+          c.version,
+        ),
+      );
+      const removed = await req(
+        "maestros/numeraciones/NS_UNUSED",
+        "DELETE",
+        {},
+        n.version,
+      );
+      assert.equal(removed.status, 204, await removed.text());
+      assert.equal((await req("maestros/numeraciones/NS_UNUSED")).status, 404);
+      assert.equal(
+        (await rows("SELECT Codigo FROM CAJA WHERE Codigo='NS_A'")).length,
+        1,
+      );
+      assert.equal(
+        (
+          await good<MasterDetail>(
+            await req("maestros/comprobantes/NS_UNUSED_C"),
+          )
+        ).registro.Numerador,
+        null,
+      );
+    },
+  );
   await good(
     await master("numeraciones", {
       Codigo: "NS_GENERAL",
@@ -625,10 +710,40 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
         ),
       );
       const n = await readN("NS_ARCH");
+      // Reproduce el rechazo real de la FK, incluso sin comprobantes asociados.
+      await assert.rejects(
+        pool.execute("DELETE FROM NUMERACION WHERE Codigo='NS_ARCH'"),
+        (error: unknown) => {
+          const failure = error as { code?: string; sqlMessage?: string };
+          return (
+            failure.code === "ER_ROW_IS_REFERENCED_2" &&
+            Boolean(
+              failure.sqlMessage?.includes(
+                "NUMERACIONUSO_Numerador_NUMERACION_IDTabla_fk",
+              ),
+            )
+          );
+        },
+      );
+      const blocked = await req(
+        "maestros/numeraciones/NS_ARCH",
+        "DELETE",
+        {},
+        n.version,
+      );
+      assert.equal(blocked.status, 409);
+      assert.match(
+        ((await blocked.json()) as { error: string }).error,
+        /números de comprobante ya emitidos/,
+      );
+      assert.deepEqual((await readN("NS_ARCH")).registro, n.registro);
       assert.equal(
-        (await req("maestros/numeraciones/NS_ARCH", "DELETE", {}, n.version))
-          .status,
-        409,
+        (
+          await rows(
+            "SELECT * FROM NUMERACIONUSO WHERE Comprobante='NS_ARCH_C'",
+          )
+        ).length,
+        1,
       );
       assert.equal(
         (
