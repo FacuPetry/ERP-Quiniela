@@ -56,3 +56,21 @@
     margin-left: auto;
   }
 }
+
+.account-general-grid > .base-field {
+  grid-column: 1;
+}
+.account-date-fields {
+  grid-column: 1;
+}
+.account-number-column {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 0;
+}
+@media (max-width: 600px) {
+  .account-number-column {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}

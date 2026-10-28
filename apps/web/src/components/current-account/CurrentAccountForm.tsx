@@ -303,33 +303,34 @@ export function CurrentAccountForm({
                         }
                       />
                     )}
-                    {previous && previous.NumeroComprobante === null ? (
-                      <TextBox
-                        label="Número de comprobante"
-                        size="md"
-                        value="Sin número"
-                        readOnly
-                        onValueChange={() => {}}
-                      />
-                    ) : (
-                      <NumeroComprobante
-                        {...presentation("NumeroComprobante")}
-                        label="Número de comprobante"
-                        size="md"
-                        value={input.NumeroComprobante}
-                        required={!previous}
-                        readOnly={Boolean(previous)}
-                        disabled={busy || loading}
-                        onValueChange={(value) =>
-                          change("NumeroComprobante", value)
-                        }
-                      />
-                    )}
+                    <div className="account-number-column">
+                      {previous && previous.NumeroComprobante === null ? (
+                        <TextBox
+                          label="Número de comprobante"
+                          size="md"
+                          value="Sin número"
+                          readOnly
+                          onValueChange={() => {}}
+                        />
+                      ) : (
+                        <NumeroComprobante
+                          {...presentation("NumeroComprobante")}
+                          label="Número de comprobante"
+                          size="md"
+                          value={input.NumeroComprobante}
+                          required={!previous}
+                          readOnly={Boolean(previous)}
+                          disabled={busy || loading}
+                          onValueChange={(value) =>
+                            change("NumeroComprobante", value)
+                          }
+                        />
+                      )}
+                    </div>
                     {previous ? (
                       <TextBox
                         label="Cliente"
                         size="lg"
-                        wide
                         value={`${previous.Cliente} - ${previous.ClienteNombre}`}
                         readOnly
                         onValueChange={() => {}}
@@ -339,7 +340,6 @@ export function CurrentAccountForm({
                         {...presentation("Cliente")}
                         label="Cliente"
                         size="lg"
-                        wide
                         required
                         value={client}
                         onChange={(value) => {
@@ -402,7 +402,6 @@ export function CurrentAccountForm({
                         label="Motivo de anulación"
                         value={previous.MotivoAnulacion}
                         size="xl"
-                        wide
                         readOnly
                         onValueChange={() => {}}
                       />

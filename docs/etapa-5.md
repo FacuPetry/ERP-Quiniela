@@ -127,3 +127,6 @@ Prueba manual: abrir un confirmado por doble clic, presionar Anular, cancelar y 
 
 
 Cuenta corriente utiliza el FormSections compartido con Caja movimiento: Datos generales contiene la cabecera, cliente, fechas, observaciones y estado; Importes conserva su control de importe y formato. La columna lateral, el comportamiento sticky y los enlaces de desplazamiento son comunes. Las fechas de grillas y consultas se presentan como dd/MM/yyyy sin modificar el valor ISO enviado a la API.
+
+
+La cabecera dispone comprobante, cliente, fechas y observaciones a la izquierda y conserva Número de comprobante a la derecha. FormSections resalta la sección visible por scroll y conserva su encabezado sticky. La propuesta de una lista de Conceptos queda pendiente de definición: existe el maestro CONCEPTO, pero CUENTACORRIENTE no almacena esa relación ni renglones de conceptos. No se agrega una tabla, FK, almacenamiento oculto en Observaciones ni una lista que simule persistencia hasta definir su finalidad y cardinalidad.
