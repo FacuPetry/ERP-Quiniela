@@ -193,9 +193,7 @@ export function AllocationPicker({
             label: "Comprobante",
             render: (r) => (
               <>
-                {r.ComprobanteDescripcion}
-                <br />
-                {r.NumeroComprobanteTexto}
+                {r.ComprobanteDescripcion} · {r.NumeroComprobanteTexto}
               </>
             ),
           },
