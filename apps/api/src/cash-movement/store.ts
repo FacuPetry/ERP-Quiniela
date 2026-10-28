@@ -1,3 +1,4 @@
+import { listOrder, type ListOrderQuery } from "../database/list-order.js";
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
@@ -267,7 +268,7 @@ export function createCashMovementStore(pool: Pool) {
         "SELECT Codigo,Descripcion FROM CONCEPTO WHERE Activo=1 ORDER BY Descripcion",
       );
       const [o] = await pool.query<RowDataPacket[]>(
-        "SELECT cs.*,ca.Nombre AS CajaNombre FROM CAJASALDO cs JOIN CAJA ca ON ca.Codigo=cs.Caja WHERE cs.Estado='ABIERTO' ORDER BY ca.Nombre",
+        "SELECT cs.*,ca.Nombre AS CajaNombre FROM CAJASALDO cs JOIN CAJA ca ON ca.Codigo=cs.Caja WHERE cs.Estado='ABIERTO' ORDER BY cs.IDTabla ASC",
       );
       const aperturas = [];
       for (const row of o)
@@ -286,6 +287,20 @@ export function createCashMovementStore(pool: Pool) {
       } as unknown as CashOptions;
     },
     async list(q: z.infer<typeof query>): Promise<CashList> {
+      const order = listOrder(
+        q,
+        {
+          FechaOrigen: "m.FechaOrigen",
+          Comprobante: "c.Descripcion",
+          NumeroComprobante: "m.NumeroComprobante",
+          Cliente: "cl.Nombre",
+          Sentido: "m.Sentido",
+          ImporteTotal: "m.ImporteTotal",
+          Estado:
+            "CASE WHEN rev.IDTabla IS NOT NULL THEN 'Revertido' WHEN m.CajaMovimientoOrigen IS NOT NULL THEN 'Reversión' ELSE 'Confirmado' END",
+        },
+        "m.IDTabla",
+      );
       const p: (string | number)[] = [],
         clauses: string[] = [];
       if (q.Estado === "REVERTIDO") clauses.push("rev.IDTabla IS NOT NULL");
@@ -318,7 +333,9 @@ export function createCashMovementStore(pool: Pool) {
             projection +
             joins +
             where +
-            " ORDER BY m.FechaOrigen DESC,m.IDTabla DESC LIMIT ? OFFSET ?",
+            " ORDER BY " +
+            order +
+            " LIMIT ? OFFSET ?",
           [...p, q.limite, (q.pagina - 1) * q.limite],
         );
         await c.commit();
@@ -340,6 +357,16 @@ export function createCashMovementStore(pool: Pool) {
       return detail(pool, id);
     },
     async pending(q: z.infer<typeof pendingQuery>): Promise<PendingList> {
+      const order = listOrder(
+        q,
+        {
+          Comprobante: "c.Descripcion",
+          FechaOrigen: "a.FechaOrigen",
+          Importe: "a.Importe",
+          Pendiente: "a.Importe-COALESCE(x.Aplicado,0)",
+        },
+        "a.IDTabla",
+      );
       const [v] = await pool.execute<RowDataPacket[]>(
         "SELECT c.Cuenta FROM COMPROBANTE c WHERE c.Codigo=? AND " + eligible,
         [q.Comprobante],
@@ -369,7 +396,9 @@ export function createCashMovementStore(pool: Pool) {
           "SELECT a.IDTabla,c.Descripcion AS ComprobanteDescripcion,a.NumeroComprobante,DATE_FORMAT(a.FechaOrigen,'%Y-%m-%d') AS FechaOrigen,DATE_FORMAT(a.Vencimiento,'%Y-%m-%d') AS Vencimiento,a.Importe,a.Importe-COALESCE(x.Aplicado,0) AS Pendiente" +
             from +
             filter +
-            " ORDER BY a.FechaOrigen,a.IDTabla LIMIT ? OFFSET ?",
+            " ORDER BY " +
+            order +
+            " LIMIT ? OFFSET ?",
           [...p, q.limite, (q.pagina - 1) * q.limite],
         );
         await c.commit();
@@ -400,7 +429,19 @@ export function createCashMovementStore(pool: Pool) {
       if (!rows[0]) fail("El cheque no existe.", 404);
       return stringify(rows[0]);
     },
-    async portfolio(q: { q: string; pagina: number; limite: number }) {
+    async portfolio(
+      q: { q: string; pagina: number; limite: number } & ListOrderQuery,
+    ) {
+      const order = listOrder(
+        q,
+        {
+          Numero: "CAST(ch.Numero AS DECIMAL(30,0))",
+          Banco: "b.Nombre",
+          Vencimiento: "ch.Vencimiento",
+          Importe: "ch.Importe",
+        },
+        "ch.IDTabla",
+      );
       const pattern = "%" + q.q.replace(/[!%_]/g, "!$&") + "%";
       const from =
         " FROM CHEQUE ch JOIN BANCO b ON b.Codigo=ch.Banco WHERE ch.Tipo='TERCERO' AND ch.Estado='CARTERA' AND (ch.Numero LIKE ? ESCAPE '!' OR b.Nombre LIKE ? ESCAPE '!' OR ch.Librador LIKE ? ESCAPE '!')";
@@ -411,7 +452,9 @@ export function createCashMovementStore(pool: Pool) {
       const [r] = await pool.execute<RowDataPacket[]>(
         "SELECT ch.*,b.Nombre AS BancoNombre,NULL AS CuentaNombre,DATE_FORMAT(ch.Emision,'%Y-%m-%d') AS Emision,DATE_FORMAT(ch.Vencimiento,'%Y-%m-%d') AS Vencimiento" +
           from +
-          " ORDER BY ch.Vencimiento,ch.IDTabla LIMIT ? OFFSET ?",
+          " ORDER BY " +
+          order +
+          " LIMIT ? OFFSET ?",
         [pattern, pattern, pattern, q.limite, (q.pagina - 1) * q.limite],
       );
       return {

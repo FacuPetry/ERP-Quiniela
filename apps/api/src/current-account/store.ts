@@ -1,3 +1,4 @@
+import { listOrder } from "../database/list-order.js";
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
@@ -89,6 +90,20 @@ export function createCurrentAccountStore(pool: Pool) {
       };
     },
     async list(query: AccountQuery): Promise<CurrentAccountList> {
+      const order = listOrder(
+        query,
+        {
+          FechaOrigen: "a.FechaOrigen",
+          Cliente: "cl.Nombre",
+          Comprobante: "c.Descripcion",
+          NumeroComprobante: "a.NumeroComprobante",
+          Cuenta: "a.Cuenta",
+          Naturaleza: "a.Naturaleza",
+          Importe: "a.Importe",
+          Estado: "a.Estado",
+        },
+        "a.IDTabla",
+      );
       const clauses: string[] = ["a.CajaMovimiento IS NULL"],
         params: (string | number)[] = [];
       for (const field of ["Cliente", "Comprobante", "Cuenta"] as const)
@@ -132,7 +147,9 @@ export function createCurrentAccountStore(pool: Pool) {
             projection +
             joins +
             where +
-            " ORDER BY a.FechaOrigen DESC, a.IDTabla DESC LIMIT ? OFFSET ?",
+            " ORDER BY " +
+            order +
+            " LIMIT ? OFFSET ?",
           [...params, query.limite, (query.pagina - 1) * query.limite],
         );
         let saldos: CurrentAccountList["saldos"] = null;

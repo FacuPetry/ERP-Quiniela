@@ -1,4 +1,11 @@
 import {
+  nextListSort,
+  sortListRows,
+  type ListSort,
+  type SortValue,
+  type SortType,
+} from "@erp/shared";
+import {
   useCallback,
   useId,
   useState,
@@ -20,6 +27,8 @@ export interface TableColumn<T> {
   key: string;
   label: string;
   render: (row: T) => ReactNode;
+  /** Cadena: clave remota de API (requiere onSortChange). Objeto: orden local sobre la colección completa. */
+  sort?: string | { value: (row: T) => SortValue; type?: SortType };
   /** Valor de consulta cuando la celda contiene un editor. */
   property?: (row: T) => ReactNode;
 }
@@ -90,6 +99,9 @@ export function DataTable<T>({
   rowKey,
   rowLabel = rowKey,
   loading,
+  sort = null,
+  onSortChange,
+  sortingDisabled = false,
   actions,
   bordered,
   properties = {},
@@ -110,6 +122,10 @@ export function DataTable<T>({
   /** Etiqueta legible de selección; la clave interna no necesita exponerse. */
   rowLabel?: (row: T) => string;
   loading: boolean;
+  /** Las listas paginadas deben ordenar en la API, nunca solo la página recibida. */
+  sort?: ListSort | null;
+  onSortChange?: (sort: ListSort | null) => void;
+  sortingDisabled?: boolean;
   actions?: (row: T) => ReactNode;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
   bordered?: boolean;
@@ -131,6 +147,30 @@ export function DataTable<T>({
   emptyMessage?: ReactNode;
 }) {
   const selectionGroup = useId();
+  const [localSort, setLocalSort] = useState<ListSort | null>(null);
+  const currentSort = onSortChange ? sort : localSort;
+  const localColumn = columns.find(
+    (column) => column.key === currentSort?.campo,
+  )?.sort;
+  const displayedRows = onSortChange
+    ? rows
+    : sortListRows(
+        rows,
+        localSort,
+        typeof localColumn === "object" ? localColumn : undefined,
+      );
+  const sortKey = (column: TableColumn<T>) =>
+    typeof column.sort === "string" ? column.sort : column.key;
+  const sortable = (column: TableColumn<T>) =>
+    Boolean(column.sort) &&
+    (onSortChange
+      ? typeof column.sort === "string"
+      : typeof column.sort === "object");
+  function changeSort(column: TableColumn<T>) {
+    const next = nextListSort(currentSort, sortKey(column));
+    if (onSortChange) onSortChange(next);
+    else setLocalSort(next);
+  }
   const [localKey, setLocalKey] = useState<string | null>(null);
   const [localKeys, setLocalKeys] = useState<string[]>([]);
   const [focusedKey, setFocusedKey] = useState<string | null>(null);
@@ -199,8 +239,44 @@ export function DataTable<T>({
                 </th>
               )}
               {columns.map((column) => (
-                <th key={column.key} scope="col">
-                  {column.label}
+                <th
+                  key={column.key}
+                  scope="col"
+                  aria-sort={
+                    sortable(column)
+                      ? currentSort?.campo === sortKey(column)
+                        ? currentSort.direccion === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                      : undefined
+                  }
+                >
+                  {sortable(column) ? (
+                    <button
+                      type="button"
+                      className="table-sort-button"
+                      disabled={loading || selectionDisabled || sortingDisabled}
+                      title={(() => {
+                        const next = nextListSort(currentSort, sortKey(column));
+                        return next
+                          ? `Ordenar ${column.label}: ${next.direccion === "desc" ? "mayor a menor" : "menor a mayor"}`
+                          : "Restablecer orden predeterminado";
+                      })()}
+                      onClick={() => changeSort(column)}
+                    >
+                      {column.label}
+                      <span aria-hidden="true" className="table-sort-arrow">
+                        {currentSort?.campo === sortKey(column)
+                          ? currentSort.direccion === "asc"
+                            ? "↑"
+                            : "↓"
+                          : ""}
+                      </span>
+                    </button>
+                  ) : (
+                    column.label
+                  )}
                 </th>
               ))}
               {actions && (
@@ -212,7 +288,7 @@ export function DataTable<T>({
           </thead>
           <tbody>
             {rows.length ? (
-              rows.map((row) => (
+              displayedRows.map((row) => (
                 <tr
                   key={rowKey(row)}
                   onFocusCapture={() => setFocusedKey(rowKey(row))}

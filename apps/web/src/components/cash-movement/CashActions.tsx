@@ -183,19 +183,27 @@ export function CashBoxes({
             rowLabel={(o) => o.CajaNombre}
             onRowActivate={(o) => setHighlighted(o.IDTabla)}
             columns={[
-              { key: "box", label: "Caja", render: (r) => r.CajaNombre },
+              {
+                key: "box",
+                sort: { value: (r) => r.CajaNombre, type: "text" },
+                label: "Caja",
+                render: (r) => r.CajaNombre,
+              },
               {
                 key: "date",
+                sort: { value: (r) => r.AperturaEn, type: "date" },
                 label: "Apertura",
                 render: (r) => displayDate(r.AperturaEn),
               },
               {
                 key: "initial",
+                sort: { value: (r) => r.SaldoInicial, type: "number" },
                 label: "Inicial",
                 render: (r) => amount(r.SaldoInicial),
               },
               {
                 key: "actual",
+                sort: { value: (r) => r.SaldoActual, type: "number" },
                 label: "Efectivo actual",
                 render: (r) => amount(r.SaldoActual),
               },

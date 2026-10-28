@@ -1,3 +1,4 @@
+import { type ListSort } from "@erp/shared";
 import { useEffect, useRef, useState } from "react";
 import { Field, type FieldProps } from "./Field";
 import { Modal } from "../ui/Modal";
@@ -30,6 +31,7 @@ export function SearchField<T>({
     query: string,
     page: number,
     signal: AbortSignal,
+    sort?: ListSort | null,
   ) => Promise<SearchResult<T>>;
   getCode: (record: T) => string;
   getDescription: (record: T) => string;
@@ -38,6 +40,7 @@ export function SearchField<T>({
   disabled?: boolean;
   placeholder?: string;
 }) {
+  const [sort, setSort] = useState<ListSort | null>(null);
   const [query, setQuery] = useState(() => (value ? getCode(value) : ""));
   const [result, setResult] = useState<SearchResult<T> | null>(null);
   const [selected, setSelected] = useState<T | null>(null);
@@ -100,7 +103,7 @@ export function SearchField<T>({
     onValueChange(null);
     requestAnimationFrame(() => input.current?.focus());
   }
-  async function find(page = 1) {
+  async function find(page = 1, order = sort) {
     if (disabled) return;
     request.current?.abort();
     const controller = new AbortController();
@@ -111,7 +114,7 @@ export function SearchField<T>({
     setMessage("");
     setSelected(null);
     try {
-      const data = await search(query.trim(), page, controller.signal);
+      const data = await search(query.trim(), page, controller.signal, order);
       if (controller.signal.aborted) return;
       setResult(data);
       setNotFound(data.total === 0);
@@ -236,6 +239,11 @@ export function SearchField<T>({
               </p>
             )}
             <DataTable
+              sort={sort}
+              onSortChange={(next) => {
+                setSort(next);
+                void find(1, next);
+              }}
               caption={`Resultados de ${title}`}
               rows={result?.registros ?? []}
               columns={columns}

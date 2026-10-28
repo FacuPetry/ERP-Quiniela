@@ -1,3 +1,4 @@
+import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -56,6 +57,7 @@ export function CurrentAccountPage({
     [annulling, setAnnulling] = useState<CurrentAccountDetail | null>(null),
     [filtering, setFiltering] = useState(false);
   const [propertiesKey, setPropertiesKey] = useState<string | null>(null);
+  const sorting = useListSorting(setPage);
   const handler = useRef(onExpired),
     mounted = useRef(true),
     opening = useRef(false),
@@ -81,9 +83,11 @@ export function CurrentAccountPage({
     setLoading(true);
     setError("");
     const query = Object.fromEntries(
-      Object.entries({ ...filters, pagina: String(page) }).filter(
-        ([, value]) => value,
-      ),
+      Object.entries({
+        ...filters,
+        ...sorting.query,
+        pagina: String(page),
+      }).filter(([, value]) => value),
     );
     void accountList(query, request.signal)
       .then((result) => {
@@ -111,7 +115,7 @@ export function CurrentAccountPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [requested, filters, page, revision, expired]);
+  }, [requested, filters, page, revision, expired, sorting.value]);
   function refresh() {
     setRequested(true);
     setLoading(true);
@@ -153,29 +157,49 @@ export function CurrentAccountPage({
   const columns: TableColumn<CurrentAccountRecord>[] = [
     {
       key: "FechaOrigen",
+      sort: "FechaOrigen",
       label: "Fecha",
       render: (r) => displayDate(r.FechaOrigen),
     },
-    { key: "Cliente", label: "Cliente", render: (r) => r.ClienteNombre },
+    {
+      key: "Cliente",
+      sort: "Cliente",
+      label: "Cliente",
+      render: (r) => r.ClienteNombre,
+    },
     {
       key: "Comprobante",
+      sort: "Comprobante",
       label: "Comprobante",
       render: (r) => r.ComprobanteDescripcion,
     },
-    { key: "Numero", label: "Número", render: (r) => r.NumeroComprobanteTexto },
+    {
+      key: "Numero",
+      sort: "NumeroComprobante",
+      label: "Número",
+      render: (r) => r.NumeroComprobanteTexto,
+    },
     {
       key: "Cuenta",
+      sort: "Cuenta",
       label: "Cuenta",
       render: (r) => (r.Cuenta === "COBRAR" ? "Cobrar" : "Pagar"),
     },
     {
       key: "Naturaleza",
+      sort: "Naturaleza",
       label: "Naturaleza",
       render: (r) => (r.Naturaleza === "DEUDA" ? "Deuda" : "Crédito"),
     },
-    { key: "Importe", label: "Importe", render: (r) => amount(r.Importe) },
+    {
+      key: "Importe",
+      sort: "Importe",
+      label: "Importe",
+      render: (r) => amount(r.Importe),
+    },
     {
       key: "Estado",
+      sort: "Estado",
       label: "Estado",
       render: (r) => (
         <span
@@ -268,6 +292,9 @@ export function CurrentAccountPage({
         )}
         <DataTable
           properties={false}
+          sort={sorting.value}
+          onSortChange={sorting.onChange}
+          sortingDisabled={!requested}
           caption="Movimientos de cuenta corriente"
           columns={columns}
           rows={error ? [] : (data?.registros ?? [])}

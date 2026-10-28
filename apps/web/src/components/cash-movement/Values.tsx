@@ -1,3 +1,4 @@
+import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useEffect, useState } from "react";
 import {
@@ -271,11 +272,15 @@ export function PortfolioPicker({
     [revision, setRevision] = useState(0),
     [loading, setLoading] = useState(true),
     [error, setError] = useState("");
+  const sorting = useListSorting(setPage);
   useEffect(() => {
     const request = new AbortController();
     setLoading(true);
     setError("");
-    void portfolio({ q: search, pagina: String(page) }, request.signal)
+    void portfolio(
+      { ...sorting.query, q: search, pagina: String(page) },
+      request.signal,
+    )
       .then((d) => {
         if (!request.signal.aborted) {
           setRows(d.registros);
@@ -291,7 +296,7 @@ export function PortfolioPicker({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [search, page, revision, onExpired]);
+  }, [search, page, revision, onExpired, sorting.value]);
   function choose(keys: string[]) {
     setSelected((old) => {
       const next = Object.fromEntries(
@@ -353,6 +358,8 @@ export function PortfolioPicker({
         </p>
       )}
       <DataTable
+        sort={sorting.value}
+        onSortChange={sorting.onChange}
         properties={{
           fields: [
             {
@@ -393,14 +400,30 @@ export function PortfolioPicker({
         selectedKeys={Object.keys(selected)}
         onMultipleSelectionChange={choose}
         columns={[
-          { key: "number", label: "Cheque", render: (r) => r.Numero },
-          { key: "bank", label: "Banco", render: (r) => r.BancoNombre },
+          {
+            key: "number",
+            sort: "Numero",
+            label: "Cheque",
+            render: (r) => r.Numero,
+          },
+          {
+            key: "bank",
+            sort: "Banco",
+            label: "Banco",
+            render: (r) => r.BancoNombre,
+          },
           {
             key: "date",
+            sort: "Vencimiento",
             label: "Vencimiento",
             render: (r) => displayDate(r.Vencimiento),
           },
-          { key: "amount", label: "Importe", render: (r) => amount(r.Importe) },
+          {
+            key: "amount",
+            sort: "Importe",
+            label: "Importe",
+            render: (r) => amount(r.Importe),
+          },
         ]}
       />
       <Pagination

@@ -1,3 +1,4 @@
+import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
@@ -150,6 +151,7 @@ export function CashPage({
     [managingBoxes, setManagingBoxes] = useState(false),
     [reverse, setReverse] = useState<CashDetail | null>(null),
     [property, setProperty] = useState<string | null>(null);
+  const sorting = useListSorting(setPage);
   const handler = useRef(onExpired),
     mounted = useRef(true),
     opening = useRef(false);
@@ -170,9 +172,11 @@ export function CashPage({
     setError("");
     void cashList(
       Object.fromEntries(
-        Object.entries({ ...filters, pagina: String(page) }).filter(
-          ([, v]) => v,
-        ),
+        Object.entries({
+          ...filters,
+          ...sorting.query,
+          pagina: String(page),
+        }).filter(([, v]) => v),
       ),
       request.signal,
     )
@@ -197,7 +201,7 @@ export function CashPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [requested, filters, page, revision, expired]);
+  }, [requested, filters, page, revision, expired, sorting.value]);
   function refresh() {
     setRequested(true);
     setRevision((n) => n + 1);
@@ -324,6 +328,9 @@ export function CashPage({
         )}
         <DataTable
           properties={false}
+          sort={sorting.value}
+          onSortChange={sorting.onChange}
+          sortingDisabled={!requested}
           caption="Cobros y pagos"
           rows={error ? [] : (data?.registros ?? [])}
           rowKey={(r) => r.IDTabla}
@@ -338,32 +345,43 @@ export function CashPage({
           columns={[
             {
               key: "date",
+              sort: "FechaOrigen",
               label: "Fecha",
               render: (r) => displayDate(r.FechaOrigen),
             },
             {
               key: "voucher",
+              sort: "Comprobante",
               label: "Comprobante",
               render: (r) => r.ComprobanteDescripcion,
             },
             {
               key: "number",
+              sort: "NumeroComprobante",
               label: "Número",
               render: (r) => r.NumeroComprobanteTexto,
             },
-            { key: "client", label: "Cliente", render: (r) => r.ClienteNombre },
+            {
+              key: "client",
+              sort: "Cliente",
+              label: "Cliente",
+              render: (r) => r.ClienteNombre,
+            },
             {
               key: "sense",
+              sort: "Sentido",
               label: "Operación",
               render: (r) => (r.Sentido === "INGRESO" ? "Ingreso" : "Egreso"),
             },
             {
               key: "amount",
+              sort: "ImporteTotal",
               label: "Total",
               render: (r) => amount(r.ImporteTotal),
             },
             {
               key: "state",
+              sort: "Estado",
               label: "Estado",
               render: (r) =>
                 r.Estado === "REVERTIDO"

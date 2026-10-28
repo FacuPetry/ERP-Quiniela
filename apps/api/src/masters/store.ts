@@ -1,7 +1,9 @@
+import { listOrder, optionOrder } from "../database/list-order.js";
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
   masterDefinitions,
+  masterListColumns,
   voucherParts,
   masterRecordKey,
   type MasterDefinition,
@@ -112,6 +114,24 @@ export function createMasterStore(pool: Pool) {
           },
         ];
       });
+      const orderFields: Record<string, string> = {
+        Activo: "principal.Activo",
+      };
+      for (const name of masterListColumns(master)) {
+        const field = master.fields.find((f) => f.name === name)!;
+        const reference = relations.find((r) => r.field.name === name);
+        const column = "principal.`" + name + "`";
+        orderFields[name] = reference
+          ? `COALESCE(${reference.alias}.\`${reference.label.name}\`, ${column})`
+          : field.options
+            ? optionOrder(column, field.options)
+            : column;
+      }
+      const order = listOrder(
+        query,
+        orderFields,
+        `principal.\`${primaryKey(master)}\``,
+      );
       const clauses: string[] = [];
       const params: (string | number)[] = [];
       if (query.estado !== "todos") {
@@ -166,7 +186,7 @@ export function createMasterStore(pool: Pool) {
         )
         .join("");
       const [rows] = await pool.execute<RowDataPacket[]>(
-        `SELECT ${[projection(master, "principal."), ...labels].join(", ")} FROM ${tableName(master)} AS principal${joins}${where} ORDER BY principal.\`${primaryKey(master)}\` LIMIT ? OFFSET ?`,
+        `SELECT ${[projection(master, "principal."), ...labels].join(", ")} FROM ${tableName(master)} AS principal${joins}${where} ORDER BY ${order} LIMIT ? OFFSET ?`,
         [...params, query.limite, (query.pagina - 1) * query.limite],
       );
       const descriptions = new Map(

@@ -1,3 +1,4 @@
+import { listOrderFields } from "../database/list-order-validation.js";
 import { z } from "zod";
 import {
   integerFieldError,
@@ -95,6 +96,7 @@ export function recordSchema(master: MasterDefinition, creation = false) {
 
 export const listQuery = z
   .object({
+    ...listOrderFields,
     q: z.string().trim().max(100).default(""),
     estado: z.enum(["todos", "activo", "inactivo"]).default("todos"),
     pagina: z.coerce.number().int().min(1).max(100000).default(1),

@@ -1,3 +1,4 @@
+import { listOrderFields } from "../database/list-order-validation.js";
 import { z } from "zod";
 import { voucherNumberError } from "@erp/shared";
 const date = z
@@ -62,6 +63,7 @@ export const cancellation = z
   .strict();
 export const querySchema = z
   .object({
+    ...listOrderFields,
     q: z.string().trim().max(100).default(""),
     Cliente: z.string().trim().max(20).optional(),
     Comprobante: z.string().trim().max(20).optional(),

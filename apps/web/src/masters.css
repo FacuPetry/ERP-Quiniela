@@ -636,3 +636,23 @@
 .table-properties-toolbar { display: flex; justify-content: flex-end; margin: 0 0 12px; }
 
 .table-property-value { border: 0; margin: 0; padding: 0; min-width: 0; }
+
+/* Encabezados de orden sin alterar el tamaño ni el contraste de la grilla. */
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.table-sort-button:hover:not(:disabled) { color: #365e3e; }
+.table-sort-button:focus-visible { outline: 2px solid rgb(54 94 62 / 45%); outline-offset: 3px; }
+.table-sort-button:disabled { cursor: default; }
+.table-sort-arrow { display: inline-block; width: 0.7em; color: #365e3e; }

@@ -590,21 +590,32 @@ export function CashForm({
                       columns={[
                         {
                           key: "voucher",
+                          sort: {
+                            value: (a) => a.ComprobanteDescripcion,
+                            type: "text",
+                          },
                           label: "Comprobante",
                           render: (a) => a.ComprobanteDescripcion,
                         },
                         {
                           key: "number",
+                          sort: {
+                            value: (a) =>
+                              a.NumeroComprobanteTexto.replace("-", ""),
+                            type: "number",
+                          },
                           label: "Número de comprobante",
                           render: (a) => a.NumeroComprobanteTexto,
                         },
                         {
                           key: "date",
+                          sort: { value: (a) => a.FechaOrigen, type: "date" },
                           label: "Fecha",
                           render: (a) => displayDate(a.FechaOrigen),
                         },
                         {
                           key: "amount",
+                          sort: { value: (a) => a.Importe, type: "number" },
                           label: "Importe afectado",
                           render: (a) => amount(a.Importe),
                         },
@@ -771,6 +782,15 @@ export function CashForm({
                       columns={[
                         {
                           key: "type",
+                          sort: {
+                            value: (v) =>
+                              v.type === "TRANSFERENCIA"
+                                ? "Transferencia"
+                                : v.type === "PROPIO"
+                                  ? "Cheque propio"
+                                  : "Cheque de terceros",
+                            type: "text",
+                          },
                           label: "Tipo",
                           render: (v) =>
                             v.type === "TRANSFERENCIA"
@@ -781,16 +801,19 @@ export function CashForm({
                         },
                         {
                           key: "bank",
+                          sort: { value: (v) => v.bank, type: "text" },
                           label: "Banco / Cuenta",
                           render: (v) => v.bank,
                         },
                         {
                           key: "number",
+                          sort: { value: (v) => v.number, type: "text" },
                           label: "Número / Referencia",
                           render: (v) => v.number || "—",
                         },
                         {
                           key: "amount",
+                          sort: { value: (v) => v.amount, type: "number" },
                           label: "Importe",
                           render: (v) => amount(v.amount),
                         },
