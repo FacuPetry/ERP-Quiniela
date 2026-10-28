@@ -66,6 +66,15 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
   await pool.query(
     "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('CM_C',100000001),('CM_P',100000001),('CM_RC',100000001),('CM_RP',100000001)",
   );
+  await pool.query(
+    "UPDATE COMPROBANTE SET EsReversion=1 WHERE Codigo IN ('CM_RC','CM_RP')",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE SET ComprobanteReversion='CM_RC' WHERE Codigo='CM_C'",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE SET ComprobanteReversion='CM_RP' WHERE Codigo='CM_P'",
+  );
   const server = createApp({
     checkDatabase: async () => {},
     auth: createAuthService(createAuthStore(pool)),
@@ -756,8 +765,6 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
           "/" + original.registro.IDTabla + "/revertir",
           "POST",
           {
-            Comprobante: "CM_RC",
-            NumeroComprobante: (number++).toString(),
             CajaSaldo: box,
             Motivo: "Corrección posterior al cierre",
           },
@@ -815,8 +822,6 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
             "/" + original.registro.IDTabla + "/revertir",
             "POST",
             {
-              Comprobante: "CM_RC",
-              NumeroComprobante: (number++).toString(),
               CajaSaldo: box,
               Motivo: "Duplicada",
             },
@@ -832,8 +837,6 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
             "/" + first.registro.IDTabla + "/revertir",
             "POST",
             {
-              Comprobante: "CM_RC",
-              NumeroComprobante: (number++).toString(),
               CajaSaldo: box,
               Motivo: "Cheque utilizado",
             },
@@ -853,8 +856,6 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
           "/" + ownPayment.registro.IDTabla + "/revertir",
           "POST",
           {
-            Comprobante: "CM_RP",
-            NumeroComprobante: (number++).toString(),
             CajaSaldo: box,
             Motivo: "Cheque no entregado",
           },

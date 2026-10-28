@@ -24,7 +24,14 @@ export interface MasterField {
   label: string;
   maxLength: number;
   required?: boolean;
-  kind?: "email" | "textarea" | "relation" | "select" | "integer" | "voucher";
+  kind?:
+    | "email"
+    | "textarea"
+    | "relation"
+    | "select"
+    | "integer"
+    | "voucher"
+    | "boolean";
   options?: readonly { value: string; label: string }[];
   minimum?: string;
   maximum?: string;
@@ -109,6 +116,22 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 20,
         kind: "select",
         options: sentidosFondosComprobante,
+      },
+      {
+        name: "EsReversion",
+        label: "Exclusivo para reversiones",
+        maxLength: 5,
+        kind: "boolean",
+        hint: "Solo para comprobantes de Cobros y pagos que contrarrestan una operación anterior.",
+      },
+      {
+        name: "ComprobanteReversion",
+        label: "Comprobante de reversión",
+        maxLength: 20,
+        kind: "relation",
+        relation: "comprobantes",
+        relationLabelField: "Descripcion",
+        hint: "Opcional para operar normalmente. Para revertir, debe tener un Numerador activo.",
       },
       {
         name: "Orden",

@@ -4,6 +4,9 @@ import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
   formatVoucher,
+  compatibleCashReversal,
+  voucherNumberError,
+  type CashReversalPreview,
   moneyUnits,
   moneyText,
   nextVoucher,
@@ -33,7 +36,7 @@ import {
 import type { z } from "zod";
 type Conn = Pool | PoolConnection;
 const eligible =
-  "c.Activo=1 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='CREDITO' AND ((c.Cuenta='COBRAR' AND c.SentidoFondos='INGRESO') OR (c.Cuenta='PAGAR' AND c.SentidoFondos='EGRESO'))";
+  "c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='CREDITO' AND ((c.Cuenta='COBRAR' AND c.SentidoFondos='INGRESO') OR (c.Cuenta='PAGAR' AND c.SentidoFondos='EGRESO'))";
 const joins =
   " FROM CAJAMOVIMIENTO m LEFT JOIN USUARIO u ON u.IDTabla=m.Usuario LEFT JOIN USUARIO ua ON ua.IDTabla=m.UsuarioAnulacion JOIN COMPROBANTE c ON c.Codigo=m.Comprobante LEFT JOIN CLIENTE cl ON cl.Codigo=m.Cliente LEFT JOIN CAJASALDO cs ON cs.IDTabla=m.CajaSaldo LEFT JOIN CAJA ca ON ca.Codigo=cs.Caja LEFT JOIN CONCEPTO co ON co.Codigo=m.Concepto LEFT JOIN CAJAMOVIMIENTO rev ON rev.CajaMovimientoOrigen=m.IDTabla";
 const projection =
@@ -265,6 +268,64 @@ async function account(c: PoolConnection, code: string) {
   if (!r[0]) fail("Seleccioná una cuenta bancaria activa.", 400);
   return r[0];
 }
+/** La asociación se vuelve a comprobar bajo bloqueo antes de confirmar. */
+async function reversalSetup(c: Conn, id: string) {
+  const [rows] = await c.execute<RowDataPacket[]>(
+    "SELECT v.ComprobanteReversion FROM CAJAMOVIMIENTO m JOIN COMPROBANTE v ON v.Codigo=m.Comprobante WHERE m.IDTabla=?",
+    [id],
+  );
+  if (!rows[0]) fail("El movimiento no existe.", 404);
+  if (!rows[0].ComprobanteReversion)
+    fail(
+      "Configurá el comprobante de reversión asociado al comprobante original.",
+    );
+  return String(rows[0].ComprobanteReversion);
+}
+async function reversalVoucher(
+  c: Conn,
+  original: CashRecord,
+  code: string,
+  lock = false,
+) {
+  const [source] = await c.execute<RowDataPacket[]>(
+    "SELECT ComprobanteReversion FROM COMPROBANTE WHERE Codigo=?" +
+      (lock ? " LOCK IN SHARE MODE" : ""),
+    [original.Comprobante],
+  );
+  if (source[0]?.ComprobanteReversion !== code)
+    fail("La configuración de reversión cambió. Volvé a abrir la operación.");
+  const [rows] = await c.execute<RowDataPacket[]>(
+    "SELECT * FROM COMPROBANTE WHERE Codigo=?" +
+      (lock ? " LOCK IN SHARE MODE" : ""),
+    [code],
+  );
+  const target = rows[0];
+  if (
+    !target ||
+    !target.Activo ||
+    target.ComprobanteReversion ||
+    !compatibleCashReversal(
+      { Cuenta: original.Cuenta, SentidoFondos: original.Sentido },
+      {
+        ModuloOrigen: target.ModuloOrigen,
+        Cuenta: target.Cuenta,
+        Naturaleza: target.Naturaleza,
+        SentidoFondos: target.SentidoFondos,
+        EsReversion: Boolean(target.EsReversion),
+      },
+    )
+  )
+    fail(
+      "El comprobante asociado debe estar activo, ser exclusivo para reversiones, tener naturaleza Deuda, la misma cuenta histórica y sentido de fondos contrario.",
+    );
+  return target;
+}
+function checkReversalNumerator(n: RowDataPacket | undefined) {
+  if (!n?.Activo || voucherNumberError(String(n.ProximoNumero)))
+    fail(
+      "Configurá un Numerador activo con un próximo número válido para el comprobante de reversión.",
+    );
+}
 export function createCashMovementStore(pool: Pool) {
   const tx = financialTransactions(pool, true);
   return {
@@ -279,7 +340,7 @@ export function createCashMovementStore(pool: Pool) {
     },
     async options(): Promise<CashOptions> {
       const [v] = await pool.query<RowDataPacket[]>(
-        "SELECT c.Codigo,c.Descripcion,c.Cuenta,c.Naturaleza,c.SentidoFondos FROM COMPROBANTE c WHERE c.Activo=1 AND c.ModuloOrigen='COBROSPAGOS' ORDER BY c.Orden,c.Codigo",
+        "SELECT c.Codigo,c.Descripcion,c.Cuenta,c.Naturaleza,c.SentidoFondos FROM COMPROBANTE c WHERE c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen='COBROSPAGOS' ORDER BY c.Orden,c.Codigo",
       );
       const [n] = await pool.query<RowDataPacket[]>(
         "SELECT Comprobante,ProximoNumero FROM NUMERACION WHERE Activo=1",
@@ -1025,6 +1086,30 @@ export function createCashMovementStore(pool: Pool) {
         },
       );
     },
+    async reversalPreview(id: string): Promise<CashReversalPreview> {
+      validId(id);
+      const original = (await detail(pool, id)).registro;
+      if (
+        original.Estado !== "CONFIRMADO" ||
+        original.CajaMovimientoOrigen ||
+        original.JornadaEstado !== "CERRADO"
+      )
+        fail(
+          "Solo se pueden revertir movimientos vigentes de una jornada cerrada.",
+        );
+      const code = await reversalSetup(pool, id);
+      const voucher = await reversalVoucher(pool, original, code);
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        "SELECT * FROM NUMERACION WHERE Comprobante=?",
+        [code],
+      );
+      checkReversalNumerator(rows[0]);
+      return {
+        Comprobante: code,
+        ComprobanteDescripcion: String(voucher.Descripcion),
+        NumeroComprobante: String(rows[0]!.ProximoNumero),
+      };
+    },
     async reverse(
       id: string,
       input: z.infer<typeof reversal>,
@@ -1033,14 +1118,24 @@ export function createCashMovementStore(pool: Pool) {
       key: string,
     ) {
       validId(id);
-      const code = await canonical(pool, input.Comprobante);
       return tx(
         user,
         "CAJA_REVERSAR",
         key,
         { id, ...input, version },
         async (c) => {
-          const n = await numberStart(c, code, input.NumeroComprobante);
+          const code = await reversalSetup(c, id);
+          // El Numerador es obligatorio: su fila bloqueada serializa la asignación,
+          // incluso entre distintos originales. Los reintentos se resuelven antes
+          // de consultar configuración mutable, sin consumir otro número.
+          const [numerators] = await c.execute<RowDataPacket[]>(
+            "SELECT * FROM NUMERACION WHERE Comprobante=? FOR UPDATE",
+            [code],
+          );
+          const n = numerators[0];
+          checkReversalNumerator(n);
+          const number = String(n!.ProximoNumero);
+          await numberStart(c, code, number);
           const box = await opening(c, input.CajaSaldo);
           const [locked] = await c.execute<RowDataPacket[]>(
             "SELECT m.* FROM CAJAMOVIMIENTO m WHERE m.IDTabla=? FOR UPDATE",
@@ -1065,15 +1160,7 @@ export function createCashMovementStore(pool: Pool) {
               "La jornada original debe estar cerrada para revertir. Si continúa abierta, seleccioná esa jornada y utilizá Anular.",
             );
           const sense = r.Sentido === "INGRESO" ? "EGRESO" : "INGRESO";
-          const [v] = await c.execute<RowDataPacket[]>(
-            "SELECT c.* FROM COMPROBANTE c WHERE c.Codigo=? AND c.Activo=1 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='DEUDA' AND c.Cuenta=? AND c.SentidoFondos=? LOCK IN SHARE MODE",
-            [code, r.Cuenta, sense],
-          );
-          if (!v[0])
-            fail(
-              "Configurá un comprobante de reversión con la misma cuenta, naturaleza Deuda y sentido contrario.",
-              400,
-            );
+          await reversalVoucher(c, r, code, true);
           const [credits] = await c.execute<RowDataPacket[]>(
             "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=? FOR UPDATE",
             [id],
@@ -1123,7 +1210,7 @@ export function createCashMovementStore(pool: Pool) {
             [
               id,
               code,
-              input.NumeroComprobante,
+              number,
               r.Cliente,
               date,
               input.CajaSaldo,
@@ -1143,7 +1230,7 @@ export function createCashMovementStore(pool: Pool) {
               r.Cliente,
               code,
               reverseId,
-              input.NumeroComprobante,
+              number,
               date,
               r.Cuenta,
               r.ImporteTotal,
@@ -1215,7 +1302,7 @@ export function createCashMovementStore(pool: Pool) {
               input.Motivo,
             );
           }
-          await numberFinish(c, code, input.NumeroComprobante, n);
+          await numberFinish(c, code, number, n);
           await audit(
             c,
             user,
@@ -1235,7 +1322,6 @@ export function createCashMovementStore(pool: Pool) {
           );
           return detail(c, reverseId);
         },
-        JSON.stringify([code, voucherParts(input.NumeroComprobante).point]),
       );
     },
   };

@@ -24,6 +24,7 @@ export interface DropDownProps extends FieldProps {
   placeholder?: string;
   disabled?: boolean;
   loading?: boolean;
+  readOnly?: boolean;
   name?: string;
 }
 
@@ -56,6 +57,7 @@ function Selection({
   placeholder = "Seleccioná una opción",
   disabled = false,
   loading = false,
+  readOnly = false,
   required,
   name,
 }: Omit<DropDownProps, keyof FieldProps> & {
@@ -69,7 +71,7 @@ function Selection({
   const [active, setActive] = useState(-1);
   const [position, setPosition] = useState<CSSProperties>({});
   const visible = options.filter((option) => !option.hidden);
-  const unavailable = disabled || loading;
+  const unavailable = disabled || loading || readOnly;
   const expanded = open && !unavailable;
   const listId = `${binding.id}-options`;
   const optionId = (index: number) => `${binding.id}-option-${index}`;
@@ -242,7 +244,8 @@ function Selection({
         }
         aria-required={required}
         aria-busy={loading}
-        disabled={unavailable}
+        aria-readonly={readOnly}
+        disabled={disabled || loading}
         onClick={() => (expanded ? setOpen(false) : show())}
         onKeyDown={keyDown}
         onBlur={(event) => {
@@ -267,7 +270,12 @@ function Selection({
         </svg>
       </button>
       {name && (
-        <input type="hidden" name={name} value={value} disabled={unavailable} />
+        <input
+          type="hidden"
+          name={name}
+          value={value}
+          disabled={disabled || loading}
+        />
       )}
       {expanded &&
         createPortal(

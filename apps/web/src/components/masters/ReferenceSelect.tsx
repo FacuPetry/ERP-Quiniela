@@ -33,7 +33,7 @@ export function ReferenceSelect({
   /** Filtros admitidos por la fuente de datos, definidos por el módulo. */
   query?: Record<string, string>;
   /** Restricción adicional por contexto; nunca habilita registros inactivos. */
-  optionFilter?: (option: MasterRecord) => boolean;
+  optionFilter?: ((option: MasterRecord) => boolean) | undefined;
 }) {
   const [options, setOptions] = useState<MasterRecord[]>([]);
   const [error, setError] = useState("");

@@ -59,6 +59,18 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
       "INSERT INTO COMPROBANTE (Codigo,Descripcion,Cuenta,Naturaleza,SentidoFondos,ModuloOrigen) VALUES (?,?,?,?,?,?)",
       [code, code, account, nature, sense, module],
     );
+  await pool.query(
+    "UPDATE COMPROBANTE SET EsReversion=1 WHERE Codigo IN ('AN_RC','AN_RP')",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE SET ComprobanteReversion='AN_RC' WHERE Codigo='AN_C'",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE SET ComprobanteReversion='AN_RP' WHERE Codigo='AN_P'",
+  );
+  await pool.query(
+    "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('AN_RC',100000001),('AN_RP',100000001)",
+  );
   const server = createApp({
     checkDatabase: async () => {},
     auth: createAuthService(createAuthStore(pool)),
@@ -195,8 +207,6 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
       {
         CajaSaldo: f.box,
         Motivo: "Corrección histórica",
-        Comprobante: d.registro.Sentido === "INGRESO" ? "AN_RC" : "AN_RP",
-        NumeroComprobante: String(sequence++),
       },
       d.version,
     );
@@ -766,6 +776,157 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
         annul.status === 200 ? "0.00" : "5.00",
       );
       assert.equal((await cancel(movement, other)).status, 409);
+    },
+  );
+  await t.test(
+    "Reversión automática: configuración, Numerador obligatorio, campos protegidos y concurrencia",
+    async () => {
+      const oldBox = await fixture();
+      const destination = await fixture();
+      await pool.query(
+        "INSERT INTO COMPROBANTE (Codigo,Descripcion,ModuloOrigen,Cuenta,Naturaleza,SentidoFondos) VALUES ('AN_X','Cobro automático','COBROSPAGOS','COBRAR','CREDITO','INGRESO')",
+      );
+      const originals = await Promise.all(
+        [10, 20].map((amount) =>
+          create(oldBox, {
+            Comprobante: "AN_X",
+            ImporteACuenta: String(amount),
+            Valores: [
+              {
+                Tipo: "TRANSFERENCIA",
+                BancoCuenta: "AN_BC",
+                Importe: String(amount),
+                Referencia: null,
+              },
+            ],
+          }),
+        ),
+      );
+      await good(
+        await req("caja-movimiento/cajas/" + oldBox.box + "/cerrar", "POST", {
+          SaldoContado: "0",
+          Observacion: null,
+        }),
+      );
+      const path = (d: CashDetail) => "caja-movimiento/" + d.registro.IDTabla;
+      const input = {
+        CajaSaldo: destination.box,
+        Motivo: "Reversión automática de prueba",
+      };
+      const send = (
+        d: CashDetail,
+        extra: Record<string, unknown> = {},
+        key = randomUUID(),
+      ) =>
+        req(
+          path(d) + "/revertir",
+          "POST",
+          { ...input, ...extra },
+          d.version,
+          key,
+        );
+      const preview = () => req(path(originals[0]!) + "/reversion");
+      assert.equal((await preview()).status, 409, "Exige asociación");
+      assert.equal((await send(originals[0]!)).status, 409);
+      await pool.query(
+        "INSERT INTO COMPROBANTE (Codigo,Descripcion,ModuloOrigen,Cuenta,Naturaleza,SentidoFondos,EsReversion) VALUES ('AN_RX','Reversión automática','COBROSPAGOS','COBRAR','DEUDA','EGRESO',1)",
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE SET ComprobanteReversion='AN_RX' WHERE Codigo='AN_X'",
+      );
+      assert.equal((await preview()).status, 409, "Exige Numerador");
+      assert.equal((await send(originals[0]!)).status, 409);
+      await pool.query(
+        "INSERT INTO NUMERACION (Comprobante,ProximoNumero,Activo) VALUES ('AN_RX',100000025,0)",
+      );
+      assert.equal((await preview()).status, 409);
+      assert.equal((await send(originals[0]!)).status, 409);
+      await pool.query(
+        "UPDATE NUMERACION SET Activo=1 WHERE Comprobante='AN_RX'",
+      );
+      for (const change of ["EsReversion=0", "Activo=0", "Cuenta='PAGAR'"]) {
+        await pool.query(
+          "UPDATE COMPROBANTE SET " + change + " WHERE Codigo='AN_RX'",
+        );
+        assert.equal((await preview()).status, 409);
+        assert.equal((await send(originals[0]!)).status, 409);
+        await pool.query(
+          "UPDATE COMPROBANTE SET EsReversion=1,Activo=1,Cuenta='COBRAR' WHERE Codigo='AN_RX'",
+        );
+      }
+      const suggestion = await good<{
+        Comprobante: string;
+        NumeroComprobante: string;
+      }>(await preview());
+      assert.equal(suggestion.Comprobante, "AN_RX");
+      assert.equal(suggestion.NumeroComprobante, "100000025");
+      for (const extra of [
+        { Comprobante: "AN_RC" },
+        { NumeroComprobante: "999999999999" },
+        { CajaSaldo: "" },
+      ])
+        assert.equal((await send(originals[0]!, extra)).status, 400);
+      assert.equal(
+        (await send(originals[0]!, { CajaSaldo: oldBox.box })).status,
+        409,
+      );
+      assert.equal(
+        String(
+          (
+            await rows(
+              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='AN_RX'",
+            )
+          )[0]!.ProximoNumero,
+        ),
+        "100000025",
+        "Los errores y la vista previa no consumen números",
+      );
+      const options = await good<CashOptions>(
+        await req("caja-movimiento/opciones"),
+      );
+      assert.ok(!options.comprobantes.some((v) => v.Codigo === "AN_RX"));
+      assert.equal(
+        (
+          await req(
+            "caja-movimiento",
+            "POST",
+            body(destination, {
+              Comprobante: "AN_RX",
+              ImporteACuenta: "1",
+              ImporteEfectivo: "1",
+            }),
+          )
+        ).status,
+        400,
+      );
+      const key = randomUUID();
+      const results = await Promise.all([
+        send(originals[0]!, {}, key),
+        send(originals[1]!),
+      ]);
+      const reversed = await Promise.all(
+        results.map((result) => good<CashDetail>(result)),
+      );
+      assert.deepEqual(
+        reversed.map((d) => d.registro.NumeroComprobante).sort(),
+        ["100000025", "100000026"],
+      );
+      assert.ok(reversed.every((d) => d.registro.Comprobante === "AN_RX"));
+      await pool.query(
+        "UPDATE COMPROBANTE SET ComprobanteReversion=NULL WHERE Codigo='AN_X'",
+      );
+      const retry = await good<CashDetail>(await send(originals[0]!, {}, key));
+      assert.equal(retry.registro.IDTabla, reversed[0]!.registro.IDTabla);
+      assert.equal(
+        String(
+          (
+            await rows(
+              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='AN_RX'",
+            )
+          )[0]!.ProximoNumero,
+        ),
+        "100000027",
+      );
     },
   );
 });

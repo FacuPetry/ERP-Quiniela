@@ -38,6 +38,7 @@ export function masterPropertyFields(
         render: ({ record, descriptions }: MasterPropertiesData) => {
           const value = record[name];
           if (value == null || value === "") return "—";
+          if (field.kind === "boolean") return value ? "Sí" : "No";
           if (field.relation) return descriptions[name] ?? String(value);
           if (field.kind === "voucher") return formatVoucher(String(value));
           return (

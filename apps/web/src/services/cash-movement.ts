@@ -1,5 +1,6 @@
 import type {
   CashOptions,
+  CashReversalPreview,
   CashList,
   CashDetail,
   CashInput,
@@ -75,8 +76,6 @@ export const cashClose = (
 export const cashReverse = (
   d: CashDetail,
   input: {
-    Comprobante: string;
-    NumeroComprobante: string;
     CajaSaldo: string;
     Motivo: string;
   },
@@ -110,3 +109,9 @@ export const cashAnnul = (
     headers: { ...headers(csrf, key), "If-Match": '"' + d.version + '"' },
     body: JSON.stringify(input),
   });
+
+export const cashReversalPreview = (id: string, signal: AbortSignal) =>
+  apiRequest<CashReversalPreview>(
+    base + "/" + encodeURIComponent(id) + "/reversion",
+    { signal },
+  );
