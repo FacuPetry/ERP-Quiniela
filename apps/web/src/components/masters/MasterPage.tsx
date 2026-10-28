@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type {
   MasterDefinition,
   MasterDetail,
@@ -17,7 +23,7 @@ import { ApiRequestError } from "../../services/http";
 import { DataTable, type TableColumn } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
 import { Modal } from "../ui/Modal";
-import { ActionToolbar } from "../ui/ActionToolbar";
+import { ActionToolbar, type ToolbarAction } from "../ui/ActionToolbar";
 import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { MasterForm } from "./MasterForm";
 import { MasterProperties } from "./MasterProperties";
@@ -28,10 +34,16 @@ export function MasterPage({
   master,
   session,
   onExpired,
+  startActions,
+  endActions,
+  listNotice,
 }: {
   master: MasterDefinition;
   session: SessionResponse;
   onExpired: () => void;
+  startActions?: readonly ToolbarAction[];
+  endActions?: readonly ToolbarAction[];
+  listNotice?: ReactNode;
 }) {
   const [filters, setFilters] = useState<Record<string, string>>({
     ...defaultFilters,
@@ -277,14 +289,18 @@ export function MasterPage({
           onFilter={() => setFilterOpen(true)}
           onRefresh={requestList}
           refreshing={loading}
+          {...(startActions ? { startActions } : {})}
+          {...(endActions ? { endActions } : {})}
         />
       </div>
+      {listNotice}
       {error && (
         <p className="notice error" role="alert">
           {error}
         </p>
       )}
       <DataTable
+        properties={false}
         caption={`Listado de ${master.title.toLocaleLowerCase("es-AR")}`}
         columns={columns}
         rows={error ? [] : (data?.registros ?? [])}

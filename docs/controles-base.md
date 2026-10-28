@@ -131,4 +131,29 @@ OffCanvas es el contenedor lateral compartido, con contenido y acciones configur
 
 ## Selección múltiple opcional
 
-DataTable conserva selección simple de forma predeterminada. selectionMode="multiple" agrega el CheckBox base por fila y utiliza selectedKeys/onMultipleSelectionChange; no cambia el modo de los ABM existentes. Los módulos conservan sus selecciones entre páginas y aportan la lógica de importes. Los selectores de pendientes y cartera de Caja movimiento reutilizan esta misma tabla dentro de OffCanvas md. Ver [etapa 6](etapa-6.md).
+DataTable conserva selección simple de forma predeterminada. selectionMode="multiple" agrega el CheckBox base por fila y utiliza selectedKeys/onMultipleSelectionChange; no cambia el modo de los ABM existentes. Los módulos conservan sus selecciones entre páginas y aportan la lógica de importes. Los selectores de pendientes y cartera de Caja movimiento reutilizan esta misma tabla dentro de OffCanvas (lg para pendientes, md para cartera). Ver [etapa 6](etapa-6.md).
+
+
+## Extensiones del toolbar y secciones de formularios
+
+ActionToolbar acepta `startActions` y `endActions`: listas de `{ key, label, icon, onClick, disabled?, showLabel? }` situadas antes o después de las acciones estándar. El icono y tooltip se reutilizan; showLabel muestra texto en acciones particulares. El módulo decide permisos y disponibilidad de las acciones personalizadas. Los callbacks estándar opcionales permiten reutilizar el toolbar en sublistas, sin agregar filtros o edición cuando no corresponden. `addDisabled` y `editDisabled` complementan los bloqueos generales. MasterPage expone ambos grupos y listNotice para componer pantallas sin duplicar el ABM. El maestro Cajas conserva exclusivamente su ABM; CashPage incorpora la administración de aperturas con la acción personalizada de su toolbar.
+
+FormSections recibe idPrefix y secciones `{ key, title, content }`: mantiene todo el contenido montado, agrega encabezados descriptivos y enlaces laterales sticky y desplaza/enfoca la sección al activarlos. No altera hash, ruta, valores ni lógica del formulario. En pantallas angostas la navegación se distribuye arriba y también permanece sticky. ResizeObserver mide su altura para ajustar el margen de desplazamiento sin ocultar títulos; se desconecta al desmontar. El fondo del lateral es una columna completa hasta el final del contenido; solo los enlaces interiores usan sticky en escritorio, y la franja superior es sticky en móvil. El formulario contenedor usa overflow: clip (visible como alternativa) para conservar bordes sin crear un scroll que impida el sticky. No son pestañas que oculten controles. Caja movimiento es su primer consumidor.
+
+DataTable aplica un borde discreto a los listados internos mediante estilos de contexto (record-form, modal y offcanvas-body). Su propiedad opcional bordered permite true para forzarlo o false para omitirlo. No cambia selección, acciones ni paginación. Administrar cajas reutiliza el DataTable y ActionToolbar base con Actualizar y Propiedades; la consulta del maestro se resuelve con MasterProperties, sin duplicar campos.
+
+
+## Propiedades estándar en cualquier DataTable
+
+DataTable incluye Propiedades automáticamente, sin agregar un diálogo por módulo. Su toolbar predeterminado contiene el icono deshabilitado hasta seleccionar una fila visible. Si no se controla la selección desde fuera, la tabla mantiene su propia selección simple. En modo múltiple, el panel consulta la fila seleccionada que recibió el foco; si no está en la página actual se utiliza la última selección visible. Abrir/cerrar Propiedades no cambia los CheckBox ni confirma las selecciones del selector.
+
+Por defecto se presentan solo las columnas declaradas (nunca se recorre el objeto completo ni se muestran ID internos). `properties` admite `{ title?, fields?, loadRecord?, onExpired? }`: fields usa los PropertyField del OffCanvas existente; loadRecord es opcional y se llama solo al abrir el panel. `TableColumn.property` proporciona un valor de consulta cuando la celda tiene un editor; las vistas predeterminadas son de solo lectura, con controles deshabilitados y sin ejecutar acciones de celda; conservan el texto accesible y seleccionable. El panel muestra una instantánea de lectura del registro elegido.
+
+`toolbar(actions)` permite integrar `actions.onProperties` y `actions.selected` en el ActionToolbar de la sección sin agregar otra barra. Afectaciones y Valores lo utilizan; no implementan otro OffCanvas. Los listados principales y Administrar cajas conservan sus consultas completas ya existentes, por lo que declaran `properties={false}` únicamente para evitar duplicar el mismo botón y panel.
+
+Todos los futuros DataTable incorporan esta opción de consulta por defecto. Las fechas se presentan con displayDate (fechas civiles y fechas SQL) o displayDateTime (instantes de sesión/auditoría en horario del negocio). Ambas reutilizan formatDateValue y muestran dd/MM/yyyy; los valores de entrada, contratos HTTP y almacenamiento permanecen ISO. DatePicker conserva su parser y calendario.
+
+
+FormSections resalta automáticamente el enlace de la sección visible mediante aria-current="location". La medición se agrupa con requestAnimationFrame y observa tamaños para responder a cargas de contenido y cambios de ancho; no hay consultas ni intervalos de refresco. Los listeners, observadores y frames pendientes se limpian al desmontar. El primer enlace es Datos generales y la última sección corta se reconoce al llegar al final de la página.
+
+Los encabezados reales de cada sección usan sticky dentro de su propia sección y son reemplazados naturalmente por el siguiente. En móvil se ubican debajo de la franja de navegación; su altura se comparte con el margen de los enlaces. stickyOffset permite reservar espacio para una cabecera fija externa sin cambiar cada módulo. El resaltado mantiene estable el peso de la tipografía para evitar que cambie el tamaño del menú al recorrer las secciones.

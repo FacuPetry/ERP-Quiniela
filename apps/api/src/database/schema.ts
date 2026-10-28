@@ -84,6 +84,7 @@ export const cajaMovimiento = mysqlTable('CAJAMOVIMIENTO', {
   index('IX_CAJAMOVIMIENTO_Cliente_Fecha').on(t.Cliente, t.FechaOrigen)]);
 export const cuentaCorriente = mysqlTable('CUENTACORRIENTE', {
   IDTabla: id(), Cliente: code('Cliente').notNull().references(() => cliente.Codigo),
+  Concepto: code('Concepto').references(() => concepto.Codigo),
   Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
   CajaMovimiento: fk('CajaMovimiento').references(() => cajaMovimiento.IDTabla),
   NumeroComprobante: bigint('NumeroComprobante', { mode: 'bigint', unsigned: true }),

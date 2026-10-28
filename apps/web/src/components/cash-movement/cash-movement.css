@@ -1,23 +1,3 @@
-.cash-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0 0 22px;
-  border-bottom: 1px solid #dce5d9;
-}
-.cash-tabs button {
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 12px 18px;
-  background: transparent;
-  color: #526d55;
-  cursor: pointer;
-}
-.cash-tabs button[aria-selected="true"] {
-  border-color: #365e3e;
-  color: #214832;
-  font-weight: 650;
-}
 .cash-section-toolbar {
   display: flex;
   align-items: center;
@@ -102,4 +82,65 @@
   align-items: end;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.cash-form .cash-amounts {
+  margin-top: 0;
+}
+
+/* Distribución local: no altera el tamaño del SF en otros módulos. */
+.cash-general-grid {
+  align-items: start;
+}
+.cash-general-grid > .base-field:not(.wide) {
+  grid-column: 1;
+}
+.cash-voucher-summary {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-width: 0;
+}
+.cash-box-note {
+  margin: 0;
+  color: #74836b;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.cash-general-grid > .notice {
+  grid-column: 1 / -1;
+}
+@media (max-width: 600px) {
+  .cash-voucher-summary {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+.cash-box-list {
+  margin: 4px 0 28px;
+}
+.cash-box-list .cash-section-toolbar {
+  margin-bottom: 18px;
+}
+.cash-box-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 0;
+}
+.cash-box-operation {
+  border-top: 1px solid #dce5d9;
+  padding-top: 24px;
+  margin-top: 28px;
+}
+.cash-box-operation h3 {
+  margin: 0;
+  color: #365e3e;
+}
+.cash-box-operation .form-toolbar-actions {
+  margin-top: 8px;
 }

@@ -618,3 +618,21 @@
 
 .data-table .selection-column { width: 48px; min-width: 48px; }
 .selection-column .base-field { margin: 0; }
+
+/* Acciones opcionales del toolbar: conservan icono, tooltip y estados base. */
+.action-toolbar .action-with-label {
+  width: auto;
+  padding: 0 12px;
+  gap: 7px;
+}
+
+/* Los listados internos se delimitan sin alterar los listados principales. */
+.table-scroll[data-bordered="true"],
+:is(.record-form, .offcanvas-body, .modal) .table-scroll:not([data-bordered="false"]) {
+  border: 1px solid #dce5d9;
+  border-radius: 8px;
+}
+
+.table-properties-toolbar { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+
+.table-property-value { border: 0; margin: 0; padding: 0; min-width: 0; }

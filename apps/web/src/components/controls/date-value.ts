@@ -41,3 +41,24 @@ export function formatDateValue(value: string): string {
     ? `${match[3]}/${match[2]}/${match[1]}`
     : "";
 }
+
+/** Presentación de fechas civiles/fechas SQL, sin convertir su día por zona horaria. */
+export function displayDate(value: string | null | undefined): string {
+  return value ? formatDateValue(value.slice(0, 10)) : "";
+}
+/** Instantes de auditoría/sesión: fecha de cuatro dígitos y hora del negocio. */
+export function displayDateTime(value: string | null | undefined): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return (
+    formatDateValue(todayISO(date)) +
+    " " +
+    new Intl.DateTimeFormat("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      hourCycle: "h23",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date)
+  );
+}

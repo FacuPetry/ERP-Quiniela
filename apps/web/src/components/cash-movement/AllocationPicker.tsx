@@ -1,10 +1,10 @@
+import { displayDate } from "../controls/date-value";
 import { useEffect, useState } from "react";
 import {
   moneyUnits,
   moneyText,
   type PendingMovement,
   type AllocationDetail,
-  type Allocation,
 } from "@erp/shared";
 import { OffCanvas } from "../ui/OffCanvas";
 import { DataTable } from "../ui/DataTable";
@@ -30,7 +30,7 @@ export function AllocationPicker({
   onExpired: () => void;
 }) {
   const [selected, setSelected] = useState<Record<string, AllocationDetail>>(
-      () => Object.fromEntries(initial.map((a) => [a.CuentaCorriente, a])),
+      {},
     ),
     [rows, setRows] = useState<PendingMovement[]>([]),
     [total, setTotal] = useState(0),
@@ -50,11 +50,16 @@ export function AllocationPicker({
         Comprobante: voucher,
         q: search,
         pagina: String(page),
+        Excluir: initial.map((a) => a.CuentaCorriente).join(","),
       },
       request.signal,
     )
       .then((data) => {
         if (request.signal.aborted) return;
+        if (page > 1 && !data.registros.length) {
+          setPage(Math.max(1, Math.ceil(data.total / data.limite)));
+          return;
+        }
         setRows(data.registros);
         setTotal(data.total);
         setSelected((current) => {
@@ -77,7 +82,7 @@ export function AllocationPicker({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [client, voucher, search, page, revision, onExpired]);
+  }, [client, voucher, initial, search, page, revision, onExpired]);
   function choose(keys: string[]) {
     setSelected((current) => {
       const next = Object.fromEntries(
@@ -102,6 +107,8 @@ export function AllocationPicker({
   }
   function confirm() {
     try {
+      if (initial.length + Object.keys(selected).length > 100)
+        throw new Error("Se permiten hasta 100 afectaciones por movimiento.");
       for (const a of Object.values(selected))
         if (
           moneyUnits(a.Importe) <= 0n ||
@@ -118,7 +125,7 @@ export function AllocationPicker({
   return (
     <OffCanvas
       open
-      size="md"
+      size="lg"
       title="Pendientes de Cuenta corriente"
       onClose={onClose}
       footer={
@@ -177,7 +184,11 @@ export function AllocationPicker({
               </>
             ),
           },
-          { key: "fecha", label: "Fecha", render: (r) => r.FechaOrigen },
+          {
+            key: "fecha",
+            label: "Fecha",
+            render: (r) => displayDate(r.FechaOrigen),
+          },
           {
             key: "original",
             label: "Original",
@@ -191,6 +202,10 @@ export function AllocationPicker({
           {
             key: "aplicar",
             label: "A afectar",
+            property: (r) =>
+              selected[r.IDTabla]
+                ? amount(selected[r.IDTabla]!.Importe)
+                : "Sin seleccionar",
             render: (r) =>
               selected[r.IDTabla] ? (
                 <AmountBox

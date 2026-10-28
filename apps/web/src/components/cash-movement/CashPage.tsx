@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   CashDetail,
@@ -15,6 +16,7 @@ import { initialListFilters } from "../ui/filter-defaults";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
 import { CashForm } from "./CashForm";
 import { CashBoxes, ReverseCash } from "./CashActions";
+import { useActiveCash } from "./ActiveCash";
 import { amount, message } from "./format";
 import "./cash-movement.css";
 const defaults = { q: "", Estado: "TODOS", Desde: "", Hasta: "" };
@@ -49,7 +51,11 @@ const properties: PropertyField<CashDetail>[] = [
     label: "Cliente",
     render: (d) => d.registro.Cliente + " - " + d.registro.ClienteNombre,
   },
-  { key: "fecha", label: "Fecha", render: (d) => d.registro.FechaOrigen },
+  {
+    key: "fecha",
+    label: "Fecha",
+    render: (d) => displayDate(d.registro.FechaOrigen),
+  },
   { key: "caja", label: "Caja", render: (d) => d.registro.CajaNombre },
   {
     key: "total",
@@ -141,7 +147,7 @@ export function CashPage({
     [selected, setSelected] = useState<string | null>(null),
     [view, setView] = useState<{ detail?: CashDetail } | null>(null),
     [filtering, setFiltering] = useState(false),
-    [boxes, setBoxes] = useState(false),
+    [managingBoxes, setManagingBoxes] = useState(false),
     [reverse, setReverse] = useState<CashDetail | null>(null),
     [property, setProperty] = useState<string | null>(null);
   const handler = useRef(onExpired),
@@ -150,6 +156,7 @@ export function CashPage({
   handler.current = onExpired;
   const expired = useCallback(() => handler.current(), []);
   const canWrite = session.usuario.rol.codigo === "ADMIN";
+  const { selected: activeBox } = useActiveCash();
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -271,6 +278,20 @@ export function CashPage({
               filter: "Filtrar",
             }}
             selected={Boolean(row)}
+            addDisabled={!activeBox}
+            endActions={
+              canWrite
+                ? [
+                    {
+                      key: "cajas",
+                      label: activeBox?.CajaNombre ?? "Administrar caja",
+                      icon: "box",
+                      showLabel: true,
+                      onClick: () => setManagingBoxes(true),
+                    },
+                  ]
+                : []
+            }
             busy={busy}
             readOnly={!canWrite}
             editIcon="eye"
@@ -296,23 +317,13 @@ export function CashPage({
             }}
           />
         </div>
-        {canWrite && (
-          <div className="cash-page-actions">
-            <button
-              className="button secondary"
-              disabled={busy}
-              onClick={() => setBoxes(true)}
-            >
-              Administrar cajas
-            </button>
-          </div>
-        )}
         {error && (
           <p className="notice error" role="alert">
             {error}
           </p>
         )}
         <DataTable
+          properties={false}
           caption="Cobros y pagos"
           rows={error ? [] : (data?.registros ?? [])}
           rowKey={(r) => r.IDTabla}
@@ -325,7 +336,11 @@ export function CashPage({
           }}
           selectionDisabled={busy}
           columns={[
-            { key: "date", label: "Fecha", render: (r) => r.FechaOrigen },
+            {
+              key: "date",
+              label: "Fecha",
+              render: (r) => displayDate(r.FechaOrigen),
+            },
             {
               key: "voucher",
               label: "Comprobante",
@@ -385,13 +400,10 @@ export function CashPage({
           }}
         />
       )}
-      {boxes && (
+      {managingBoxes && (
         <CashBoxes
           csrf={session.csrfToken}
-          onClose={() => setBoxes(false)}
-          onChanged={() => {
-            if (requested) setRevision((n) => n + 1);
-          }}
+          onClose={() => setManagingBoxes(false)}
           onExpired={expired}
         />
       )}

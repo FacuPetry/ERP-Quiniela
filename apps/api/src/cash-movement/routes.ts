@@ -65,6 +65,9 @@ export function cashMovementRouter(
     const q = parse(query, req.query);
     res.json(await store.portfolio(q));
   });
+  r.get("/cajas/:id/estado", async (req, res) => {
+    res.json(await store.openingStatus(String(req.params.id)));
+  });
   r.post("/cajas", ...requireMasterWrite, async (req, res) => {
     res
       .status(201)

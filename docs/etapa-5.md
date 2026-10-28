@@ -1,6 +1,6 @@
 # Etapa 5: Cuenta corriente y SF
 
-Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. La revisión actual requiere la migración `0002_numero_comprobante_completo`; ver [actualización segura](numeracion-comprobantes.md). No agrega tablas ni variables de entorno. La configuración funcional de COMPROBANTE no cambia.
+Primera entrega operativa de Cuenta corriente, sobre las 21 tablas existentes. La revisión actual requiere las migraciones hasta `0004_cuenta_corriente_concepto`; ver [actualización de numeración](numeracion-comprobantes.md) y [concepto por movimiento](#concepto-por-movimiento). No agrega tablas ni variables de entorno. La configuración funcional de COMPROBANTE no cambia.
 
 ## Alcance acordado
 
@@ -124,3 +124,22 @@ Ambas entradas renderizan el mismo CancelMovement y llaman al mismo servicio exi
 FormToolbarActions es una base visual reutilizable con acción annulAction opcional y contenido para las demás acciones. No conoce estados, permisos, tablas ni endpoints: cada módulo decide si la ofrece y conecta su propia operación. No se agregan acciones de anulación a maestros que no tienen ese circuito.
 
 Prueba manual: abrir un confirmado por doble clic, presionar Anular, cancelar y comprobar que la consulta sigue abierta; repetir con motivo y confirmar. Consultar luego el anulado con filtro Anulados/Todos: ya no debe mostrar Anular. Comprobar también que el alta y el perfil de consulta no lo ofrecen y que la grilla mantiene la misma anulación. Esta revisión no ejecutó compilaciones ni pruebas automáticas.
+
+
+Cuenta corriente utiliza el FormSections compartido con Caja movimiento: Datos generales contiene la cabecera, cliente, fechas, observaciones y estado; Importes conserva su control de importe y formato. La columna lateral, el comportamiento sticky y los enlaces de desplazamiento son comunes. Las fechas de grillas y consultas se presentan como dd/MM/yyyy sin modificar el valor ISO enviado a la API.
+
+
+La cabecera dispone comprobante, cliente, fechas, concepto y observaciones a la izquierda y conserva Número de comprobante a la derecha. FormSections resalta la sección visible por scroll con fondo verde semitransparente y una marca lateral discreta; conserva su encabezado sticky. El concepto se selecciona desde el DropDown base; no es una grilla de renglones ni incorpora importes adicionales.
+
+
+## Concepto por movimiento
+
+Se reutiliza CONCEPTO y se permite un concepto opcional por movimiento manual. El DropDown, ubicado después de las fechas y antes de Observaciones, ofrece únicamente conceptos activos y la opción Sin concepto. El backend vuelve a validar que el concepto exista y esté activo dentro de la transacción, con bloqueo de lectura; una opción desactivada después de abrir el formulario se rechaza sin registrar un movimiento parcial.
+
+La migración `0004_cuenta_corriente_concepto` agrega únicamente CUENTACORRIENTE.Concepto VARCHAR(20) nullable y su FK a CONCEPTO.Codigo, en un solo ALTER. No crea tablas, elimina filas ni completa datos históricos: los movimientos anteriores conservan todos sus campos y quedan con Concepto NULL. La FK impide borrar un concepto utilizado; desactivarlo conserva las consultas históricas.
+
+Al consultar el formulario y Propiedades se muestra la descripción actual mediante LEFT JOIN, incluso si el concepto fue desactivado. Solo se almacena el código; no se copia la descripción en CUENTACORRIENTE. No cambia el saldo, la naturaleza, las afectaciones, el asiento interno de Caja ni las reglas de anulación. Cambiar la descripción del maestro no altera la versión del movimiento. Las solicitudes anteriores que omitan Concepto siguen siendo válidas y se guardan sin concepto.
+
+Antes de utilizar este código en Hostinger, con las variables de la aplicación disponibles en SSH y desde la versión desplegada, detener temporalmente el acceso de usuarios y ejecutar `npm run db:migrate:prod`. Luego verificar `npm run db:check:prod` y volver a habilitar la aplicación. La migración está incluida en el repositorio; no se ejecutó contra Hostinger desde el entorno de desarrollo.
+
+Prueba: crear o activar un concepto en su maestro, abrir un alta de Cuenta corriente y seleccionarlo. Guardar y comprobar su descripción en Consulta y Propiedades. Repetir sin concepto, consultar movimientos anteriores y comprobar que siguen disponibles. Desactivar el concepto utilizado: debe seguir visible en el movimiento histórico y dejar de ofrecerse para nuevas altas. Las pruebas de integración verifican FK, auditoría, compatibilidad de solicitudes sin el campo, conservación histórica y saldos inalterados.

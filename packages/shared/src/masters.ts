@@ -227,7 +227,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
     singular: "caja",
     feminine: true,
     description:
-      "Administrá las cajas del negocio. Sus aperturas y cierres se incorporarán en Tesorería.",
+      "Administrá los códigos, nombres y estados de las cajas del negocio.",
     fields: [codigo, nombre],
     columns: ["Codigo", "Nombre"],
   },

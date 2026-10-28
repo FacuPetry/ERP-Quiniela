@@ -1,3 +1,4 @@
+import { displayDate } from "../controls/date-value";
 import { useEffect, useState } from "react";
 import {
   moneyUnits,
@@ -352,6 +353,37 @@ export function PortfolioPicker({
         </p>
       )}
       <DataTable
+        properties={{
+          fields: [
+            {
+              key: "number",
+              label: "Número de cheque",
+              render: (r) => r.Numero,
+            },
+            { key: "bank", label: "Banco", render: (r) => r.BancoNombre },
+            {
+              key: "issuer",
+              label: "Cuenta libradora",
+              render: (r) => r.CuentaLibradora,
+            },
+            {
+              key: "emission",
+              label: "Emisión",
+              render: (r) => displayDate(r.Emision),
+            },
+            {
+              key: "due",
+              label: "Vencimiento",
+              render: (r) => displayDate(r.Vencimiento),
+            },
+            {
+              key: "amount",
+              label: "Importe",
+              render: (r) => amount(r.Importe),
+            },
+            { key: "state", label: "Estado", render: (r) => r.Estado },
+          ],
+        }}
         caption="Cheques de cartera"
         rows={rows}
         rowKey={(r) => r.IDTabla}
@@ -363,7 +395,11 @@ export function PortfolioPicker({
         columns={[
           { key: "number", label: "Cheque", render: (r) => r.Numero },
           { key: "bank", label: "Banco", render: (r) => r.BancoNombre },
-          { key: "date", label: "Vencimiento", render: (r) => r.Vencimiento },
+          {
+            key: "date",
+            label: "Vencimiento",
+            render: (r) => displayDate(r.Vencimiento),
+          },
           { key: "amount", label: "Importe", render: (r) => amount(r.Importe) },
         ]}
       />

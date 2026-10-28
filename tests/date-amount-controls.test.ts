@@ -3,6 +3,8 @@ import { test } from "node:test";
 import {
   parseDateInput,
   formatDateValue,
+  displayDate,
+  displayDateTime,
 } from "../apps/web/src/components/controls/date-value.js";
 import {
   amountFormat,
@@ -107,4 +109,17 @@ test("AmountBox invalida importes incorrectos y exceso de precisión; el formula
     "-1.00",
     "la condición positiva pertenece al módulo, no al formato",
   );
+});
+
+test("Fechas visibles usan dd/MM/yyyy sin modificar fechas civiles y mantienen la hora del negocio", () => {
+  assert.equal(displayDate("2026-10-27"), "27/10/2026");
+  assert.equal(displayDate("2026-10-27 23:40:00"), "27/10/2026");
+  assert.equal(displayDate("2026-10-27T00:00:00.000Z"), "27/10/2026");
+  assert.equal(displayDate(null), "");
+  assert.equal(displayDate("2026-02-31"), "");
+  assert.match(
+    displayDateTime("2026-10-27T01:30:00.000Z"),
+    /^26\/10\/2026 22:30$/,
+  );
+  assert.equal(displayDateTime("no es fecha"), "");
 });

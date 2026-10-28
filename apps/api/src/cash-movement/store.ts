@@ -238,6 +238,15 @@ async function account(c: PoolConnection, code: string) {
 export function createCashMovementStore(pool: Pool) {
   const tx = financialTransactions(pool, true);
   return {
+    async openingStatus(id: string) {
+      validId(id);
+      const [rows] = await pool.execute<RowDataPacket[]>(
+        "SELECT cs.IDTabla,cs.Caja,cs.Estado,ca.Nombre AS CajaNombre,ca.Activo FROM CAJASALDO cs JOIN CAJA ca ON ca.Codigo=cs.Caja WHERE cs.IDTabla=?",
+        [id],
+      );
+      if (!rows[0]) fail("La apertura no existe.", 404);
+      return stringify(rows[0]);
+    },
     async options(): Promise<CashOptions> {
       const [v] = await pool.query<RowDataPacket[]>(
         "SELECT c.Codigo,c.Descripcion,c.Cuenta,c.Naturaleza,c.SentidoFondos FROM COMPROBANTE c WHERE c.Activo=1 AND c.ModuloOrigen='COBROSPAGOS' ORDER BY c.Orden,c.Codigo",
@@ -340,11 +349,15 @@ export function createCashMovementStore(pool: Pool) {
       const from =
         " FROM CUENTACORRIENTE a JOIN COMPROBANTE c ON c.Codigo=a.Comprobante LEFT JOIN (SELECT x.CuentaCorriente,SUM(x.Importe) AS Aplicado FROM CAJAMOVIMIENTOAFECTACION x JOIN CAJAMOVIMIENTO m ON m.IDTabla=x.CajaMovimiento WHERE m.Estado='CONFIRMADO' GROUP BY x.CuentaCorriente) x ON x.CuentaCorriente=a.IDTabla WHERE a.Cliente=? AND a.Cuenta=? AND a.Naturaleza='DEUDA' AND a.Estado='CONFIRMADO' AND a.Importe-COALESCE(x.Aplicado,0)>0";
       const p: (string | number)[] = [q.Cliente, String(v[0].Cuenta)];
-      const filter = q.q
+      let filter = q.q
         ? ` AND (c.Descripcion LIKE ? ESCAPE '!' OR ${numberSQL("a.NumeroComprobante")} LIKE ? ESCAPE '!')`
         : "";
       if (q.q)
         p.push(...Array(2).fill("%" + q.q.replace(/[!%_]/g, "!$&") + "%"));
+      if (q.Excluir.length) {
+        filter += ` AND a.IDTabla NOT IN (${q.Excluir.map(() => "?").join(",")})`;
+        p.push(...q.Excluir);
+      }
       const c = await pool.getConnection();
       try {
         await c.beginTransaction();

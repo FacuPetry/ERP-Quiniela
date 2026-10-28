@@ -16,6 +16,7 @@ import {
   todayISO,
   defaultNumericValue,
 } from "../controls";
+import { FormSections } from "../ui/FormSections";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 import { FormToolbarActions } from "../ui/FormToolbarActions";
 import { ClientSearch } from "./ClientSearch";
@@ -41,6 +42,7 @@ export function CurrentAccountForm({
   const [options, setOptions] = useState<CurrentAccountOptions>({
     comprobantes: [],
     numeradores: [],
+    conceptos: [],
   });
   const [loading, setLoading] = useState(!previous),
     [revision, setRevision] = useState(0);
@@ -49,6 +51,7 @@ export function CurrentAccountForm({
     return previous
       ? {
           Cliente: previous.Cliente,
+          Concepto: previous.Concepto,
           Comprobante: previous.Comprobante,
           NumeroComprobante: previous.NumeroComprobante ?? "0",
           FechaOrigen: previous.FechaOrigen,
@@ -58,6 +61,7 @@ export function CurrentAccountForm({
         }
       : {
           Cliente: "",
+          Concepto: null,
           Comprobante: "",
           NumeroComprobante: "0",
           FechaOrigen: today,
@@ -116,6 +120,7 @@ export function CurrentAccountForm({
         "Cliente",
         "FechaOrigen",
         "Vencimiento",
+        "Concepto",
         "Importe",
         "Observacion",
       ].find((name) => fields[name]);
@@ -129,6 +134,7 @@ export function CurrentAccountForm({
     FechaOrigen: "Fecha de origen",
     Vencimiento: "Fecha de vencimiento",
     Importe: "Importe",
+    Concepto: "Concepto",
     Observacion: "Observaciones",
   };
   function change<K extends keyof CurrentAccountInput>(
@@ -261,151 +267,203 @@ export function CurrentAccountForm({
               No aplica.
             </p>
           )}
-          <div className="form-grid account-general-grid">
-            {previous ? (
-              <TextBox
-                label="Comprobante"
-                size="md"
-                value={previous.ComprobanteDescripcion}
-                readOnly
-                onValueChange={() => {}}
-              />
-            ) : (
-              <DropDown
-                {...presentation("Comprobante")}
-                label="Comprobante"
-                size="md"
-                required
-                value={input.Comprobante}
-                disabled={busy}
-                loading={loading}
-                options={[
-                  { value: "", label: "Seleccioná una opción" },
-                  ...options.comprobantes.map((v) => ({
-                    value: v.Codigo,
-                    label: v.Descripcion,
-                  })),
-                ]}
-                onValueChange={(value) =>
-                  setInput((current) => ({
-                    ...current,
-                    Comprobante: value,
-                    NumeroComprobante: "0",
-                  }))
-                }
-              />
-            )}
-            {previous && previous.NumeroComprobante === null ? (
-              <TextBox
-                label="Número de comprobante"
-                size="md"
-                value="Sin número"
-                readOnly
-                onValueChange={() => {}}
-              />
-            ) : (
-              <NumeroComprobante
-                {...presentation("NumeroComprobante")}
-                label="Número de comprobante"
-                size="md"
-                value={input.NumeroComprobante}
-                required={!previous}
-                readOnly={Boolean(previous)}
-                disabled={busy || loading}
-                onValueChange={(value) => change("NumeroComprobante", value)}
-              />
-            )}
-            {previous ? (
-              <TextBox
-                label="Cliente"
-                size="lg"
-                wide
-                value={`${previous.Cliente} - ${previous.ClienteNombre}`}
-                readOnly
-                onValueChange={() => {}}
-              />
-            ) : (
-              <ClientSearch
-                {...presentation("Cliente")}
-                label="Cliente"
-                size="lg"
-                wide
-                required
-                value={client}
-                onChange={(value) => {
-                  setClient(value);
-                  setErrors((current) => ({ ...current, Cliente: "" }));
-                }}
-                onExpired={onExpired}
-                disabled={busy}
-              />
-            )}
-            <div className="account-date-fields">
-              {(["FechaOrigen", "Vencimiento"] as const).map((name) => (
-                <DatePicker
-                  key={name}
-                  {...presentation(name)}
-                  label={
-                    name === "FechaOrigen"
-                      ? "Fecha de origen"
-                      : "Fecha de vencimiento"
-                  }
-                  size="sm"
-                  required={!previous && name === "FechaOrigen"}
-                  value={input[name] ?? ""}
-                  readOnly={Boolean(previous)}
-                  disabled={busy}
-                  onValueChange={(value) => {
-                    if (name === "FechaOrigen") change(name, value);
-                    else change(name, value || null);
-                  }}
-                />
-              ))}
-            </div>
-            <TextArea
-              {...presentation("Observacion")}
-              label="Observaciones"
-              size="xl"
-              value={input.Observacion ?? ""}
-              maxLength={4000}
-              readOnly={Boolean(previous)}
-              disabled={busy}
-              onValueChange={(value) => change("Observacion", value || null)}
-            />
-            {previous && (
-              <TextBox
-                label="Estado"
-                size="sm"
-                value={previous.Estado === "ANULADO" ? "Anulado" : "Confirmado"}
-                readOnly
-                onValueChange={() => {}}
-              />
-            )}
-            {previous?.MotivoAnulacion && (
-              <TextArea
-                label="Motivo de anulación"
-                value={previous.MotivoAnulacion}
-                size="xl"
-                wide
-                readOnly
-                onValueChange={() => {}}
-              />
-            )}
-          </div>
-          <fieldset className="account-amounts">
-            <legend>Importes</legend>
-            <AmountBox
-              {...presentation("Importe")}
-              label="Importe"
-              size="md"
-              value={input.Importe}
-              required={!previous}
-              readOnly={Boolean(previous)}
-              disabled={busy}
-              maxIntegerDigits={16}
-              onValueChange={(value) => change("Importe", value)}
-            />
-          </fieldset>
+          <FormSections
+            idPrefix={formId}
+            sections={[
+              {
+                key: "general",
+                title: "Datos generales",
+                content: (
+                  <div className="form-grid account-general-grid">
+                    {previous ? (
+                      <TextBox
+                        label="Comprobante"
+                        size="md"
+                        value={previous.ComprobanteDescripcion}
+                        readOnly
+                        onValueChange={() => {}}
+                      />
+                    ) : (
+                      <DropDown
+                        {...presentation("Comprobante")}
+                        label="Comprobante"
+                        size="md"
+                        required
+                        value={input.Comprobante}
+                        disabled={busy}
+                        loading={loading}
+                        options={[
+                          { value: "", label: "Seleccioná una opción" },
+                          ...options.comprobantes.map((v) => ({
+                            value: v.Codigo,
+                            label: v.Descripcion,
+                          })),
+                        ]}
+                        onValueChange={(value) =>
+                          setInput((current) => ({
+                            ...current,
+                            Comprobante: value,
+                            NumeroComprobante: "0",
+                          }))
+                        }
+                      />
+                    )}
+                    <div className="account-number-column">
+                      {previous && previous.NumeroComprobante === null ? (
+                        <TextBox
+                          label="Número de comprobante"
+                          size="md"
+                          value="Sin número"
+                          readOnly
+                          onValueChange={() => {}}
+                        />
+                      ) : (
+                        <NumeroComprobante
+                          {...presentation("NumeroComprobante")}
+                          label="Número de comprobante"
+                          size="md"
+                          value={input.NumeroComprobante}
+                          required={!previous}
+                          readOnly={Boolean(previous)}
+                          disabled={busy || loading}
+                          onValueChange={(value) =>
+                            change("NumeroComprobante", value)
+                          }
+                        />
+                      )}
+                    </div>
+                    {previous ? (
+                      <TextBox
+                        label="Cliente"
+                        size="lg"
+                        value={`${previous.Cliente} - ${previous.ClienteNombre}`}
+                        readOnly
+                        onValueChange={() => {}}
+                      />
+                    ) : (
+                      <ClientSearch
+                        {...presentation("Cliente")}
+                        label="Cliente"
+                        size="lg"
+                        required
+                        value={client}
+                        onChange={(value) => {
+                          setClient(value);
+                          setErrors((current) => ({ ...current, Cliente: "" }));
+                        }}
+                        onExpired={onExpired}
+                        disabled={busy}
+                      />
+                    )}
+                    <div className="account-date-fields">
+                      {(["FechaOrigen", "Vencimiento"] as const).map((name) => (
+                        <DatePicker
+                          key={name}
+                          {...presentation(name)}
+                          label={
+                            name === "FechaOrigen"
+                              ? "Fecha de origen"
+                              : "Fecha de vencimiento"
+                          }
+                          size="sm"
+                          required={!previous && name === "FechaOrigen"}
+                          value={input[name] ?? ""}
+                          readOnly={Boolean(previous)}
+                          disabled={busy}
+                          onValueChange={(value) => {
+                            if (name === "FechaOrigen") change(name, value);
+                            else change(name, value || null);
+                          }}
+                        />
+                      ))}
+                    </div>
+                    {previous ? (
+                      <TextBox
+                        label="Concepto"
+                        size="lg"
+                        value={previous.ConceptoDescripcion ?? ""}
+                        readOnly
+                        onValueChange={() => {}}
+                      />
+                    ) : (
+                      <DropDown
+                        {...presentation("Concepto")}
+                        label="Concepto"
+                        size="lg"
+                        value={input.Concepto ?? ""}
+                        disabled={busy}
+                        loading={loading}
+                        options={[
+                          { value: "", label: "Sin concepto" },
+                          ...options.conceptos.map((concept) => ({
+                            value: concept.Codigo,
+                            label: concept.Descripcion,
+                          })),
+                        ]}
+                        onValueChange={(value) =>
+                          change("Concepto", value || null)
+                        }
+                      />
+                    )}
+                    <TextArea
+                      {...presentation("Observacion")}
+                      label="Observaciones"
+                      size="xl"
+                      value={input.Observacion ?? ""}
+                      maxLength={4000}
+                      readOnly={Boolean(previous)}
+                      disabled={busy}
+                      onValueChange={(value) =>
+                        change("Observacion", value || null)
+                      }
+                    />
+                    {previous && (
+                      <TextBox
+                        label="Estado"
+                        size="sm"
+                        value={
+                          previous.Estado === "ANULADO"
+                            ? "Anulado"
+                            : "Confirmado"
+                        }
+                        readOnly
+                        onValueChange={() => {}}
+                      />
+                    )}
+                    {previous?.MotivoAnulacion && (
+                      <TextArea
+                        label="Motivo de anulación"
+                        value={previous.MotivoAnulacion}
+                        size="xl"
+                        readOnly
+                        onValueChange={() => {}}
+                      />
+                    )}
+                  </div>
+                ),
+              },
+              {
+                key: "amounts",
+                title: "Importes",
+                content: (
+                  <fieldset className="account-amounts">
+                    <legend>Importes</legend>
+                    <AmountBox
+                      {...presentation("Importe")}
+                      label="Importe"
+                      size="md"
+                      value={input.Importe}
+                      required={!previous}
+                      readOnly={Boolean(previous)}
+                      disabled={busy}
+                      maxIntegerDigits={16}
+                      onValueChange={(value) => change("Importe", value)}
+                    />
+                  </fieldset>
+                ),
+              },
+            ]}
+          />
         </div>
       </form>
     </section>

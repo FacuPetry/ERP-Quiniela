@@ -145,6 +145,7 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
         after.map((r) => r.NumeroComprobante),
         ["100000025", "100000020", "7", null, "100000024"],
       );
+      assert.ok(after.every((row) => row.Concepto === null));
       for (let i = 0; i < before.length; i++)
         for (const [key, value] of Object.entries(before[i]!))
           if (!["Numero", "Numeracion"].includes(key))

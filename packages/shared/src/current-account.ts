@@ -2,6 +2,8 @@ export interface CurrentAccountRecord {
   IDTabla: string;
   Cliente: string;
   ClienteNombre: string;
+  Concepto: string | null;
+  ConceptoDescripcion: string | null;
   Comprobante: string;
   ComprobanteDescripcion: string;
   CajaMovimiento: string | null;
@@ -30,6 +32,7 @@ export interface CurrentAccountList {
   saldos: { Cobrar: string; Pagar: string } | null;
 }
 export interface CurrentAccountOptions {
+  conceptos: { Codigo: string; Descripcion: string }[];
   comprobantes: {
     Codigo: string;
     Descripcion: string;
@@ -39,6 +42,8 @@ export interface CurrentAccountOptions {
   numeradores: { Comprobante: string; ProximoNumero: string }[];
 }
 export interface CurrentAccountInput {
+  /** Opcional para conservar compatibilidad con clientes anteriores. */
+  Concepto?: string | null;
   Cliente: string;
   Comprobante: string;
   NumeroComprobante: string;

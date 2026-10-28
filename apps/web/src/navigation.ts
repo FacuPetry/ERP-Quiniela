@@ -86,7 +86,7 @@ export const modules: {
     icon: "box",
     description: "Identificación de las cajas del negocio.",
     detail:
-      "Las aperturas y cierres de cada caja se gestionarán desde Tesorería.",
+      "Administrá los registros de las cajas. Sus aperturas y la selección para operar se gestionan desde Cobros y pagos.",
   },
   {
     path: "/bancos",
