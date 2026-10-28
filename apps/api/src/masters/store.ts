@@ -12,10 +12,6 @@ import {
   type MasterList,
   type MasterRecord,
 } from "@erp/shared";
-import {
-  assertNumeratorNext,
-  validateNumeratorLink,
-} from "../database/numbering.js";
 import { MasterRequestError, type ListQuery } from "./validation.js";
 
 // Solo estos identificadores constantes se interpolan en SQL. Los datos siempre
@@ -355,18 +351,6 @@ export function createMasterStore(pool: Pool) {
         }
         if (master.key === "comprobantes" && input)
           await validateVoucherReversal(connection, input);
-        if (master.key === "comprobantes" && input?.Numerador)
-          await validateNumeratorLink(
-            connection,
-            String(input.Codigo),
-            String(input.Numerador),
-          );
-        if (master.key === "numeraciones" && input?.Activo)
-          await assertNumeratorNext(
-            connection,
-            String(input.Codigo),
-            String(input.ProximoNumero),
-          );
         if (action === "ALTA" && input) {
           const fields = columns(master).filter((field) => field !== "IDTabla");
           await connection.execute(

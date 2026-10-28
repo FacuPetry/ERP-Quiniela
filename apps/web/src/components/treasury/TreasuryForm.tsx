@@ -3,7 +3,6 @@ import {
   cashCorrection,
   cashStateLabel,
   moneyUnits,
-  numberSuggestion,
   voucherNumberError,
   type CashDetail,
   type TreasuryInput,
@@ -13,6 +12,7 @@ import {
   DatePicker,
   DropDown,
   NumeroComprobante,
+  useVoucherNumber,
   TextArea,
   TextBox,
   todayISO,
@@ -102,16 +102,12 @@ export function TreasuryForm({
     }));
     setErrors((s) => ({ ...s, Comprobante: "", NumeroComprobante: "" }));
   }
-  const numbering = numberSuggestion(
+  const numbering = useVoucherNumber(
     input.Comprobante,
     data?.numeradores ?? [],
-    selected?.Caja,
-    true,
+    { codigo: selected?.Caja ?? null, apertura: selected?.IDTabla ?? null },
   );
-  const numberValue =
-    !readOnly && numbering.automatic
-      ? numbering.number
-      : input.NumeroComprobante;
+  const numberValue = readOnly ? input.NumeroComprobante : numbering.number;
   async function save(event: FormEvent) {
     event.preventDefault();
     if (busy || readOnly || !canWrite) return;
@@ -289,10 +285,16 @@ export function TreasuryForm({
                           label="Número de comprobante"
                           size="md"
                           value={numberValue}
-                          readOnly={readOnly || numbering.automatic}
+                          readOnly={readOnly}
                           hint={!readOnly ? numbering.notice : undefined}
                           disabled={busy}
-                          onValueChange={(v) => change("NumeroComprobante", v)}
+                          onValueChange={(value) => {
+                            numbering.onValueChange(value);
+                            setErrors((current) => ({
+                              ...current,
+                              NumeroComprobante: "",
+                            }));
+                          }}
                           error={errors.NumeroComprobante}
                         />
                         <p className="cash-box-note">
