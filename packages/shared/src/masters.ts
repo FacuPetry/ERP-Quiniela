@@ -52,6 +52,11 @@ export interface MasterDefinition {
   description: string;
   /** Campos de Propiedades en orden; omitir utiliza los campos funcionales y Estado. */
   propertyFields?: readonly string[];
+  sections?: readonly {
+    key: string;
+    title: string;
+    fields: readonly string[];
+  }[];
   fields: readonly MasterField[];
   columns: readonly string[];
 }
@@ -81,6 +86,25 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
     title: "Comprobantes",
     singular: "comprobante",
     description: "Configurá los comprobantes reutilizables del sistema.",
+    sections: [
+      {
+        key: "general",
+        title: "Datos generales",
+        fields: ["Codigo", "Descripcion", "ModuloOrigen", "Orden"],
+      },
+      {
+        key: "options",
+        title: "Opciones",
+        fields: [
+          "Numerador",
+          "Cuenta",
+          "Naturaleza",
+          "SentidoFondos",
+          "EsReversion",
+          "ComprobanteReversion",
+        ],
+      },
+    ],
     fields: [
       codigo,
       descripcion,
@@ -91,6 +115,14 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 30,
         kind: "select",
         options: modulosComprobante,
+      },
+      {
+        name: "Numerador",
+        label: "Numerador",
+        maxLength: 20,
+        kind: "relation",
+        relation: "numeraciones",
+        relationLabelField: "Codigo",
       },
       {
         name: "Cuenta",
@@ -155,29 +187,11 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
   numeraciones: {
     key: "numeraciones",
     title: "Numerador",
-    singular: "numeración",
-    feminine: true,
-    primaryKey: "IDTabla",
-    description: "Configurá el próximo número sugerido para cada comprobante.",
+    singular: "numerador",
+    description:
+      "Configurá numeradores compartidos, generales o asociados a una caja.",
     fields: [
-      {
-        name: "IDTabla",
-        label: "Identificador",
-        required: true,
-        kind: "integer",
-        maxLength: 19,
-        minimum: "1",
-        maximum: "9223372036854775807",
-      },
-      {
-        name: "Comprobante",
-        label: "Comprobante",
-        required: true,
-        maxLength: 20,
-        kind: "relation",
-        relation: "comprobantes",
-        relationLabelField: "Descripcion",
-      },
+      codigo,
       {
         name: "ProximoNumero",
         label: "Próximo número",
@@ -185,10 +199,19 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 12,
         kind: "voucher",
         defaultValue: "0",
-        hint: "Guardar la configuración no consume números. Debe superar los números ya utilizados dentro del punto de venta elegido.",
+        hint: "Guardar la configuración no consume números. Los números utilizados permanecen ocupados.",
+      },
+      {
+        name: "Caja",
+        label: "Caja",
+        maxLength: 20,
+        kind: "relation",
+        relation: "cajas",
+        relationLabelField: "Nombre",
+        hint: "Opcional. Sin caja asignada, el numerador es general.",
       },
     ],
-    columns: ["Comprobante", "ProximoNumero"],
+    columns: ["Codigo", "ProximoNumero", "Caja"],
   },
   "tipos-cliente": {
     key: "tipos-cliente",

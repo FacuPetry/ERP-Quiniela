@@ -6,12 +6,9 @@ import {
   formatVoucher,
   compatibleReversal,
   type CashModule,
-  voucherNumberError,
   type CashReversalPreview,
   moneyUnits,
   moneyText,
-  nextVoucher,
-  voucherBase,
   voucherParts,
   type CashInput,
   type CashDetail,
@@ -25,7 +22,11 @@ import {
   type RelatedCashMovement,
 } from "@erp/shared";
 import { financialTransactions } from "../database/financial-transaction.js";
-import { lastVoucher } from "../database/voucher-sequence.js";
+import {
+  issueNumber,
+  previewNumber,
+  numberingOptions,
+} from "../database/numbering.js";
 import { MasterRequestError } from "../masters/validation.js";
 import {
   query,
@@ -209,49 +210,6 @@ async function used(c: Conn, id: string) {
   );
   return moneyUnits(String(r[0]!.total));
 }
-async function numberStart(c: PoolConnection, code: string, number: string) {
-  const [n] = await c.execute<RowDataPacket[]>(
-    "SELECT * FROM NUMERACION WHERE Comprobante=? FOR UPDATE",
-    [code],
-  );
-  for (const table of ["CUENTACORRIENTE", "CAJAMOVIMIENTO"]) {
-    const [r] = await c.execute<RowDataPacket[]>(
-      `SELECT IDTabla FROM ${table} WHERE Comprobante=? AND NumeroComprobante=? LIMIT 1`,
-      [code, number],
-    );
-    if (r.length)
-      fail(
-        "Ese comprobante y número ya están registrados, incluidos los revertidos.",
-      );
-  }
-  return n[0];
-}
-async function numberFinish(
-  c: PoolConnection,
-  code: string,
-  value: string,
-  n: RowDataPacket | undefined,
-) {
-  if (
-    n?.Activo &&
-    BigInt(n.ProximoNumero) / voucherBase === BigInt(value) / voucherBase
-  ) {
-    const highest = (await lastVoucher(c, code, value))!;
-    const next = nextVoucher(highest.toString());
-    await c.execute(
-      "UPDATE NUMERACION SET ProximoNumero=?,Activo=? WHERE IDTabla=?",
-      [
-        next === null
-          ? highest.toString()
-          : BigInt(next) > BigInt(n.ProximoNumero)
-            ? next
-            : String(n.ProximoNumero),
-        next === null ? 0 : 1,
-        String(n.IDTabla),
-      ],
-    );
-  }
-}
 async function canonical(pool: Pool, code: string) {
   const [r] = await pool.execute<RowDataPacket[]>(
     "SELECT Codigo FROM COMPROBANTE WHERE Codigo=?",
@@ -346,12 +304,6 @@ async function reversalVoucher(
     );
   return target;
 }
-function checkReversalNumerator(n: RowDataPacket | undefined) {
-  if (!n?.Activo || voucherNumberError(String(n.ProximoNumero)))
-    fail(
-      "Configurá un Numerador activo con un próximo número válido para el comprobante de reversión.",
-    );
-}
 function ensureInternalCash(d: CashDetail) {
   const r = d.registro;
   if (
@@ -388,9 +340,7 @@ export function createCashMovementStore(
         "SELECT c.Codigo,c.Descripcion,c.Cuenta,c.Naturaleza,c.SentidoFondos FROM COMPROBANTE c WHERE c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen=? ORDER BY c.Orden,c.Codigo",
         [module],
       );
-      const [n] = await pool.query<RowDataPacket[]>(
-        "SELECT Comprobante,ProximoNumero FROM NUMERACION WHERE Activo=1",
-      );
+      const n = await numberingOptions(pool, module);
       const [b] = treasury
         ? [[]]
         : await pool.query<RowDataPacket[]>(
@@ -418,7 +368,7 @@ export function createCashMovementStore(
         });
       return {
         comprobantes: v.map(stringify),
-        numeradores: n.map(stringify),
+        numeradores: n,
         bancos: b.map(stringify),
         cuentas: a.map(stringify),
         cajas: cajas.map(stringify),
@@ -685,14 +635,27 @@ export function createCashMovementStore(
     },
     async create(input: CashInput, user: string, key: string) {
       const code = await canonical(pool, input.Comprobante),
-        number = input.NumeroComprobante;
+        requestedNumber = input.NumeroComprobante;
       return tx(
         user,
         treasury ? "TESORERIA_ALTA" : "CAJA_ALTA",
         key,
-        input,
+        {
+          ...input,
+          NumeroComprobante: input.NumeroAutomatico
+            ? "0"
+            : input.NumeroComprobante,
+        },
         async (c) => {
-          const n = await numberStart(c, code, number);
+          const number = await issueNumber(
+            c,
+            code,
+            requestedNumber,
+            module,
+            input.CajaSaldo,
+            false,
+            input.NumeroAutomatico,
+          );
           const [v] = await c.execute<RowDataPacket[]>(
             "SELECT c.* FROM COMPROBANTE c WHERE c.Codigo=? AND " +
               (treasury
@@ -761,7 +724,6 @@ export function createCashMovementStore(
               ],
             );
             const id = await lastId(c);
-            await numberFinish(c, code, number, n);
             const after = await movementDetail(c, id);
             await audit(c, user, "ALTA_TESORERIA", "CAJAMOVIMIENTO", id, {
               Despues: after,
@@ -993,7 +955,6 @@ export function createCashMovementStore(
               Estado: state,
             });
           }
-          await numberFinish(c, code, number, n);
           const result = await movementDetail(c, id);
           await audit(c, user, "ALTA", "CAJAMOVIMIENTO", id, result);
           await audit(c, user, "ALTA_DESDE_CAJA", "CUENTACORRIENTE", creditId, {
@@ -1002,7 +963,7 @@ export function createCashMovementStore(
           });
           return result;
         },
-        JSON.stringify([code, voucherParts(number).point]),
+        JSON.stringify([code, voucherParts(requestedNumber).point]),
       );
     },
     async annul(
@@ -1197,7 +1158,10 @@ export function createCashMovementStore(
         },
       );
     },
-    async reversalPreview(id: string): Promise<CashReversalPreview> {
+    async reversalPreview(
+      id: string,
+      cajaSaldo?: string,
+    ): Promise<CashReversalPreview> {
       validId(id);
       const original = (await movementDetail(pool, id)).registro;
       if (
@@ -1216,15 +1180,11 @@ export function createCashMovementStore(
         false,
         module,
       );
-      const [rows] = await pool.execute<RowDataPacket[]>(
-        "SELECT * FROM NUMERACION WHERE Comprobante=?",
-        [code],
-      );
-      checkReversalNumerator(rows[0]);
+      const number = await previewNumber(pool, code, module, cajaSaldo);
       return {
         Comprobante: code,
         ComprobanteDescripcion: String(voucher.Descripcion),
-        NumeroComprobante: String(rows[0]!.ProximoNumero),
+        NumeroComprobante: number,
       };
     },
     async reverse(
@@ -1242,17 +1202,24 @@ export function createCashMovementStore(
         { id, ...input, version },
         async (c) => {
           const code = await reversalSetup(c, id);
-          // El Numerador es obligatorio: su fila bloqueada serializa la asignación,
-          // incluso entre distintos originales. Los reintentos se resuelven antes
-          // de consultar configuración mutable, sin consumir otro número.
-          const [numerators] = await c.execute<RowDataPacket[]>(
-            "SELECT * FROM NUMERACION WHERE Comprobante=? FOR UPDATE",
-            [code],
+          const [sourceVoucher] = await c.execute<RowDataPacket[]>(
+            "SELECT Comprobante FROM CAJAMOVIMIENTO WHERE IDTabla=?",
+            [id],
           );
-          const n = numerators[0];
-          checkReversalNumerator(n);
-          const number = String(n!.ProximoNumero);
-          await numberStart(c, code, number);
+          if (!sourceVoucher[0]) fail("El movimiento no existe.", 404);
+          // Bloquear ambos comprobantes antes del Numerador evita inversiones con altas normales.
+          await c.execute(
+            "SELECT Codigo FROM COMPROBANTE WHERE Codigo IN (?,?) ORDER BY Codigo FOR UPDATE",
+            [String(sourceVoucher[0].Comprobante), code],
+          );
+          const number = await issueNumber(
+            c,
+            code,
+            "0",
+            module,
+            input.CajaSaldo,
+            true,
+          );
           const box = await opening(c, input.CajaSaldo);
           const [locked] = await c.execute<RowDataPacket[]>(
             "SELECT m.* FROM CAJAMOVIMIENTO m WHERE m.IDTabla=? FOR UPDATE",
@@ -1425,7 +1392,6 @@ export function createCashMovementStore(
               input.Motivo,
             );
           }
-          await numberFinish(c, code, number, n);
           await audit(
             c,
             user,

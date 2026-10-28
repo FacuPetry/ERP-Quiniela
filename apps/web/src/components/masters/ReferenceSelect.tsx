@@ -96,7 +96,11 @@ export function ReferenceSelect({
           : []),
         ...available.map((row) => ({
           value: String(row.Codigo),
-          label: `${row.Codigo} · ${String(row.Descripcion ?? row.Nombre)}`,
+          label:
+            row[field.relationLabelField ?? "Descripcion"] &&
+            row[field.relationLabelField ?? "Descripcion"] !== row.Codigo
+              ? `${row.Codigo} · ${String(row[field.relationLabelField ?? "Descripcion"] ?? row.Nombre)}`
+              : String(row.Codigo),
         })),
       ]}
       hint={

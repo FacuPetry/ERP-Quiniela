@@ -37,7 +37,7 @@ const positive = amount.refine(
 const number = z
   .string()
   .superRefine((v, c) => {
-    const e = voucherNumberError(v);
+    const e = v === "0" ? undefined : voucherNumberError(v);
     if (e) c.addIssue({ code: "custom", message: e });
   })
   .transform((v) => BigInt(v).toString());
@@ -92,6 +92,7 @@ const cheque = z
   });
 export const creation = z
   .object({
+    NumeroAutomatico: z.boolean().optional(),
     Comprobante: code,
     NumeroComprobante: number,
     Cliente: code,
@@ -122,6 +123,13 @@ export const creation = z
       .max(50),
   })
   .strict()
+  .superRefine((v, c) => {
+    if (!v.NumeroAutomatico) {
+      const e = voucherNumberError(v.NumeroComprobante);
+      if (e)
+        c.addIssue({ code: "custom", path: ["NumeroComprobante"], message: e });
+    }
+  })
   .refine(
     (v) =>
       new Set(v.Afectaciones.map((a) => a.CuentaCorriente)).size ===
@@ -190,6 +198,7 @@ export const annulment = z
 /** No admite clientes, valores ni afectaciones en una operación interna. */
 export const treasuryCreation = z
   .object({
+    NumeroAutomatico: z.boolean().optional(),
     Comprobante: code,
     NumeroComprobante: number,
     CajaSaldo: id,
@@ -198,4 +207,11 @@ export const treasuryCreation = z
     Importe: positive,
     Observacion: text,
   })
-  .strict();
+  .strict()
+  .superRefine((v, c) => {
+    if (!v.NumeroAutomatico) {
+      const e = voucherNumberError(v.NumeroComprobante);
+      if (e)
+        c.addIssue({ code: "custom", path: ["NumeroComprobante"], message: e });
+    }
+  });

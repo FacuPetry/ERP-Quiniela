@@ -64,7 +64,10 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
       [code, code, account, nature, sense, module],
     );
   await pool.query(
-    "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('CM_C',100000001),('CM_P',100000001),('CM_RC',100000001),('CM_RP',100000001)",
+    "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES ('CM_C',100000001),('CM_P',100000001),('CM_RC',100000001),('CM_RP',100000001)",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
   );
   await pool.query(
     "UPDATE COMPROBANTE SET EsReversion=1 WHERE Codigo IN ('CM_RC','CM_RP')",

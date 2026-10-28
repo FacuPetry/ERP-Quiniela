@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
   voucherNumberError,
+  numberSuggestion,
   type CurrentAccountDetail,
   type CurrentAccountInput,
   type CurrentAccountOptions,
@@ -87,14 +88,6 @@ export function CurrentAccountForm({
       .then((data) => {
         if (!request.signal.aborted) {
           setOptions(data);
-          if (input.Comprobante)
-            setInput((current) => ({
-              ...current,
-              NumeroComprobante:
-                data.numeradores.find(
-                  (n) => n.Comprobante === input.Comprobante,
-                )?.ProximoNumero ?? "0",
-            }));
         }
       })
       .catch((e) => {
@@ -144,11 +137,18 @@ export function CurrentAccountForm({
     setInput((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: "" }));
   }
+  const numbering = numberSuggestion(input.Comprobante, options.numeradores);
+  const numberValue =
+    !previous && numbering.automatic
+      ? numbering.number
+      : input.NumeroComprobante;
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (previous || busy || loading) return;
     const payload = {
       ...input,
+      NumeroComprobante: numbering.automatic ? "0" : numberValue,
+      NumeroAutomatico: numbering.automatic,
       Cliente: client ? String(client.Codigo) : "",
       Importe: input.Importe,
     };
@@ -161,7 +161,9 @@ export function CurrentAccountForm({
       "Importe",
     ] as const)
       if (!payload[name]) invalid[name] = "Completá este campo.";
-    const numberError = voucherNumberError(payload.NumeroComprobante);
+    const numberError = numbering.automatic
+      ? undefined
+      : voucherNumberError(payload.NumeroComprobante);
     if (numberError) invalid.NumeroComprobante = numberError;
     if (Object.keys(invalid).length) {
       setErrors(invalid);
@@ -253,9 +255,9 @@ export function CurrentAccountForm({
                     </li>
                   ))}
               </ul>
-              {!options.comprobantes.length && !loading && (
+              {!previous && !loading && (
                 <button type="button" onClick={() => setRevision((v) => v + 1)}>
-                  Reintentar carga
+                  Actualizar opciones
                 </button>
               )}
             </div>
@@ -322,9 +324,10 @@ export function CurrentAccountForm({
                           {...presentation("NumeroComprobante")}
                           label="Número de comprobante"
                           size="md"
-                          value={input.NumeroComprobante}
+                          value={numberValue}
                           required={!previous}
-                          readOnly={Boolean(previous)}
+                          readOnly={Boolean(previous) || numbering.automatic}
+                          hint={!previous ? numbering.notice : undefined}
                           disabled={busy || loading}
                           onValueChange={(value) =>
                             change("NumeroComprobante", value)

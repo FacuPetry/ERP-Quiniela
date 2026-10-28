@@ -451,7 +451,10 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
     async () => {
       const b = await fixture("50");
       await pool.query(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('TT_OUT',900000100)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES ('TT_OUT',900000100)",
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       const bad = {
         ...input(b, "51", "TT_OUT"),
@@ -462,7 +465,7 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
         String(
           (
             await rows(
-              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='TT_OUT'",
+              "SELECT ProximoNumero FROM NUMERACION WHERE Codigo='TT_OUT'",
             )
           )[0]!.ProximoNumero,
         ),
@@ -480,16 +483,16 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
       );
       assert.equal(first.registro.IDTabla, retry.registro.IDTabla);
       assert.equal(await balance(b), "25.00");
-      assert.equal((await req("tesoreria", "POST", body)).status, 409);
+      assert.equal((await req("tesoreria", "POST", body)).status, 201);
       assert.equal(
         String(
           (
             await rows(
-              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='TT_OUT'",
+              "SELECT ProximoNumero FROM NUMERACION WHERE Codigo='TT_OUT'",
             )
           )[0]!.ProximoNumero,
         ),
-        "900000101",
+        "900000102",
       );
     },
   );
@@ -545,7 +548,10 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
       assert.equal((await annul(d, dest)).status, 409);
       assert.equal((await reverse(d, dest)).status, 409, "Falta Numerador");
       await pool.query(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('TT_RI',200000001)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES ('TT_RI',200000001)",
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       const preview = await good<{
         Comprobante: string;
@@ -692,7 +698,10 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
       const dest = await fixture(),
         before = await unrelated();
       await pool.query(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('TT_RO',200000001)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES ('TT_RO',200000001)",
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       const r = await good<CashDetail>(await reverse(d, dest));
       assert.equal(r.registro.Sentido, "INGRESO");
@@ -711,7 +720,10 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
       const data = input(b, "1"),
         key = randomUUID();
       await pool.query(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('TT_IN',990000001)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES ('TT_IN',990000001)",
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       await pool.query("RENAME TABLE AUDITORIA TO AUDITORIA_TT_TEST");
       const body = {
@@ -749,7 +761,7 @@ test("Tesorería: efectivo interno sin Cuenta corriente y correcciones por apert
         String(
           (
             await rows(
-              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='TT_IN'",
+              "SELECT ProximoNumero FROM NUMERACION WHERE Codigo='TT_IN'",
             )
           )[0]!.ProximoNumero,
         ),

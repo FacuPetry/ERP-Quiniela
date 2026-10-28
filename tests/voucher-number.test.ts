@@ -48,3 +48,32 @@ test("Comprobantes: valida el dominio y no cambia el punto de venta al agotarse"
   assert.throws(() => encodeVoucher("10000", "1"));
   assert.throws(() => encodeVoucher("1", "100000000"));
 });
+
+test("Sugerencia compartida: general, caja compatible, manual por incompatibilidad y Cuenta corriente independiente", async () => {
+  const { numberSuggestion } = await import("@erp/shared");
+  const option = {
+    Comprobante: "C",
+    Codigo: "GENERAL",
+    ProximoNumero: "100000025",
+    Caja: null,
+    Activo: true,
+  };
+  assert.equal(numberSuggestion("C", [option], "B", true).number, "100000025");
+  assert.equal(
+    numberSuggestion("C", [{ ...option, Caja: "A" }], "A", true).automatic,
+    true,
+  );
+  const manual = numberSuggestion("C", [{ ...option, Caja: "A" }], "B", true);
+  assert.equal(manual.automatic, false);
+  assert.equal(manual.number, "0");
+  assert.match(manual.notice, /manualmente/);
+  assert.equal(
+    numberSuggestion("C", [{ ...option, Caja: "A" }]).automatic,
+    true,
+  );
+  assert.equal(
+    numberSuggestion("C", [{ ...option, Activo: false }]).automatic,
+    false,
+  );
+  assert.equal(numberSuggestion("SIN", []).automatic, false);
+});

@@ -15,6 +15,7 @@ import type {
 } from "@erp/shared";
 import {
   formatVoucher,
+  modulosComprobante,
   masterRecordKey,
   masterRecordLabel,
   masterListColumns,
@@ -29,7 +30,7 @@ import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { MasterForm } from "./MasterForm";
 import { MasterProperties } from "./MasterProperties";
 
-const defaultFilters = { q: "", estado: "todos", referencia: "" };
+const defaultFilters = { q: "", estado: "todos", referencia: "", modulo: "" };
 
 export function MasterPage({
   master,
@@ -72,7 +73,10 @@ export function MasterPage({
     };
   }, []);
   const canWrite = session.usuario.rol.codigo === "ADMIN";
-  const relation = master.fields.find((field) => field.kind === "relation");
+  const relation =
+    master.key === "comprobantes"
+      ? undefined
+      : master.fields.find((field) => field.kind === "relation");
   const expiredHandler = useRef(onExpired);
   useEffect(() => {
     expiredHandler.current = onExpired;
@@ -95,6 +99,16 @@ export function MasterPage({
         { value: "inactivo", label: "Inactivos" },
       ],
     },
+    ...(master.key === "comprobantes"
+      ? [
+          {
+            key: "modulo",
+            label: "Módulo de origen",
+            kind: "select" as const,
+            options: [{ value: "", label: "Todos" }, ...modulosComprobante],
+          },
+        ]
+      : []),
     ...(relation
       ? [
           {
@@ -109,6 +123,7 @@ export function MasterPage({
   const filtersActive =
     filters.estado !== "todos" ||
     Boolean(filters.referencia) ||
+    Boolean(filters.modulo) ||
     Boolean(filters.q?.trim());
   useEffect(() => {
     if (!hasRequestedList) return;
@@ -122,6 +137,7 @@ export function MasterPage({
         estado: filters.estado ?? "todos",
         pagina: String(page),
         ...sorting.query,
+        ...(filters.modulo ? { modulo: filters.modulo } : {}),
         ...(filters.referencia ? { referencia: filters.referencia } : {}),
       },
       request.signal,

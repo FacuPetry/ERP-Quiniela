@@ -73,3 +73,6 @@ Todos los usuarios activos pueden consultar. ADMIN puede escribir con CSRF y ver
 Esta revisión requiere la migración de numeración. No recrear usuarios ni modificar las variables de entorno existentes. Ejecutar tipos, pruebas unitarias/HTTP, integración aislada en MySQL 8.4 y MariaDB 11.8.9 y build. Las pruebas incluyen concurrencia, conservación de registros previos y rechazos de migraciones incompatibles antes de DDL. El recorrido de Chromium verifica ambos ABM y Cuenta corriente con la biblioteca de controles existente.
 
 Cobros/pagos, Tesorería y Valores siguen pendientes.
+
+
+La configuración actual de Numeradores compartidos y Comprobantes requiere la migración 0006 y reemplaza la relación inicial por comprobante: ver [guía vigente](numeracion-comprobantes.md).

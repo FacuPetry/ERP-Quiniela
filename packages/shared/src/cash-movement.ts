@@ -1,3 +1,4 @@
+import type { NumberingOption } from "./voucher-number.js";
 export interface Allocation {
   CuentaCorriente: string;
   Importe: string;
@@ -23,6 +24,7 @@ export type CashValue =
     }
   | { Tipo: "CARTERA"; Cheque: string };
 export interface CashInput {
+  NumeroAutomatico?: boolean | undefined;
   Comprobante: string;
   NumeroComprobante: string;
   Cliente: string;
@@ -145,7 +147,7 @@ export interface CashOptions {
     Naturaleza: string;
     SentidoFondos: string;
   }[];
-  numeradores: { Comprobante: string; ProximoNumero: string }[];
+  numeradores: NumberingOption[];
   cajas: { Codigo: string; Nombre: string }[];
   aperturas: CashOpening[];
   cuentas: { Codigo: string; Nombre: string; Banco: string }[];
@@ -209,6 +211,7 @@ export interface CashReversalPreview {
 
 export type CashModule = "COBROSPAGOS" | "TESORERIA";
 export interface TreasuryInput {
+  NumeroAutomatico?: boolean | undefined;
   Comprobante: string;
   NumeroComprobante: string;
   CajaSaldo: string;

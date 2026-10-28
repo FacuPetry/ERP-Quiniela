@@ -43,6 +43,13 @@
       "when": 1793195369673,
       "tag": "0005_comprobantes_reversion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1793204155033,
+      "tag": "0006_numeradores_compartidos",
+      "breakpoints": true
     }
   ]
 }

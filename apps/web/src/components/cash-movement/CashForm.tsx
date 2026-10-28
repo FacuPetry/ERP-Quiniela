@@ -2,6 +2,7 @@ import { displayDate } from "../controls/date-value";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   moneyUnits,
+  numberSuggestion,
   cashStateLabel,
   cashCorrection,
   moneyText,
@@ -137,7 +138,12 @@ export function CashForm({
     return () => window.removeEventListener("focus", refresh);
   }, [old]);
   useEffect(() => {
-    if (!old) setInput((s) => ({ ...s, CajaSaldo: activeBox?.IDTabla ?? "" }));
+    if (!old)
+      setInput((s) => ({
+        ...s,
+        CajaSaldo: activeBox?.IDTabla ?? "",
+        NumeroComprobante: "0",
+      }));
   }, [old, activeBox?.IDTabla]);
   const voucher = options.comprobantes.find(
       (c) => c.Codigo === input.Comprobante,
@@ -149,6 +155,16 @@ export function CashForm({
         ((c.Cuenta === "COBRAR" && c.SentidoFondos === "INGRESO") ||
           (c.Cuenta === "PAGAR" && c.SentidoFondos === "EGRESO")),
     );
+  const numbering = numberSuggestion(
+    input.Comprobante,
+    options.numeradores,
+    activeBox?.Caja,
+    true,
+  );
+  const numberValue =
+    !readOnly && numbering.automatic
+      ? numbering.number
+      : input.NumeroComprobante;
   function change<K extends keyof typeof input>(
     key: K,
     value: (typeof input)[K],
@@ -174,9 +190,7 @@ export function CashForm({
       setInput((s) => ({
         ...s,
         Comprobante: value,
-        NumeroComprobante:
-          options.numeradores.find((n) => n.Comprobante === value)
-            ?.ProximoNumero ?? "0",
+        NumeroComprobante: "0",
       }));
     };
     if (values.length && next?.SentidoFondos !== sense)
@@ -269,6 +283,8 @@ export function CashForm({
     }
     const payload: CashInput = {
       ...input,
+      NumeroComprobante: numbering.automatic ? "0" : numberValue,
+      NumeroAutomatico: numbering.automatic,
       Cliente: String(client.Codigo),
       Afectaciones: allocations.map((a) => ({
         CuentaCorriente: a.CuentaCorriente,
@@ -364,6 +380,11 @@ export function CashForm({
           {error && (
             <p className="notice error" role="alert">
               {error}
+              {!old && (
+                <button type="button" onClick={() => setRevision((n) => n + 1)}>
+                  Actualizar opciones
+                </button>
+              )}
             </p>
           )}
           {!old && options === emptyOptions && !loading && (
@@ -431,9 +452,10 @@ export function CashForm({
                     <div className="cash-voucher-summary">
                       <NumeroComprobante
                         label="Número de comprobante"
-                        value={input.NumeroComprobante}
+                        value={numberValue}
                         onValueChange={(v) => change("NumeroComprobante", v)}
-                        readOnly={readOnly}
+                        readOnly={readOnly || numbering.automatic}
+                        hint={!readOnly ? numbering.notice : undefined}
                         disabled={busy}
                         size="md"
                       />
