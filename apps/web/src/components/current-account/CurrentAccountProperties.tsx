@@ -38,6 +38,11 @@ export const currentAccountPropertyFields: readonly PropertyField<CurrentAccount
       render: (r) => formatDateValue(r.Vencimiento ?? ""),
     },
     {
+      key: "Concepto",
+      label: "Concepto",
+      render: (r) => r.ConceptoDescripcion,
+    },
+    {
       key: "Cuenta",
       label: "Cuenta",
       render: (r) =>

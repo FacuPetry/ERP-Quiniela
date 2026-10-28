@@ -369,6 +369,78 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
     },
   );
   await t.test(
+    "diagnóstico Pago/Premio: Crédito cancela deuda por pagar y los pendientes usan los datos guardados del premio",
+    async () => {
+      const list = await pending("CM_P");
+      assert.equal(list.total, 1);
+      assert.equal(list.registros[0]!.IDTabla, prizeId);
+      assert.equal(list.registros[0]!.Pendiente, "70.00");
+      assert.ok(
+        !(await pending("CM_C")).registros.some((r) => r.IDTabla === prizeId),
+      );
+      const excluded = await good<PendingList>(
+        await req(
+          "/pendientes?Cliente=CM_A&Comprobante=CM_P&Excluir=" + prizeId,
+        ),
+      );
+      assert.equal(excluded.total, 0);
+      assert.equal((await pending("CM_P")).registros[0]!.Pendiente, "70.00");
+      const otherClient = await good<PendingList>(
+        await req("/pendientes?Cliente=CM_B&Comprobante=CM_P"),
+      );
+      assert.equal(otherClient.total, 0);
+      const [original] = await pool.execute<RowDataPacket[]>(
+        "SELECT Cuenta,Naturaleza,Estado FROM CUENTACORRIENTE WHERE IDTabla=?",
+        [prizeId],
+      );
+      assert.deepEqual(
+        { ...original[0] },
+        { Cuenta: "PAGAR", Naturaleza: "DEUDA", Estado: "CONFIRMADO" },
+      );
+      try {
+        // No hay reinterpretación histórica al editar el maestro del comprobante.
+        await pool.query(
+          "UPDATE COMPROBANTE SET Cuenta='COBRAR',Naturaleza='CREDITO' WHERE Codigo='CM_PR'",
+        );
+        assert.equal((await pending("CM_P")).registros[0]!.IDTabla, prizeId);
+        await pool.query(
+          "UPDATE COMPROBANTE SET Naturaleza='DEUDA' WHERE Codigo='CM_P'",
+        );
+        assert.equal(
+          (await req("/pendientes?Cliente=CM_A&Comprobante=CM_P")).status,
+          400,
+        );
+      } finally {
+        await pool.query(
+          "UPDATE COMPROBANTE SET Cuenta='PAGAR',Naturaleza='DEUDA' WHERE Codigo='CM_PR'",
+        );
+        await pool.query(
+          "UPDATE COMPROBANTE SET Naturaleza='CREDITO' WHERE Codigo='CM_P'",
+        );
+      }
+      for (const [field, invalid] of [
+        ["Cuenta", "COBRAR"],
+        ["Naturaleza", "CREDITO"],
+        ["Estado", "ANULADO"],
+      ]) {
+        try {
+          // Reproduce, solo en la base efímera, los motivos reales de exclusión.
+          await pool.execute(
+            `UPDATE CUENTACORRIENTE SET ${field}=? WHERE IDTabla=?`,
+            [invalid, prizeId],
+          );
+          assert.equal((await pending("CM_P")).total, 0);
+        } finally {
+          await pool.execute(
+            `UPDATE CUENTACORRIENTE SET ${field}=? WHERE IDTabla=?`,
+            [original[0]![field!], prizeId],
+          );
+        }
+      }
+      assert.equal((await pending("CM_P")).registros[0]!.Pendiente, "70.00");
+    },
+  );
+  await t.test(
     "pago con cartera y afectación parcial; rechazo de duplicados y tipos incompatibles",
     async () => {
       const payment = await create(
@@ -380,6 +452,27 @@ test("Cobros y pagos: valores, afectaciones y cierres reales en base aislada", a
         }),
       );
       assert.equal(payment.registro.ImporteTotal, "50.00");
+      assert.equal(payment.registro.Cuenta, "PAGAR");
+      assert.equal(payment.registro.Sentido, "EGRESO");
+      const [credit] = await pool.execute<RowDataPacket[]>(
+        "SELECT Cuenta,Naturaleza,Importe FROM CUENTACORRIENTE WHERE CajaMovimiento=?",
+        [payment.registro.IDTabla],
+      );
+      assert.equal(credit.length, 1);
+      assert.deepEqual(
+        { ...credit[0] },
+        { Cuenta: "PAGAR", Naturaleza: "CREDITO", Importe: "50.00" },
+      );
+      const balances = await good<CurrentAccountList>(
+        await fetch(base + "/api/cuenta-corriente?Cliente=CM_A&Estado=TODOS", {
+          headers: { Cookie: admin.cookie },
+        }),
+      );
+      assert.equal(
+        balances.saldos!.Pagar,
+        "20.00",
+        "El pago resta una sola vez del saldo",
+      );
       assert.equal(
         (await pending("CM_P")).registros.find((r) => r.IDTabla === prizeId)!
           .Pendiente,

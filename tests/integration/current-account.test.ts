@@ -8,6 +8,7 @@ import type {
   CurrentAccountDetail,
   CurrentAccountInput,
   CurrentAccountList,
+  CurrentAccountOptions,
   SessionResponse,
 } from "@erp/shared";
 import { createApp } from "../../apps/api/src/app.js";
@@ -57,6 +58,9 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
     );
   await pool.query(
     "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('CC_D',100000001)",
+  );
+  await pool.query(
+    "INSERT INTO CONCEPTO (Codigo,Descripcion,Activo) VALUES ('CC_CON','Concepto vigente',1),('CC_INACT','Concepto desactivado',0)",
   );
   const server = createApp({
     checkDatabase: async () => {},
@@ -169,10 +173,9 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         403,
       );
       const r = await req("/opciones");
-      const options = (await r.json()) as {
-        comprobantes: { Codigo: string }[];
-        numeradores: { Comprobante: string; ProximoNumero: string }[];
-      };
+      const options = (await r.json()) as CurrentAccountOptions;
+      assert.ok(options.conceptos.some((v) => v.Codigo === "CC_CON"));
+      assert.ok(!options.conceptos.some((v) => v.Codigo === "CC_INACT"));
       assert.ok(options.comprobantes.some((v) => v.Codigo === "CC_D"));
       assert.ok(
         !options.comprobantes.some(
@@ -200,6 +203,10 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         { Comprobante: "CC_BAD" },
         { Comprobante: "CC_FUNDS" },
         { Cliente: "NOEXISTE" },
+        { Concepto: "NOEXISTE" },
+        { Concepto: "CC_INACT" },
+        { Concepto: "" },
+        { Concepto: "X".repeat(21) },
       ])
         assert.equal(
           (await req("", "POST", { ...input("0000-00000001"), ...extra }))
@@ -213,7 +220,18 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
   await t.test(
     "deuda, crédito y premio mantienen decimales exactos y cuentas separadas",
     async () => {
-      debt = await create("0000-00000001");
+      debt = await create("0000-00000001", { Concepto: "CC_CON" });
+      assert.equal(debt.registro.Concepto, "CC_CON");
+      assert.equal(debt.registro.ConceptoDescripcion, "Concepto vigente");
+      const [audits] = await pool.execute<RowDataPacket[]>(
+        "SELECT Detalle FROM AUDITORIA WHERE Tabla='CUENTACORRIENTE' AND Registro=? AND Accion='ALTA'",
+        [debt.registro.IDTabla],
+      );
+      const audit =
+        typeof audits[0]!.Detalle === "string"
+          ? JSON.parse(audits[0]!.Detalle)
+          : audits[0]!.Detalle;
+      assert.equal(audit.Despues.Concepto, "CC_CON");
       await create("0000-00000002", { Importe: "0.10" });
       await create("0000-00000001", { Comprobante: "CC_C", Importe: "30.05" });
       await create("0000-00000001", { Comprobante: "CC_P", Importe: "200.00" });
@@ -251,6 +269,59 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         (await req("/" + debt.registro.IDTabla, "DELETE", {})).status,
         404,
       );
+    },
+  );
+  await t.test(
+    "concepto opcional: FK, consulta histórica y descripción sin duplicación ni cambios en saldos",
+    async () => {
+      const before = await list();
+      const original = await get(debt.registro.IDTabla);
+      assert.ok(before.registros.some((r) => r.Concepto === null));
+      await assert.rejects(
+        pool.execute("DELETE FROM CONCEPTO WHERE Codigo='CC_CON'"),
+        (error: unknown) =>
+          !!error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "ER_ROW_IS_REFERENCED_2",
+      );
+      await assert.rejects(
+        pool.execute(
+          "UPDATE CUENTACORRIENTE SET Concepto='NOEXISTE' WHERE IDTabla=?",
+          [debt.registro.IDTabla],
+        ),
+        (error: unknown) =>
+          !!error &&
+          typeof error === "object" &&
+          "code" in error &&
+          error.code === "ER_NO_REFERENCED_ROW_2",
+      );
+      await pool.query(
+        "UPDATE CONCEPTO SET Descripcion='Concepto actualizado',Activo=0 WHERE Codigo='CC_CON'",
+      );
+      const historical = await get(debt.registro.IDTabla);
+      assert.equal(historical.registro.Concepto, "CC_CON");
+      assert.equal(
+        historical.registro.ConceptoDescripcion,
+        "Concepto actualizado",
+      );
+      assert.equal(
+        historical.version,
+        original.version,
+        "Renombrar el maestro no cambia el movimiento",
+      );
+      const after = await list();
+      assert.deepEqual(after.saldos, before.saldos);
+      assert.equal(after.total, before.total);
+      assert.equal(
+        after.registros.find((r) => r.IDTabla === debt.registro.IDTabla)!
+          .ConceptoDescripcion,
+        "Concepto actualizado",
+      );
+      const options = (await (
+        await req("/opciones")
+      ).json()) as CurrentAccountOptions;
+      assert.ok(!options.conceptos.some((v) => v.Codigo === "CC_CON"));
     },
   );
   await t.test(
@@ -633,7 +704,14 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       assert.equal(formatted.total, 1);
       await pool.execute(
         "INSERT INTO COMPROBANTE (Codigo,Descripcion,ModuloOrigen,Cuenta,Naturaleza,SentidoFondos) VALUES (?,?,?,?,?,?)",
-        ["CC_CONCURRENT", "Concurrente", "CUENTACORRIENTE", "COBRAR", "DEUDA", "NOAPLICA"],
+        [
+          "CC_CONCURRENT",
+          "Concurrente",
+          "CUENTACORRIENTE",
+          "COBRAR",
+          "DEUDA",
+          "NOAPLICA",
+        ],
       );
       await pool.execute(
         "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES (?,?)",
@@ -641,7 +719,11 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       );
       const attempts = await Promise.all(
         Array.from({ length: 5 }, () =>
-          req("", "POST", input("0001-00001000", { Comprobante: "CC_CONCURRENT" })),
+          req(
+            "",
+            "POST",
+            input("0001-00001000", { Comprobante: "CC_CONCURRENT" }),
+          ),
         ),
       );
       assert.equal(attempts.filter((r) => r.status === 201).length, 1);
@@ -713,7 +795,10 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         ]) {
           await searchPool.query("SET NAMES utf8mb4 COLLATE " + collation);
           for (let i = 0; i < criteria.length; i++)
-            assert.deepEqual(await store.list(query(criteria[i]!)), expected[i]);
+            assert.deepEqual(
+              await store.list(query(criteria[i]!)),
+              expected[i],
+            );
         }
       } finally {
         await searchPool.end();

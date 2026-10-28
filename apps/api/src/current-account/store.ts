@@ -18,11 +18,11 @@ import type { AccountQuery } from "./validation.js";
 
 const eligible =
   "c.Activo = 1 AND c.ModuloOrigen = 'CUENTACORRIENTE' AND c.Cuenta IN ('COBRAR','PAGAR') AND c.Naturaleza IN ('DEUDA','CREDITO') AND c.SentidoFondos = 'NOAPLICA'";
-const projection = `a.*, cl.Nombre AS ClienteNombre, c.Descripcion AS ComprobanteDescripcion,
+const projection = `a.*, cl.Nombre AS ClienteNombre, c.Descripcion AS ComprobanteDescripcion, co.Descripcion AS ConceptoDescripcion,
   DATE_FORMAT(a.FechaOrigen, '%Y-%m-%d') AS FechaOrigen,
   DATE_FORMAT(a.Vencimiento, '%Y-%m-%d') AS Vencimiento`;
 const joins =
-  " FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo = a.Cliente JOIN COMPROBANTE c ON c.Codigo = a.Comprobante";
+  " FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo = a.Cliente JOIN COMPROBANTE c ON c.Codigo = a.Comprobante LEFT JOIN CONCEPTO co ON co.Codigo = a.Concepto";
 function detail(row: RowDataPacket): CurrentAccountDetail {
   const data = Object.fromEntries(
     Object.entries(row).map(([key, value]) => [
@@ -44,6 +44,7 @@ function detail(row: RowDataPacket): CurrentAccountDetail {
           ...data,
           ClienteNombre: undefined,
           ComprobanteDescripcion: undefined,
+          ConceptoDescripcion: undefined,
         }),
       )
       .digest("hex"),
@@ -75,7 +76,11 @@ export function createCurrentAccountStore(pool: Pool) {
       const [numeradores] = await pool.query<RowDataPacket[]>(
         `SELECT n.Comprobante, n.ProximoNumero FROM NUMERACION n JOIN COMPROBANTE c ON c.Codigo = n.Comprobante WHERE n.Activo = 1 AND ${eligible} ORDER BY n.Comprobante`,
       );
+      const [conceptos] = await pool.query<RowDataPacket[]>(
+        "SELECT Codigo, Descripcion FROM CONCEPTO WHERE Activo = 1 ORDER BY Descripcion, Codigo",
+      );
       return {
+        conceptos: conceptos as CurrentAccountOptions["conceptos"],
         comprobantes: comprobantes as CurrentAccountOptions["comprobantes"],
         numeradores: numeradores.map((r) => ({
           Comprobante: String(r.Comprobante),
@@ -200,6 +205,18 @@ export function createCurrentAccountStore(pool: Pool) {
           );
           if (!clients[0])
             throw new MasterRequestError(400, "Seleccioná un cliente activo.");
+          if (input.Concepto) {
+            const [concepts] = await connection.execute<RowDataPacket[]>(
+              "SELECT Codigo FROM CONCEPTO WHERE Codigo = ? AND Activo = 1 LOCK IN SHARE MODE",
+              [input.Concepto],
+            );
+            if (!concepts[0])
+              throw new MasterRequestError(
+                400,
+                "Seleccioná un concepto activo o dejá el campo vacío.",
+                { Concepto: "El concepto no existe o está inactivo." },
+              );
+          }
           for (const table of ["CUENTACORRIENTE", "CAJAMOVIMIENTO"]) {
             const [duplicates] = await connection.execute<RowDataPacket[]>(
               `SELECT IDTabla FROM ${table} WHERE Comprobante = ? AND NumeroComprobante = ? LIMIT 1`,
@@ -212,10 +229,11 @@ export function createCurrentAccountStore(pool: Pool) {
               );
           }
           await connection.execute(
-            "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Vencimiento,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,Concepto,NumeroComprobante,FechaOrigen,Vencimiento,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
             [
               clients[0].Codigo,
               voucherCode,
+              input.Concepto ?? null,
               number,
               input.FechaOrigen,
               input.Vencimiento,

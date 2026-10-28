@@ -27,6 +27,14 @@ export const creation = z
   .object({
     Cliente: z.string().trim().min(1).max(20),
     Comprobante: z.string().trim().min(1).max(20),
+    Concepto: z
+      .string()
+      .trim()
+      .min(1)
+      .max(20)
+      .nullable()
+      .optional()
+      .default(null),
     NumeroComprobante: z
       .string()
       .superRefine((value, context) => {

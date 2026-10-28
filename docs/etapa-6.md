@@ -150,3 +150,48 @@ Prueba de esta revisión: seleccionar otra fila de caja y cerrar el panel no deb
 
 
 Configuración de Pago: Pagar / Deuda / Egreso no es un comprobante de cancelación compatible. La selección del formulario exige Crédito y el servidor aplica la misma condición al buscar pendientes y guardar: Cobrar/Crédito/Ingreso para cobros y Pagar/Crédito/Egreso para pagos. La obligación (por ejemplo Premio) se registra antes con Deuda en Cuenta corriente; el Pago la reduce con Crédito. No se cambian automáticamente comprobantes existentes ni se eliminan filtros. Después de configurar Naturaleza=Crédito en el maestro, volver a abrir el alta para cargar las opciones vigentes.
+
+
+## Diagnóstico de premios que no aparecen al afectar un Pago
+
+Naturaleza y Sentido de fondos son ejes diferentes: DEUDA/CREDITO aumenta/reduce lo pendiente en la cuenta elegida; INGRESO/EGRESO indica cómo se mueven los fondos. Un pago puede ser Crédito y Egreso sin contradicción. No hay un tercer indicador financiero independiente de débito/crédito: en este modelo lo expresa Naturaleza.
+
+| Operación | Módulo | Cuenta | Naturaleza | Fondos |
+|---|---|---|---|---|
+| Registrar premio | Cuenta corriente | Pagar | Deuda | No aplica |
+| Pagar premio | Cobros y pagos | Pagar | Crédito | Egreso |
+| Registrar jugada | Cuenta corriente | Cobrar | Deuda | No aplica |
+| Cobrar jugada | Cobros y pagos | Cobrar | Crédito | Ingreso |
+
+El formulario solo ofrece cancelaciones compatibles, y el backend aplica esas mismas condiciones al consultar pendientes y al guardar. Para Pago, los pendientes se buscan por Cliente seleccionado y CUENTACORRIENTE.Cuenta=PAGAR, Naturaleza=DEUDA, Estado=CONFIRMADO e Importe mayor que la suma de afectaciones de movimientos de caja confirmados. No hay filtro por fecha, numerador, código específico del premio ni igualdad entre el comprobante Premio y Pago. La búsqueda escrita en el selector y Excluir (los movimientos ya incorporados al borrador) se aplican después, antes de paginar.
+
+Cuenta y Naturaleza se copian al movimiento al darlo de alta y no se recalculan desde el maestro al consultarlo. Editar ahora el comprobante Premio no reclasifica movimientos anteriores. No modificar datos financieros guardados para forzarlos a aparecer: primero revisar el movimiento concreto y sus afectaciones; si se confirma una carga manual incorrecta, utilizar el circuito de anulación y nueva carga cuando sus restricciones lo permitan.
+
+En bases efímeras MySQL/MariaDB se verifica el circuito real: Premio de 70 → pendiente de Pago de 70 → Pago parcial de 50 → pendiente de 20 y saldo Pagar de 20. Se verifica también que otro cliente, una deuda de Cobrar, un crédito, un anulado o un movimiento ya elegido en el borrador no aparezcan; quitar la exclusión vuelve a mostrar su pendiente sin modificarlo. Pagar/Deuda/Egreso se rechaza como cancelación. Cambiar el maestro después de crear el Premio no modifica su cuenta o naturaleza almacenadas.
+
+En la configuración aportada durante la revisión, PAGO ya tiene Pagar/Crédito/Egreso, pero PR (PREMIO POR APUESTA) tiene Pagar/Crédito/No aplica. PR debe ser Pagar/Deuda/No aplica para generar la obligación. La petición de pendientes se envía con Cliente=00002 y Comprobante=PAGO, q y Excluir vacíos, y devuelve 200 con cero filas; no aporta por sí sola los valores guardados del movimiento. Un premio creado con PR como Crédito queda excluido correctamente. Verificar sus Propiedades antes de anular y volver a cargar; cambiar el maestro no cambia lo ya registrado. No se modifica automáticamente configuración ni historia financiera.
+
+Si no se reproduce con la configuración correcta, se necesita evidencia del entorno afectado antes de cambiar filtros. Desde Propiedades de Cuenta corriente revisar Cuenta, Naturaleza y Estado del premio. En F12 → Red/Network, abrir Afectar y revisar GET /api/caja-movimiento/pendientes: Cliente y Comprobante enviados, q, Excluir, estado HTTP y respuesta. No compartir cookies ni encabezados de autorización.
+
+Para inspección adicional autorizada en la base, esta consulta de solo lectura compara los datos guardados con el maestro y el pendiente real (reemplazar ID_DEL_PREMIO por el identificador interno conocido):
+
+```sql
+SELECT a.IDTabla, a.Cliente, a.Comprobante,
+       a.Cuenta, a.Naturaleza, a.Estado, a.Importe,
+       c.Cuenta AS CuentaActualMaestro,
+       c.Naturaleza AS NaturalezaActualMaestro,
+       COALESCE(x.Aplicado, 0) AS Aplicado,
+       a.Importe - COALESCE(x.Aplicado, 0) AS Pendiente
+FROM CUENTACORRIENTE a
+JOIN COMPROBANTE c ON c.Codigo = a.Comprobante
+LEFT JOIN (
+  SELECT af.CuentaCorriente, SUM(af.Importe) AS Aplicado
+  FROM CAJAMOVIMIENTOAFECTACION af
+  JOIN CAJAMOVIMIENTO m ON m.IDTabla = af.CajaMovimiento
+  WHERE m.Estado = 'CONFIRMADO'
+  GROUP BY af.CuentaCorriente
+) x ON x.CuentaCorriente = a.IDTabla
+WHERE a.IDTabla = ID_DEL_PREMIO;
+```
+
+Esta revisión no cambia filtros ni reglas financieras y no identifica automáticamente la causa de un movimiento de Hostinger sin sus datos: una reproducción correcta en la base aislada no equivale a diagnosticar el registro del usuario.

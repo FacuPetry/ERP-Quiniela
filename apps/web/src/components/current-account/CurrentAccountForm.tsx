@@ -42,6 +42,7 @@ export function CurrentAccountForm({
   const [options, setOptions] = useState<CurrentAccountOptions>({
     comprobantes: [],
     numeradores: [],
+    conceptos: [],
   });
   const [loading, setLoading] = useState(!previous),
     [revision, setRevision] = useState(0);
@@ -50,6 +51,7 @@ export function CurrentAccountForm({
     return previous
       ? {
           Cliente: previous.Cliente,
+          Concepto: previous.Concepto,
           Comprobante: previous.Comprobante,
           NumeroComprobante: previous.NumeroComprobante ?? "0",
           FechaOrigen: previous.FechaOrigen,
@@ -59,6 +61,7 @@ export function CurrentAccountForm({
         }
       : {
           Cliente: "",
+          Concepto: null,
           Comprobante: "",
           NumeroComprobante: "0",
           FechaOrigen: today,
@@ -117,6 +120,7 @@ export function CurrentAccountForm({
         "Cliente",
         "FechaOrigen",
         "Vencimiento",
+        "Concepto",
         "Importe",
         "Observacion",
       ].find((name) => fields[name]);
@@ -130,6 +134,7 @@ export function CurrentAccountForm({
     FechaOrigen: "Fecha de origen",
     Vencimiento: "Fecha de vencimiento",
     Importe: "Importe",
+    Concepto: "Concepto",
     Observacion: "Observaciones",
   };
   function change<K extends keyof CurrentAccountInput>(
@@ -372,6 +377,34 @@ export function CurrentAccountForm({
                         />
                       ))}
                     </div>
+                    {previous ? (
+                      <TextBox
+                        label="Concepto"
+                        size="lg"
+                        value={previous.ConceptoDescripcion ?? ""}
+                        readOnly
+                        onValueChange={() => {}}
+                      />
+                    ) : (
+                      <DropDown
+                        {...presentation("Concepto")}
+                        label="Concepto"
+                        size="lg"
+                        value={input.Concepto ?? ""}
+                        disabled={busy}
+                        loading={loading}
+                        options={[
+                          { value: "", label: "Sin concepto" },
+                          ...options.conceptos.map((concept) => ({
+                            value: concept.Codigo,
+                            label: concept.Descripcion,
+                          })),
+                        ]}
+                        onValueChange={(value) =>
+                          change("Concepto", value || null)
+                        }
+                      />
+                    )}
                     <TextArea
                       {...presentation("Observacion")}
                       label="Observaciones"
