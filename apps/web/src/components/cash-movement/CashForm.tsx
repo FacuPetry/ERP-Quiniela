@@ -850,6 +850,12 @@ export function CashForm({
                         readOnly
                         onValueChange={() => {}}
                       />
+                      <AmountBox
+                        label="Neto"
+                        value={net}
+                        readOnly
+                        onValueChange={() => {}}
+                      />
                     </div>
                     <div>
                       <h3>Aplicación</h3>
@@ -874,12 +880,6 @@ export function CashForm({
                         disabled={busy}
                         maxIntegerDigits={16}
                         onValueChange={(v) => change("ImporteACuenta", v)}
-                      />
-                      <AmountBox
-                        label="Neto"
-                        value={net}
-                        readOnly
-                        onValueChange={() => {}}
                       />
                       {!old && (
                         <p className="cash-total" role="status">

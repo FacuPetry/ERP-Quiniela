@@ -97,3 +97,13 @@ export function formatAmount(value: string, config: AmountFormat): string {
     : whole!;
   return integer + (config.decimals ? config.decimal + fraction : "");
 }
+
+/** Sin agrupación ni ceros de relleno mientras se edita; conserva los decimales significativos. */
+export function editAmount(value: string, config: AmountFormat): string {
+  if (!value) return "";
+  const normalized = canonical(value, config);
+  if (normalized.error) return value;
+  const [whole, fraction = ""] = normalized.value.split(".");
+  const decimals = fraction.replace(/0+$/, "");
+  return whole + (decimals ? config.decimal + decimals : "");
+}
