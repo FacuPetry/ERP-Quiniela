@@ -71,6 +71,27 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
       join(priorDirectory, entry.tag + ".sql"),
     );
   t.after(() => rm(priorDirectory, { recursive: true, force: true }));
+  const sharedDirectory = await mkdtemp("/tmp/erp-with-numbering-history-");
+  await mkdir(join(sharedDirectory, "meta"));
+  const sharedJournal = JSON.parse(
+    await readFile(
+      join(projectRoot, "database/migrations/meta/_journal.json"),
+      "utf8",
+    ),
+  );
+  sharedJournal.entries = sharedJournal.entries.filter(
+    (e: { idx: number }) => e.idx < 7,
+  );
+  await writeFile(
+    join(sharedDirectory, "meta/_journal.json"),
+    JSON.stringify(sharedJournal),
+  );
+  for (const entry of sharedJournal.entries)
+    await copyFile(
+      join(projectRoot, "database/migrations", entry.tag + ".sql"),
+      join(sharedDirectory, entry.tag + ".sql"),
+    );
+  t.after(() => rm(sharedDirectory, { recursive: true, force: true }));
   async function reset() {
     // Solo la base efímera creada por scripts/integration.mjs. Nunca se usa configuración del alojamiento.
     const [tables] = await connection.query<RowDataPacket[]>("SHOW TABLES");
@@ -195,12 +216,9 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
       assert.equal(num[0]!.Caja, null);
       assert.ok(!Object.hasOwn(num[0]!, "Comprobante"));
       const [uses] = await connection.query<RowDataPacket[]>(
-        "SELECT NumeroComprobante FROM NUMERACIONUSO ORDER BY NumeroComprobante",
+        "SHOW TABLES LIKE 'NUMERACIONUSO'",
       );
-      assert.deepEqual(
-        uses.map((r) => String(r.NumeroComprobante)),
-        ["7", "100000020", "100000024", "100000025"],
-      );
+      assert.equal(uses.length, 0);
       const [assigned] = await connection.query<RowDataPacket[]>(
         "SELECT Numerador FROM COMPROBANTE WHERE Codigo='ING'",
       );
@@ -244,7 +262,82 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
         ),
       );
       const [tables] = await connection.query<RowDataPacket[]>("SHOW TABLES");
-      assert.equal(tables.length, 23);
+      assert.equal(tables.length, 22);
+    },
+  );
+  await t.test(
+    "eliminar el historial conserva configuraciones, números, importes, afectaciones y auditoría de una base ya migrada",
+    async () => {
+      await old();
+      await migrate(drizzle(connection), { migrationsFolder: sharedDirectory });
+      const [uses] = await connection.query<RowDataPacket[]>(
+        "SELECT * FROM NUMERACIONUSO",
+      );
+      assert.equal(uses.length, 4, "La base anterior contiene consumos reales");
+      await connection.query(
+        "UPDATE COMPROBANTE SET Numerador=NULL WHERE Codigo='ING'",
+      );
+      const tables = [
+        "NUMERACION",
+        "COMPROBANTE",
+        "CUENTACORRIENTE",
+        "CAJAMOVIMIENTO",
+        "CAJAMOVIMIENTOAFECTACION",
+        "AUDITORIA",
+      ];
+      const before = await Promise.all(
+        tables.map(
+          async (table) =>
+            (
+              await connection.query<RowDataPacket[]>(
+                `SELECT * FROM ${table} ORDER BY ${table === "COMPROBANTE" ? "Codigo" : "IDTabla"}`,
+              )
+            )[0],
+        ),
+      );
+      await applyMigrations(config);
+      assert.equal(
+        (
+          await connection.query<RowDataPacket[]>(
+            "SHOW TABLES LIKE 'NUMERACIONUSO'",
+          )
+        )[0].length,
+        0,
+      );
+      await applyMigrations(config);
+      for (let index = 0; index < tables.length; index++) {
+        const table = tables[index]!;
+        const [after] = await connection.query<RowDataPacket[]>(
+          `SELECT * FROM ${table} ORDER BY ${table === "COMPROBANTE" ? "Codigo" : "IDTabla"}`,
+        );
+        assert.deepEqual(after, before[index], table);
+      }
+      await connection.query("DELETE FROM NUMERACION WHERE Codigo='ING'");
+      assert.equal(
+        (
+          await connection.query<RowDataPacket[]>(
+            "SELECT * FROM CUENTACORRIENTE",
+          )
+        )[0].length,
+        5,
+      );
+    },
+  );
+  await t.test(
+    "completa la migración si el historial ya se eliminó antes de registrar el DDL",
+    async () => {
+      await old();
+      await migrate(drizzle(connection), { migrationsFolder: sharedDirectory });
+      await connection.query("DROP TABLE NUMERACIONUSO");
+      assert.deepEqual(await inspectSharedNumberingMigration(connection), []);
+      await applyMigrations(config);
+      await applyMigrations(config);
+      assert.equal(
+        (
+          await connection.query<RowDataPacket[]>("SELECT * FROM NUMERACION")
+        )[0][0]!.ProximoNumero,
+        "100000026",
+      );
     },
   );
   await t.test(

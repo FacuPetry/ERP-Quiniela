@@ -390,17 +390,6 @@ export function createMasterStore(pool: Pool) {
           );
         } else if (action === "BAJA") {
           if (master.key === "numeraciones") {
-            // La fila del numerador ya está bloqueada. Desasociar comprobantes
-            // no elimina sus consumos ni habilita la reutilización de números.
-            const [uses] = await connection.execute<RowDataPacket[]>(
-              "SELECT u.IDTabla FROM NUMERACIONUSO u JOIN NUMERACION n ON n.IDTabla=u.Numerador WHERE n.Codigo=? LIMIT 1",
-              [code],
-            );
-            if (uses.length)
-              throw new MasterRequestError(
-                409,
-                "El numerador tiene números de comprobante ya emitidos y no puede eliminarse. Ese historial se conserva aunque ya no tenga comprobantes asociados. Podés desactivarlo desde Modificar.",
-              );
             const [vouchers] = await connection.execute<RowDataPacket[]>(
               "SELECT Codigo FROM COMPROBANTE WHERE Numerador=? LIMIT 1",
               [code],

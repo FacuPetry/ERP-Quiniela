@@ -19,6 +19,10 @@ try {
     process.exitCode = 1;
   }
   if (!missing.length) {
+    if (actual.has('NUMERACIONUSO')) {
+      console.error('Falta aplicar la migración que elimina el historial de numeradores. Ejecutar db:migrate:prod con la aplicación detenida.');
+      process.exitCode = 1;
+    }
     const [columns] = await connection.query<RowDataPacket[]>("SELECT TABLE_NAME AS tabla, COLUMN_NAME AS campo FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('CUENTACORRIENTE','CAJAMOVIMIENTO','NUMERACION','COMPROBANTE')");
     const has = (table: string, field: string) => columns.some(row => row.tabla === table && row.campo === field);
     if (!has('CUENTACORRIENTE','NumeroComprobante') || !has('CAJAMOVIMIENTO','NumeroComprobante') || has('NUMERACION','Serie') || !has('NUMERACION','Codigo') || has('NUMERACION','Comprobante') || !has('COMPROBANTE','Numerador')) {

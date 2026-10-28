@@ -30,7 +30,6 @@ export async function numberingOptions(
 }
 export async function highestNumeratorNumber(
   c: Conn,
-  id: string | null,
   codigo: string,
   value: string,
   includeVoucher: string | null = null,
@@ -38,12 +37,10 @@ export async function highestNumeratorNumber(
   const start = (BigInt(value) / voucherBase) * voucherBase;
   const [rows] = await c.execute<RowDataPacket[]>(
     `SELECT MAX(NumeroComprobante) AS ultimo FROM (
-    SELECT u.NumeroComprobante FROM NUMERACIONUSO u WHERE u.Numerador=?
-    UNION ALL SELECT a.NumeroComprobante FROM CUENTACORRIENTE a JOIN COMPROBANTE v ON v.Codigo=a.Comprobante WHERE v.Numerador=? OR v.Codigo=?
+    SELECT a.NumeroComprobante FROM CUENTACORRIENTE a JOIN COMPROBANTE v ON v.Codigo=a.Comprobante WHERE v.Numerador=? OR v.Codigo=?
     UNION ALL SELECT m.NumeroComprobante FROM CAJAMOVIMIENTO m JOIN COMPROBANTE v ON v.Codigo=m.Comprobante WHERE v.Numerador=? OR v.Codigo=?
   ) x WHERE NumeroComprobante BETWEEN ? AND ?`,
     [
-      id,
       codigo,
       includeVoucher,
       codigo,
@@ -60,17 +57,7 @@ export async function assertNumeratorNext(
   next: string,
   includeVoucher: string | null = null,
 ) {
-  const [rows] = await c.execute<RowDataPacket[]>(
-    "SELECT IDTabla FROM NUMERACION WHERE Codigo=?",
-    [codigo],
-  );
-  const last = await highestNumeratorNumber(
-    c,
-    rows[0] ? String(rows[0].IDTabla) : null,
-    codigo,
-    next,
-    includeVoucher,
-  );
+  const last = await highestNumeratorNumber(c, codigo, next, includeVoucher);
   if (last !== null && BigInt(next) <= last)
     throw new MasterRequestError(
       409,
@@ -79,7 +66,7 @@ export async function assertNumeratorNext(
         ProximoNumero:
           "Debe superar " +
           last +
-          " en ese punto de venta, incluidos los anulados y los consumos anteriores.",
+          " en ese punto de venta, incluidos los anulados de los comprobantes asociados.",
       },
     );
 }
@@ -180,12 +167,7 @@ export async function issueNumber(
   let number = requested;
   if (automatic) {
     number = String(n!.ProximoNumero);
-    const last = await highestNumeratorNumber(
-      c,
-      String(n!.IDTabla),
-      String(n!.Codigo),
-      number,
-    );
+    const last = await highestNumeratorNumber(c, String(n!.Codigo), number);
     if (last !== null && last >= BigInt(number)) {
       const next = nextVoucher(last.toString());
       if (next === null)
@@ -197,7 +179,7 @@ export async function issueNumber(
   }
   const invalid = voucherNumberError(number);
   if (invalid) throw new MasterRequestError(400, invalid);
-  for (const table of ["CUENTACORRIENTE", "CAJAMOVIMIENTO", "NUMERACIONUSO"]) {
+  for (const table of ["CUENTACORRIENTE", "CAJAMOVIMIENTO"]) {
     const [duplicates] = await c.execute<RowDataPacket[]>(
       `SELECT Comprobante FROM ${table} WHERE Comprobante=? AND NumeroComprobante=? LIMIT 1`,
       [code, number],
@@ -208,10 +190,6 @@ export async function issueNumber(
       );
   }
   if (automatic) {
-    await c.execute(
-      "INSERT INTO NUMERACIONUSO (Numerador,Comprobante,NumeroComprobante,CreadoEn) VALUES (?,?,?,?)",
-      [String(n!.IDTabla), code, number, new Date()],
-    );
     const next = nextVoucher(number);
     await c.execute(
       "UPDATE NUMERACION SET ProximoNumero=?,Activo=? WHERE IDTabla=?",

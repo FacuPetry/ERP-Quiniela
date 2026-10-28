@@ -16,9 +16,8 @@ export async function inspectSharedNumberingMigration(
     has("NUMERACION", "Codigo"),
     has("NUMERACION", "Caja"),
     has("COMPROBANTE", "Numerador"),
-    has("NUMERACIONUSO", "Numerador"),
   ];
-  if (newer.some(Boolean)) {
+  if (newer.some(Boolean) || has("NUMERACIONUSO", "Numerador")) {
     if (!newer.every(Boolean) || has("NUMERACION", "Comprobante"))
       return [
         "Migración de numeradores compartidos incompleta. Revisar el DDL antes de repetirla.",
