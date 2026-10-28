@@ -26,6 +26,10 @@ export function definition(key: string): MasterDefinition {
 export function recordSchema(master: MasterDefinition, creation = false) {
   const fields: Record<string, z.ZodType> = { Activo: z.boolean() };
   for (const field of master.fields) {
+    if (field.kind === "boolean") {
+      fields[field.name] = z.boolean().default(false);
+      continue;
+    }
     if (
       field.name === "IDTabla" &&
       master.primaryKey === "IDTabla" &&

@@ -174,8 +174,6 @@ export const closing = z
   .strict();
 export const reversal = z
   .object({
-    Comprobante: code,
-    NumeroComprobante: number,
     CajaSaldo: id,
     Motivo: z.string().trim().min(1).max(500),
   })

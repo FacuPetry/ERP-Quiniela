@@ -29,6 +29,8 @@ export const comprobante = mysqlTable('COMPROBANTE', {
   Cuenta: varchar('Cuenta', { length: 10 }).notNull(),
   Naturaleza: varchar('Naturaleza', { length: 10 }).notNull(),
   SentidoFondos: varchar('SentidoFondos', { length: 20 }).notNull(),
+  EsReversion: boolean('EsReversion').notNull().default(false),
+  ComprobanteReversion: code('ComprobanteReversion').references((): AnyMySqlColumn => comprobante.Codigo),
   Activo: boolean('Activo').notNull().default(true), Orden: int('Orden'),
 });
 export const numeracion = mysqlTable('NUMERACION', {

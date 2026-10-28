@@ -9,6 +9,7 @@ import {
   integerFieldError,
   masterFormFields,
   voucherNumberError,
+  compatibleCashReversal,
 } from "@erp/shared";
 import { saveMaster, suggestClientCode } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
@@ -100,7 +101,20 @@ export function MasterForm({
     });
   }
   function change(name: string, value: string | boolean) {
-    setRecord((current) => ({ ...current, [name]: value }));
+    setRecord((current) => ({
+      ...current,
+      [name]: value,
+      ...(master.key === "comprobantes" &&
+      [
+        "ModuloOrigen",
+        "Cuenta",
+        "Naturaleza",
+        "SentidoFondos",
+        "EsReversion",
+      ].includes(name)
+        ? { ComprobanteReversion: "" }
+        : {}),
+    }));
     setErrors((current) => ({ ...current, [name]: "" }));
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -108,6 +122,7 @@ export function MasterForm({
     if (busy || readOnly) return;
     const invalid: Record<string, string> = {};
     for (const field of visibleFields) {
+      if (field.kind === "boolean") continue;
       if (automatic && field.name === "Codigo" && !previous) continue;
       const text = String(record[field.name] ?? "").trim();
       if (field.required && !text) invalid[field.name] = "Completá este campo.";
@@ -170,8 +185,8 @@ export function MasterForm({
       (locked && field.kind === "relation");
     const required = Boolean(
       field.required &&
-        !readOnly &&
-        !(automatic && field.name === "Codigo" && !previous),
+      !readOnly &&
+      !(automatic && field.name === "Codigo" && !previous),
     );
     const value = String(record[field.name] ?? "");
     const hint =
@@ -210,6 +225,16 @@ export function MasterForm({
       wide: field.kind === "textarea",
       size: field.size,
     };
+    if (field.kind === "boolean")
+      return (
+        <CheckBox
+          key={field.name}
+          {...presentation}
+          value={record[field.name] === true}
+          disabled={disabled}
+          onValueChange={(next) => change(field.name, next)}
+        />
+      );
     if (field.kind === "voucher")
       return (
         <NumeroComprobante
@@ -242,7 +267,34 @@ export function MasterForm({
           {...presentation}
           field={field}
           value={value}
-          disabled={disabled}
+          disabled={
+            disabled ||
+            (field.name === "ComprobanteReversion" &&
+              (record.EsReversion === true ||
+                record.ModuloOrigen !== "COBROSPAGOS" ||
+                record.Naturaleza !== "CREDITO"))
+          }
+          optionFilter={
+            field.name === "ComprobanteReversion"
+              ? (option) =>
+                  option.Codigo !== record.Codigo &&
+                  !option.ComprobanteReversion &&
+                  compatibleCashReversal(
+                    {
+                      Cuenta: record.Cuenta,
+                      SentidoFondos: record.SentidoFondos,
+                    },
+                    {
+                      ...option,
+                      ModuloOrigen: option.ModuloOrigen,
+                      Cuenta: option.Cuenta,
+                      Naturaleza: option.Naturaleza,
+                      SentidoFondos: option.SentidoFondos,
+                      EsReversion: option.EsReversion,
+                    },
+                  )
+              : undefined
+          }
           onChange={(next) => change(field.name, next)}
           onExpired={onExpired}
         />

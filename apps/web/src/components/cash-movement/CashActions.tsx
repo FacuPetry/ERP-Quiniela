@@ -4,6 +4,7 @@ import {
   masterDefinitions,
   cashCorrection,
   type CashOptions,
+  type CashReversalPreview,
   type CashDetail,
   type CashOpening,
 } from "@erp/shared";
@@ -19,6 +20,7 @@ import {
   cashOpen,
   cashClose,
   cashReverse,
+  cashReversalPreview,
   cashAnnul,
 } from "../../services/cash-movement";
 import { ApiRequestError } from "../../services/http";
@@ -403,8 +405,10 @@ export function ReverseCash({
   onExpired: () => void;
 }) {
   const { data, error, setError, reload } = useCashOptions(onExpired),
-    [code, setCode] = useState(""),
-    [number, setNumber] = useState("0"),
+    [preview, setPreview] = useState<CashReversalPreview>(),
+    [previewLoading, setPreviewLoading] = useState(true),
+    [previewError, setPreviewError] = useState(""),
+    [revision, setRevision] = useState(0),
     [reason, setReason] = useState(""),
     [busy, setBusy] = useState(false);
   const retry = useRef({ body: "", key: "" });
@@ -420,18 +424,32 @@ export function ReverseCash({
   const box = data?.aperturas.some((o) => o.IDTabla === selected?.IDTabla)
     ? selected!.IDTabla
     : "";
-  const sense = detail.registro.Sentido === "INGRESO" ? "EGRESO" : "INGRESO";
-  const compatible =
-    data?.comprobantes.filter(
-      (c) =>
-        c.Naturaleza === "DEUDA" &&
-        c.Cuenta === detail.registro.Cuenta &&
-        c.SentidoFondos === sense,
-    ) ?? [];
+  useEffect(() => {
+    const request = new AbortController();
+    setPreview(undefined);
+    setPreviewLoading(true);
+    setPreviewError("");
+    void cashReversalPreview(detail.registro.IDTabla, request.signal)
+      .then((result) => {
+        if (!request.signal.aborted) setPreview(result);
+      })
+      .catch((e) => {
+        if (request.signal.aborted) return;
+        if (e instanceof ApiRequestError && e.status === 401) onExpired();
+        else setPreviewError(message(e));
+      })
+      .finally(() => {
+        if (!request.signal.aborted) setPreviewLoading(false);
+      });
+    return () => request.abort();
+  }, [detail.registro.IDTabla, revision, onExpired]);
+  function refresh() {
+    reload();
+    setRevision((value) => value + 1);
+  }
   async function save() {
+    if (busy || !preview || !box || !reason.trim()) return;
     const input = {
-      Comprobante: code,
-      NumeroComprobante: number,
       CajaSaldo: box,
       Motivo: reason,
     };
@@ -474,7 +492,8 @@ export function ReverseCash({
             className="button danger"
             disabled={
               busy ||
-              !code ||
+              previewLoading ||
+              !preview ||
               !box ||
               !reason.trim() ||
               cashCorrection(detail.registro, box) !== "revertir"
@@ -493,43 +512,36 @@ export function ReverseCash({
         {amount(detail.registro.ImporteTotal)}. El movimiento y su cierre
         anteriores se conservarán.
       </p>
-      {error && (
+      {(error || previewError) && (
         <p className="notice error" role="alert">
-          {error} <button onClick={reload}>Actualizar opciones</button>
+          {error || previewError}{" "}
+          <button onClick={refresh}>Actualizar opciones</button>
         </p>
       )}
       {data && (
         <div className="cash-value-fields">
           <DropDown
             label="Comprobante de reversión"
-            value={code}
-            onValueChange={(value) => {
-              setCode(value);
-              setNumber(
-                data.numeradores.find((n) => n.Comprobante === value)
-                  ?.ProximoNumero ?? "0",
-              );
-            }}
-            disabled={busy}
-            options={[
-              { value: "", label: "Seleccioná un comprobante" },
-              ...compatible.map((c) => ({
-                value: c.Codigo,
-                label: c.Descripcion,
-              })),
-            ]}
+            value={preview?.Comprobante ?? ""}
+            onValueChange={() => {}}
+            readOnly
+            loading={previewLoading}
+            options={
+              preview
+                ? [
+                    {
+                      value: preview.Comprobante,
+                      label: preview.ComprobanteDescripcion,
+                    },
+                  ]
+                : []
+            }
           />
-          {!compatible.length && (
-            <p className="notice">
-              Se necesita un comprobante de Cobros y pagos con la misma cuenta,
-              naturaleza Deuda y sentido de fondos contrario.
-            </p>
-          )}
           <NumeroComprobante
             label="Número de comprobante"
-            value={number}
-            onValueChange={setNumber}
-            disabled={busy}
+            value={preview?.NumeroComprobante ?? "0"}
+            onValueChange={() => {}}
+            readOnly
           />
           <TextBox
             label="Caja seleccionada"

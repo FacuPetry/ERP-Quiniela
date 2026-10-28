@@ -1,3 +1,4 @@
+import { validateVoucherReversal } from "./voucher-reversal.js";
 import { listOrder, optionOrder } from "../database/list-order.js";
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
@@ -37,14 +38,18 @@ const projection = (master: MasterDefinition, prefix = "") =>
   columns(master)
     .map((name) => prefix + "`" + name + "`")
     .join(", ");
-function record(row: RowDataPacket): MasterRecord {
+function record(row: RowDataPacket, master: MasterDefinition): MasterRecord {
   return {
     ...(Object.fromEntries(
       Object.entries(row).map(([key, value]) => [
         key,
-        value == null ? null : String(value),
+        value == null
+          ? null
+          : master.fields.some((f) => f.name === key && f.kind === "boolean")
+            ? Boolean(value)
+            : String(value),
       ]),
-    ) as Record<string, string | null>),
+    ) as Record<string, string | boolean | null>),
     Activo: Boolean(row.Activo),
   };
 }
@@ -193,7 +198,7 @@ export function createMasterStore(pool: Pool) {
         relations.map(({ field }) => [field.name, new Map<string, string>()]),
       );
       const registros = rows.map((row) => {
-        const item = record(row);
+        const item = record(row, master);
         for (const { field, result } of relations) {
           delete item[result];
           const code = item[field.name];
@@ -230,7 +235,7 @@ export function createMasterStore(pool: Pool) {
           404,
           "El registro ya no existe. Actualizá el listado.",
         );
-      return recordDetail(pool, master, record(rows[0]));
+      return recordDetail(pool, master, record(rows[0], master));
     },
     async write(
       master: MasterDefinition,
@@ -330,7 +335,7 @@ export function createMasterStore(pool: Pool) {
               404,
               "El registro ya no existe. Actualizá el listado.",
             );
-          before = record(rows[0]);
+          before = record(rows[0], master);
           if (!version || detail(before).version !== version)
             throw new MasterRequestError(
               409,
@@ -349,7 +354,8 @@ export function createMasterStore(pool: Pool) {
         }
         if (input) {
           for (const field of master.fields) {
-            if (!field.relation) continue;
+            if (!field.relation || (!field.required && !input[field.name]))
+              continue;
             const related = masterDefinitions[field.relation];
             const [rows] = await connection.execute<RowDataPacket[]>(
               `SELECT Codigo, Activo FROM ${tableName(related)} WHERE Codigo = ? LOCK IN SHARE MODE`,
@@ -373,6 +379,8 @@ export function createMasterStore(pool: Pool) {
             input[field.name] = rows[0].Codigo;
           }
         }
+        if (master.key === "comprobantes" && input)
+          await validateVoucherReversal(connection, input);
         if (master.key === "numeraciones" && input?.Activo) {
           const last = await lastVoucher(
             connection,
@@ -432,7 +440,11 @@ export function createMasterStore(pool: Pool) {
             `SELECT ${projection(master)} FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ?`,
             [code],
           );
-          result = await recordDetail(connection, master, record(rows[0]!));
+          result = await recordDetail(
+            connection,
+            master,
+            record(rows[0]!, master),
+          );
         }
         await connection.commit();
         transaction = false;

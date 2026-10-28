@@ -36,6 +36,13 @@
       "when": 1793154149367,
       "tag": "0004_cuenta_corriente_concepto",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1793195369673,
+      "tag": "0005_comprobantes_reversion",
+      "breakpoints": true
     }
   ]
 }

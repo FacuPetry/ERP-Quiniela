@@ -761,6 +761,8 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
 
   const voucherInput = {
     Codigo: "PR_ET4",
+    EsReversion: false,
+    ComprobanteReversion: null,
     Descripcion: "Premio",
     ModuloOrigen: "CUENTACORRIENTE",
     Cuenta: "PAGAR",
@@ -894,6 +896,82 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       assert.deepEqual(
         audit.map((row) => row.Accion),
         ["ALTA", "BAJA"],
+      );
+    },
+  );
+  await t.test(
+    "Comprobantes de reversión: asociación compatible, sin cadenas ni pérdida de relaciones",
+    async () => {
+      const reverse = await create("comprobantes", {
+        ...voucherInput,
+        Codigo: "M_REV",
+        Descripcion: "Reversión pago",
+        ModuloOrigen: "COBROSPAGOS",
+        EsReversion: true,
+        Cuenta: "PAGAR",
+        Naturaleza: "DEUDA",
+        SentidoFondos: "INGRESO",
+      });
+      const normal = {
+        ...voucherInput,
+        Codigo: "M_PAGO",
+        ModuloOrigen: "COBROSPAGOS",
+        Naturaleza: "CREDITO",
+        SentidoFondos: "EGRESO",
+        ComprobanteReversion: "M_REV",
+      };
+      const linked = await create("comprobantes", normal);
+      assert.equal(linked.registro.ComprobanteReversion, "M_REV");
+      assert.equal(linked.registro.EsReversion, false);
+      assert.equal(reverse.registro.EsReversion, true);
+      // Es válido compartir un comprobante de reversión compatible.
+      await create("comprobantes", { ...normal, Codigo: "M_PAGO2" });
+      for (const changes of [
+        { Codigo: "M_BAD1", EsReversion: true },
+        { Codigo: "M_BAD2", Cuenta: "COBRAR" },
+        { Codigo: "M_BAD3", SentidoFondos: "INGRESO" },
+        { Codigo: "M_BAD4", ComprobanteReversion: "M_PAGO" },
+        { Codigo: "M_BAD5", ComprobanteReversion: "M_BAD5" },
+      ])
+        assert.equal(
+          (await request("comprobantes", "POST", { ...normal, ...changes }))
+            .status,
+          400,
+        );
+      for (const changes of [
+        { EsReversion: false },
+        { Cuenta: "COBRAR", SentidoFondos: "EGRESO" },
+        { ComprobanteReversion: "M_PAGO" },
+      ])
+        assert.equal(
+          (
+            await request(
+              "comprobantes/M_REV",
+              "PUT",
+              { ...reverse.registro, ...changes },
+              reverse.version,
+            )
+          ).status,
+          400,
+        );
+      assert.equal(
+        (await request("comprobantes/M_REV", "DELETE", {}, reverse.version))
+          .status,
+        409,
+      );
+      const inactive = await update(
+        "comprobantes/M_REV",
+        { ...reverse.registro, Activo: false },
+        reverse.version,
+      );
+      assert.equal(
+        (await get("comprobantes/M_PAGO")).registro.ComprobanteReversion,
+        "M_REV",
+      );
+      await update(
+        "comprobantes/M_REV",
+        { ...inactive.registro, Activo: true },
+        inactive.version,
       );
     },
   );

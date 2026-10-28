@@ -45,3 +45,35 @@ export const sentidosFondosComprobante = [
   { value: SentidoFondosComprobante.Egreso, label: "Egreso" },
   { value: SentidoFondosComprobante.NoAplica, label: "No aplica" },
 ] as const;
+
+/** Compatibilidad económica; también se usa con la cuenta y el sentido históricos. */
+export function isCashReversalVoucher(v: {
+  ModuloOrigen: unknown;
+  Cuenta: unknown;
+  Naturaleza: unknown;
+  SentidoFondos: unknown;
+  EsReversion: unknown;
+}) {
+  return (
+    v.EsReversion === true &&
+    v.ModuloOrigen === "COBROSPAGOS" &&
+    v.Naturaleza === "DEUDA" &&
+    ((v.Cuenta === "COBRAR" && v.SentidoFondos === "EGRESO") ||
+      (v.Cuenta === "PAGAR" && v.SentidoFondos === "INGRESO"))
+  );
+}
+export function compatibleCashReversal(
+  source: { Cuenta: unknown; SentidoFondos: unknown },
+  target: Parameters<typeof isCashReversalVoucher>[0],
+) {
+  return (
+    isCashReversalVoucher(target) &&
+    target.Cuenta === source.Cuenta &&
+    target.SentidoFondos ===
+      (source.SentidoFondos === "INGRESO"
+        ? "EGRESO"
+        : source.SentidoFondos === "EGRESO"
+          ? "INGRESO"
+          : "")
+  );
+}

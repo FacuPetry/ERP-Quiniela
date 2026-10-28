@@ -199,3 +199,10 @@ export function cashCorrection(
     ? "anular"
     : null;
 }
+
+/** Vista previa sin reserva: el servidor asigna el número definitivo al confirmar. */
+export interface CashReversalPreview {
+  Comprobante: string;
+  ComprobanteDescripcion: string;
+  NumeroComprobante: string;
+}

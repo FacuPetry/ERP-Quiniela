@@ -375,7 +375,6 @@ export function CashForm({
               Reintentar opciones
             </button>
           )}
-          {old && <p className="muted small">Estado: {cashStateLabel(old)}</p>}
           {old?.Estado === "ANULADO" && (
             <p className="notice">Motivo de anulación: {old.MotivoAnulacion}</p>
           )}
@@ -445,6 +444,11 @@ export function CashForm({
                             ? activeBox.CajaNombre
                             : "Sin caja abierta seleccionada")}
                       </p>
+                      {old && (
+                        <p className="cash-box-note">
+                          Estado: {cashStateLabel(old)}
+                        </p>
+                      )}
                     </div>
                     {old ? (
                       <TextBox

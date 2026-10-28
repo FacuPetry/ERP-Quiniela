@@ -146,6 +146,20 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
         ["100000025", "100000020", "7", null, "100000024"],
       );
       assert.ok(after.every((row) => row.Concepto === null));
+      const [vouchers] = await connection.query<RowDataPacket[]>(
+        "SELECT Codigo,Descripcion,EsReversion,ComprobanteReversion FROM COMPROBANTE",
+      );
+      assert.deepEqual(
+        vouchers.map((v) => ({ ...v })),
+        [
+          {
+            Codigo: "ING",
+            Descripcion: "Ingreso",
+            EsReversion: 0,
+            ComprobanteReversion: null,
+          },
+        ],
+      );
       for (let i = 0; i < before.length; i++)
         for (const [key, value] of Object.entries(before[i]!))
           if (!["Numero", "Numeracion"].includes(key))

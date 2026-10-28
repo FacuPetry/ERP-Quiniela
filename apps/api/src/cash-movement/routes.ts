@@ -114,6 +114,9 @@ export function cashMovementRouter(
     );
     res.set("ETag", '"' + result.version + '"').json(result);
   });
+  r.get("/:id/reversion", async (req, res) => {
+    res.json(await store.reversalPreview(String(req.params.id)));
+  });
   r.post("/:id/revertir", ...requireMasterWrite, async (req, res) => {
     const version = /^"([a-f0-9]{64})"$/.exec(req.get("If-Match") ?? "")?.[1];
     if (!version)

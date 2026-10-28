@@ -7,6 +7,7 @@ export function initialMasterFieldValue(
   field: MasterField,
   primaryKey: string,
 ) {
+  if (field.kind === "boolean") return false;
   return (
     field.defaultValue ??
     (field.kind === "integer" && field.name !== primaryKey
