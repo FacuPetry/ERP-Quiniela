@@ -1,8 +1,9 @@
 import type { PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
-  compatibleCashReversal,
-  isCashReversalVoucher,
+  compatibleReversal,
+  isReversalVoucher,
   type MasterRecord,
+  isTreasuryVoucher,
 } from "@erp/shared";
 import { MasterRequestError } from "./validation.js";
 
@@ -25,18 +26,18 @@ export async function validateVoucherReversal(
   });
   const sourceValid = (s: MasterRecord | RowDataPacket) =>
     !s.EsReversion &&
-    s.ModuloOrigen === "COBROSPAGOS" &&
-    s.Naturaleza === "CREDITO";
-  if (input.EsReversion && !isCashReversalVoucher(economic(input)))
+    ((s.ModuloOrigen === "COBROSPAGOS" && s.Naturaleza === "CREDITO") ||
+      isTreasuryVoucher(economic(s)));
+  if (input.EsReversion && !isReversalVoucher(economic(input)))
     invalid(
       "EsReversion",
-      "Usá Cobros y pagos, naturaleza Deuda y Cobrar/Egreso o Pagar/Ingreso.",
+      "Usá una reversión de Cobros y pagos (Deuda, Cobrar/Egreso o Pagar/Ingreso) o de Tesorería (Cuenta y Naturaleza No aplica, Ingreso/Egreso).",
     );
   if (input.ComprobanteReversion) {
     if (!sourceValid(input))
       invalid(
         "ComprobanteReversion",
-        "Solo un cobro o pago normal de naturaleza Crédito puede asociar una reversión.",
+        "Solo un comprobante normal válido de Cobros y pagos o Tesorería puede asociar una reversión.",
       );
     if (input.ComprobanteReversion === input.Codigo)
       invalid(
@@ -51,7 +52,7 @@ export async function validateVoucherReversal(
     if (
       !target ||
       target.ComprobanteReversion ||
-      !compatibleCashReversal(economic(input), economic(target))
+      !compatibleReversal(economic(input), economic(target))
     )
       invalid(
         "ComprobanteReversion",
@@ -67,7 +68,7 @@ export async function validateVoucherReversal(
       (source) =>
         !sourceValid(source) ||
         input.ComprobanteReversion ||
-        !compatibleCashReversal(economic(source), economic(input)),
+        !compatibleReversal(economic(source), economic(input)),
     )
   )
     invalid(

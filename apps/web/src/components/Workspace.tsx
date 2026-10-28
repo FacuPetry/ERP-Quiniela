@@ -229,7 +229,7 @@ function WorkspaceContent({
         </nav>
         <div className="sidebar-footer">
           <span className="status-dot online" />
-          <span className="nav-label">Etapa 6 · Cobros y pagos</span>
+          <span className="nav-label">Etapa 7 · Tesorería</span>
         </div>
       </aside>
       <div className="workspace-body" inert={mobileOpen}>
@@ -346,7 +346,7 @@ function WorkspaceContent({
                 <div className="section-heading">
                   <h2 id="shortcuts-title">Módulos del sistema</h2>
                   <span className="muted small">
-                    Cuenta corriente y Cobros y pagos disponibles
+                    Cuenta corriente, Cobros y pagos y Tesorería disponibles
                   </span>
                 </div>
                 <div className="module-grid">
@@ -364,9 +364,11 @@ function WorkspaceContent({
                         <h3>{item.title}</h3>
                         <p>{item.description}</p>
                         <span className="module-card-footer">
-                          {["/cuenta-corriente", "/cobros-pagos"].includes(
-                            item.path,
-                          )
+                          {[
+                            "/cuenta-corriente",
+                            "/cobros-pagos",
+                            "/tesoreria",
+                          ].includes(item.path)
                             ? "Abrir módulo"
                             : "Ver alcance"}{" "}
                           <Icon name="arrow" size={16} />
@@ -447,6 +449,13 @@ function WorkspaceContent({
             />
           ) : path === "/cobros-pagos" ? (
             <CashPage key={path} session={session} onExpired={onLogout} />
+          ) : path === "/tesoreria" ? (
+            <CashPage
+              key={path}
+              treasury
+              session={session}
+              onExpired={onLogout}
+            />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -485,7 +494,7 @@ function WorkspaceContent({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 6 · Cobros y pagos</span>
+            <span>Etapa 7 · Tesorería</span>
           </footer>
         </main>
       </div>

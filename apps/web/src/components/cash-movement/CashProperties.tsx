@@ -4,7 +4,10 @@ import {
   type CashDetail,
   type RelatedCashMovement,
 } from "@erp/shared";
-import { cashDetail } from "../../services/cash-movement";
+import {
+  cashServices,
+  type MovementServices,
+} from "../../services/cash-movement";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
 import { displayDate, displayDateTime } from "../controls/date-value";
 import { amount } from "./format";
@@ -102,10 +105,14 @@ const properties: PropertyField<CashDetail>[] = [
 ];
 
 export function CashProperties({
+  services = cashServices,
+  treasury = false,
   id,
   onClose,
   onExpired,
 }: {
+  services?: MovementServices;
+  treasury?: boolean;
   id: string;
   onClose: () => void;
   onExpired: () => void;
@@ -113,8 +120,8 @@ export function CashProperties({
   const [path, setPath] = useState([id]);
   const current = path.at(-1)!;
   const load = useCallback(
-    (signal: AbortSignal) => cashDetail(current, signal),
-    [current],
+    (signal: AbortSignal) => services.detail(current, signal),
+    [current, services],
   );
   function navigate(target: string) {
     setPath((previous) => {
@@ -161,7 +168,21 @@ export function CashProperties({
           },
         ]
       : []),
-    ...properties,
+    ...properties.filter(
+      (field) =>
+        !treasury ||
+        !["cliente", "advance", "available", "values"].includes(field.key),
+    ),
+    {
+      key: "concepto",
+      label: "Concepto",
+      render: (d) => d.registro.ConceptoDescripcion,
+    },
+    {
+      key: "sentido",
+      label: "Operación",
+      render: (d) => (d.registro.Sentido === "INGRESO" ? "Ingreso" : "Egreso"),
+    },
     {
       key: "original",
       label: "Revierte a",
@@ -177,7 +198,9 @@ export function CashProperties({
   ];
   return (
     <RecordProperties
-      title="Propiedades · Cobros y pagos"
+      title={
+        treasury ? "Propiedades · Tesorería" : "Propiedades · Cobros y pagos"
+      }
       loadRecord={load}
       fields={fields}
       onClose={onClose}

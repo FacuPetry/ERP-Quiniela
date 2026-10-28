@@ -7,7 +7,7 @@ import type {
   CashRecord,
   SessionResponse,
 } from "@erp/shared";
-import { cashDetail, cashList } from "../../services/cash-movement";
+import { cashServices, treasuryServices } from "../../services/cash-movement";
 import { ApiRequestError } from "../../services/http";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { DataTable } from "../ui/DataTable";
@@ -16,6 +16,7 @@ import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { initialListFilters } from "../ui/filter-defaults";
 import { CashProperties } from "./CashProperties";
 import { cashStateLabel, cashCorrection } from "@erp/shared";
+import { TreasuryForm } from "../treasury/TreasuryForm";
 import { CashForm } from "./CashForm";
 import { CashBoxes, ReverseCash, AnnulCash } from "./CashActions";
 import { useActiveCash } from "./ActiveCash";
@@ -39,12 +40,17 @@ const filtersConfig: FilterField[] = [
   { key: "Hasta", label: "Fecha hasta", kind: "date" },
 ];
 export function CashPage({
+  treasury = false,
   session,
   onExpired,
 }: {
+  treasury?: boolean;
   session: SessionResponse;
   onExpired: () => void;
 }) {
+  const services = treasury ? treasuryServices : cashServices;
+  const title = treasury ? "Tesorería" : "Cobros y pagos";
+  const Form = treasury ? TreasuryForm : CashForm;
   const [filters, setFilters] = useState<Record<string, string>>(() =>
       initialListFilters(defaults, ["Desde", "Hasta"], "Estado"),
     ),
@@ -81,16 +87,17 @@ export function CashPage({
     const request = new AbortController();
     setLoading(true);
     setError("");
-    void cashList(
-      Object.fromEntries(
-        Object.entries({
-          ...filters,
-          ...sorting.query,
-          pagina: String(page),
-        }).filter(([, v]) => v),
-      ),
-      request.signal,
-    )
+    void services
+      .list(
+        Object.fromEntries(
+          Object.entries({
+            ...filters,
+            ...sorting.query,
+            pagina: String(page),
+          }).filter(([, v]) => v),
+        ),
+        request.signal,
+      )
       .then((d) => {
         if (request.signal.aborted) return;
         if (page > 1 && !d.registros.length) {
@@ -112,7 +119,7 @@ export function CashPage({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [requested, filters, page, revision, expired, sorting.value]);
+  }, [requested, filters, page, revision, expired, sorting.value, services]);
   function refresh() {
     setRequested(true);
     setRevision((n) => n + 1);
@@ -123,7 +130,7 @@ export function CashPage({
     setBusy(true);
     setError("");
     try {
-      const d = await cashDetail(row.IDTabla);
+      const d = await services.detail(row.IDTabla);
       if (!mounted.current) return;
       if (action === "correct") correct(d);
       else setView({ detail: d });
@@ -157,6 +164,8 @@ export function CashPage({
     <>
       {annul && (
         <AnnulCash
+          services={services}
+          treasury={treasury}
           detail={annul}
           csrf={session.csrfToken}
           onClose={() => setAnnul(null)}
@@ -166,6 +175,8 @@ export function CashPage({
       )}
       {reverse && (
         <ReverseCash
+          services={services}
+          treasury={treasury}
           detail={reverse}
           csrf={session.csrfToken}
           onClose={() => setReverse(null)}
@@ -178,7 +189,7 @@ export function CashPage({
   if (view)
     return (
       <>
-        <CashForm
+        <Form
           key={view.detail?.registro.IDTabla ?? "new"}
           {...(view.detail ? { detail: view.detail } : {})}
           csrf={session.csrfToken}
@@ -201,18 +212,22 @@ export function CashPage({
     );
   return (
     <>
-      <section className="panel master-panel" aria-label="Cobros y pagos">
+      <section className="panel master-panel" aria-label={title}>
         <div className="master-toolbar">
           <div>
-            <h2>Cobros y pagos</h2>
+            <h2>{title}</h2>
             <p className="muted small">
               Consultá movimientos o registrá una nueva operación.
             </p>
           </div>
           <ActionToolbar
             labels={{
-              add: "Agregar cobro o pago",
-              edit: "Consultar cobro o pago",
+              add: treasury
+                ? "Agregar movimiento de Tesorería"
+                : "Agregar cobro o pago",
+              edit: treasury
+                ? "Consultar movimiento de Tesorería"
+                : "Consultar cobro o pago",
               remove:
                 row?.JornadaEstado === "CERRADO"
                   ? "Revertir movimiento"
@@ -269,10 +284,14 @@ export function CashPage({
           sort={sorting.value}
           onSortChange={sorting.onChange}
           sortingDisabled={!requested}
-          caption="Cobros y pagos"
+          caption={title}
           rows={error ? [] : (data?.registros ?? [])}
           rowKey={(r) => r.IDTabla}
-          rowLabel={(r) => r.NumeroComprobanteTexto + " · " + r.ClienteNombre}
+          rowLabel={(r) =>
+            r.NumeroComprobanteTexto +
+            " · " +
+            (treasury ? r.ConceptoDescripcion : r.ClienteNombre)
+          }
           loading={loading}
           selectedKey={selected}
           onSelectionChange={setSelected}
@@ -300,10 +319,11 @@ export function CashPage({
               render: (r) => r.NumeroComprobanteTexto,
             },
             {
-              key: "client",
-              sort: "Cliente",
-              label: "Cliente",
-              render: (r) => r.ClienteNombre,
+              key: treasury ? "concept" : "client",
+              sort: treasury ? "Concepto" : "Cliente",
+              label: treasury ? "Concepto" : "Cliente",
+              render: (r) =>
+                treasury ? r.ConceptoDescripcion : r.ClienteNombre,
             },
             {
               key: "sense",
@@ -360,6 +380,8 @@ export function CashPage({
       )}
       {property && (
         <CashProperties
+          services={services}
+          treasury={treasury}
           id={property}
           onClose={() => setProperty(null)}
           onExpired={expired}

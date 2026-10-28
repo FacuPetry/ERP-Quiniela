@@ -4,7 +4,8 @@ import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
   formatVoucher,
-  compatibleCashReversal,
+  compatibleReversal,
+  type CashModule,
   voucherNumberError,
   type CashReversalPreview,
   moneyUnits,
@@ -37,6 +38,14 @@ import type { z } from "zod";
 type Conn = Pool | PoolConnection;
 const eligible =
   "c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='CREDITO' AND ((c.Cuenta='COBRAR' AND c.SentidoFondos='INGRESO') OR (c.Cuenta='PAGAR' AND c.SentidoFondos='EGRESO'))";
+// La ausencia de cliente y de asiento comercial identifica fondos internos.
+// No se usa la configuración mutable del maestro para reclasificar historia.
+const treasuryScope =
+  "m.Cliente IS NULL AND NOT EXISTS (SELECT 1 FROM CUENTACORRIENTE scope_cc WHERE scope_cc.CajaMovimiento=m.IDTabla)";
+const movementScope = (module: CashModule) =>
+  module === "TESORERIA"
+    ? "(" + treasuryScope + ")"
+    : "NOT (" + treasuryScope + ")";
 const joins =
   " FROM CAJAMOVIMIENTO m LEFT JOIN USUARIO u ON u.IDTabla=m.Usuario LEFT JOIN USUARIO ua ON ua.IDTabla=m.UsuarioAnulacion JOIN COMPROBANTE c ON c.Codigo=m.Comprobante LEFT JOIN CLIENTE cl ON cl.Codigo=m.Cliente LEFT JOIN CAJASALDO cs ON cs.IDTabla=m.CajaSaldo LEFT JOIN CAJA ca ON ca.Codigo=cs.Caja LEFT JOIN CONCEPTO co ON co.Codigo=m.Concepto LEFT JOIN CAJAMOVIMIENTO rev ON rev.CajaMovimientoOrigen=m.IDTabla";
 const projection =
@@ -53,6 +62,10 @@ const stringify = (r: RowDataPacket) =>
 const rec = (r: RowDataPacket) =>
   ({
     ...stringify(r),
+    DisponibleACuenta:
+      r.Cliente == null && r.Cuenta == null
+        ? "0.00"
+        : String(r.DisponibleACuenta),
     Estado: r.RevertidoPor ? "REVERTIDO" : String(r.Estado),
     NumeroComprobanteTexto: formatVoucher(
       r.NumeroComprobante == null ? null : String(r.NumeroComprobante),
@@ -89,9 +102,17 @@ async function audit(
     [user, action, table, id, new Date(), reason, JSON.stringify(data)],
   );
 }
-async function detail(c: Conn, id: string): Promise<CashDetail> {
+async function detail(
+  c: Conn,
+  id: string,
+  module: CashModule,
+): Promise<CashDetail> {
   const [rows] = await c.execute<RowDataPacket[]>(
-    "SELECT " + projection + joins + " WHERE m.IDTabla=?",
+    "SELECT " +
+      projection +
+      joins +
+      " WHERE m.IDTabla=? AND " +
+      movementScope(module),
     [id],
   );
   if (!rows[0]) fail("El movimiento no existe.", 404);
@@ -286,6 +307,7 @@ async function reversalVoucher(
   original: CashRecord,
   code: string,
   lock = false,
+  module: CashModule = "COBROSPAGOS",
 ) {
   const [source] = await c.execute<RowDataPacket[]>(
     "SELECT ComprobanteReversion FROM COMPROBANTE WHERE Codigo=?" +
@@ -304,8 +326,12 @@ async function reversalVoucher(
     !target ||
     !target.Activo ||
     target.ComprobanteReversion ||
-    !compatibleCashReversal(
-      { Cuenta: original.Cuenta, SentidoFondos: original.Sentido },
+    !compatibleReversal(
+      {
+        ModuloOrigen: module,
+        Cuenta: module === "TESORERIA" ? "NOAPLICA" : original.Cuenta,
+        SentidoFondos: original.Sentido,
+      },
       {
         ModuloOrigen: target.ModuloOrigen,
         Cuenta: target.Cuenta,
@@ -316,7 +342,7 @@ async function reversalVoucher(
     )
   )
     fail(
-      "El comprobante asociado debe estar activo, ser exclusivo para reversiones, tener naturaleza Deuda, la misma cuenta histórica y sentido de fondos contrario.",
+      "El comprobante asociado debe estar activo, ser exclusivo para reversiones, del mismo módulo, con la cuenta y naturaleza correspondientes y sentido de fondos contrario.",
     );
   return target;
 }
@@ -326,7 +352,26 @@ function checkReversalNumerator(n: RowDataPacket | undefined) {
       "Configurá un Numerador activo con un próximo número válido para el comprobante de reversión.",
     );
 }
-export function createCashMovementStore(pool: Pool) {
+function ensureInternalCash(d: CashDetail) {
+  const r = d.registro;
+  if (
+    r.Cliente !== null ||
+    r.Cuenta !== null ||
+    d.valores.length ||
+    d.afectaciones.length ||
+    moneyUnits(r.ImporteACuenta) !== 0n ||
+    moneyUnits(r.ImporteEfectivo) !== moneyUnits(r.ImporteTotal)
+  )
+    fail(
+      "La operación no corresponde a efectivo interno simple y requiere revisión.",
+    );
+}
+export function createCashMovementStore(
+  pool: Pool,
+  module: CashModule = "COBROSPAGOS",
+) {
+  const treasury = module === "TESORERIA";
+  const movementDetail = (c: Conn, id: string) => detail(c, id, module);
   const tx = financialTransactions(pool, true);
   return {
     async openingStatus(id: string) {
@@ -340,17 +385,22 @@ export function createCashMovementStore(pool: Pool) {
     },
     async options(): Promise<CashOptions> {
       const [v] = await pool.query<RowDataPacket[]>(
-        "SELECT c.Codigo,c.Descripcion,c.Cuenta,c.Naturaleza,c.SentidoFondos FROM COMPROBANTE c WHERE c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen='COBROSPAGOS' ORDER BY c.Orden,c.Codigo",
+        "SELECT c.Codigo,c.Descripcion,c.Cuenta,c.Naturaleza,c.SentidoFondos FROM COMPROBANTE c WHERE c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen=? ORDER BY c.Orden,c.Codigo",
+        [module],
       );
       const [n] = await pool.query<RowDataPacket[]>(
         "SELECT Comprobante,ProximoNumero FROM NUMERACION WHERE Activo=1",
       );
-      const [b] = await pool.query<RowDataPacket[]>(
-        "SELECT Codigo,Nombre FROM BANCO WHERE Activo=1 ORDER BY Nombre",
-      );
-      const [a] = await pool.query<RowDataPacket[]>(
-        "SELECT bc.Codigo,bc.Nombre,bc.Banco FROM BANCOCUENTA bc JOIN BANCO b ON b.Codigo=bc.Banco WHERE bc.Activo=1 AND b.Activo=1 ORDER BY bc.Nombre",
-      );
+      const [b] = treasury
+        ? [[]]
+        : await pool.query<RowDataPacket[]>(
+            "SELECT Codigo,Nombre FROM BANCO WHERE Activo=1 ORDER BY Nombre",
+          );
+      const [a] = treasury
+        ? [[]]
+        : await pool.query<RowDataPacket[]>(
+            "SELECT bc.Codigo,bc.Nombre,bc.Banco FROM BANCOCUENTA bc JOIN BANCO b ON b.Codigo=bc.Banco WHERE bc.Activo=1 AND b.Activo=1 ORDER BY bc.Nombre",
+          );
       const [cajas] = await pool.query<RowDataPacket[]>(
         "SELECT Codigo,Nombre FROM CAJA WHERE Activo=1 ORDER BY Nombre",
       );
@@ -384,6 +434,8 @@ export function createCashMovementStore(pool: Pool) {
           Comprobante: "c.Descripcion",
           NumeroComprobante: "m.NumeroComprobante",
           Cliente: "cl.Nombre",
+          Caja: "ca.Nombre",
+          Concepto: "co.Descripcion",
           Sentido: "m.Sentido",
           ImporteTotal: "m.ImporteTotal",
           Estado:
@@ -392,7 +444,7 @@ export function createCashMovementStore(pool: Pool) {
         "m.IDTabla",
       );
       const p: (string | number)[] = [],
-        clauses: string[] = [];
+        clauses: string[] = [movementScope(module)];
       if (q.Estado === "ANULADO") clauses.push("m.Estado='ANULADO'");
       else if (q.Estado === "REVERTIDO")
         clauses.push("rev.IDTabla IS NOT NULL");
@@ -408,9 +460,13 @@ export function createCashMovementStore(pool: Pool) {
       }
       if (q.q) {
         clauses.push(
-          `(cl.Nombre LIKE ? ESCAPE '!' OR c.Descripcion LIKE ? ESCAPE '!' OR m.Observacion LIKE ? ESCAPE '!' OR m.Cliente LIKE ? ESCAPE '!' OR ${numberSQL("m.NumeroComprobante")} LIKE ? ESCAPE '!')`,
+          `(cl.Nombre LIKE ? ESCAPE '!' OR c.Descripcion LIKE ? ESCAPE '!' OR m.Observacion LIKE ? ESCAPE '!' OR m.Cliente LIKE ? ESCAPE '!' ${treasury ? "OR co.Descripcion LIKE ? ESCAPE '!' OR ca.Nombre LIKE ? ESCAPE '!'" : ""} OR ${numberSQL("m.NumeroComprobante")} LIKE ? ESCAPE '!')`,
         );
-        p.push(...Array(5).fill("%" + q.q.replace(/[!%_]/g, "!$&") + "%"));
+        p.push(
+          ...Array(treasury ? 7 : 5).fill(
+            "%" + q.q.replace(/[!%_]/g, "!$&") + "%",
+          ),
+        );
       }
       const where = clauses.length ? " WHERE " + clauses.join(" AND ") : "";
       const c = await pool.getConnection();
@@ -446,7 +502,7 @@ export function createCashMovementStore(pool: Pool) {
     },
     async get(id: string) {
       validId(id);
-      return detail(pool, id);
+      return movementDetail(pool, id);
     },
     async pending(q: z.infer<typeof pendingQuery>): Promise<PendingList> {
       const order = listOrder(
@@ -632,29 +688,36 @@ export function createCashMovementStore(pool: Pool) {
         number = input.NumeroComprobante;
       return tx(
         user,
-        "CAJA_ALTA",
+        treasury ? "TESORERIA_ALTA" : "CAJA_ALTA",
         key,
         input,
         async (c) => {
           const n = await numberStart(c, code, number);
           const [v] = await c.execute<RowDataPacket[]>(
             "SELECT c.* FROM COMPROBANTE c WHERE c.Codigo=? AND " +
-              eligible +
+              (treasury
+                ? "c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen='TESORERIA' AND c.Cuenta='NOAPLICA' AND c.Naturaleza='NOAPLICA' AND c.SentidoFondos IN ('INGRESO','EGRESO')"
+                : eligible) +
               " LOCK IN SHARE MODE",
             [code],
           );
           const voucher = v[0];
           if (!voucher)
             fail(
-              "El comprobante debe ser Crédito, Cobrar/Ingreso o Pagar/Egreso de Cobros y pagos.",
+              treasury
+                ? "Seleccioná un comprobante normal de Tesorería, Cuenta y Naturaleza No aplica, con sentido Ingreso o Egreso."
+                : "El comprobante debe ser Crédito, Cobrar/Ingreso o Pagar/Egreso de Cobros y pagos.",
               400,
             );
-          const [clients] = await c.execute<RowDataPacket[]>(
-            "SELECT Codigo FROM CLIENTE WHERE Codigo=? AND Activo=1 LOCK IN SHARE MODE",
-            [input.Cliente],
-          );
-          if (!clients[0]) fail("Seleccioná un cliente activo.", 400);
-          const client = String(clients[0].Codigo);
+          let client = "";
+          if (!treasury) {
+            const [clients] = await c.execute<RowDataPacket[]>(
+              "SELECT Codigo FROM CLIENTE WHERE Codigo=? AND Activo=1 LOCK IN SHARE MODE",
+              [input.Cliente],
+            );
+            if (!clients[0]) fail("Seleccioná un cliente activo.", 400);
+            client = String(clients[0].Codigo);
+          }
           const box = await opening(c, input.CajaSaldo);
           if (input.Concepto) {
             const [r] = await c.execute<RowDataPacket[]>(
@@ -662,6 +725,48 @@ export function createCashMovementStore(pool: Pool) {
               [input.Concepto],
             );
             if (!r[0]) fail("Seleccioná un concepto activo.", 400);
+          }
+          if (treasury) {
+            if (
+              !input.Concepto ||
+              input.Cliente ||
+              input.Valores.length ||
+              input.Afectaciones.length ||
+              moneyUnits(input.ImporteACuenta) !== 0n
+            )
+              fail(
+                "Tesorería admite solamente efectivo y un concepto, sin cliente ni afectaciones.",
+                400,
+              );
+            const total = moneyUnits(input.ImporteEfectivo);
+            if (total <= 0n) fail("El importe debe ser mayor que cero.", 400);
+            checkCashBalance(
+              await cashBalance(c, box),
+              (voucher.SentidoFondos === "INGRESO" ? 1n : -1n) * total,
+            );
+            await c.execute(
+              "INSERT INTO CAJAMOVIMIENTO (Comprobante,NumeroComprobante,Cliente,FechaOrigen,CajaSaldo,Concepto,ImporteEfectivo,ImporteACuenta,ImporteTotal,Sentido,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,NULL,?,?,?,?,0,?,?,?,'CONFIRMADO',?,?)",
+              [
+                code,
+                number,
+                input.FechaOrigen,
+                input.CajaSaldo,
+                input.Concepto,
+                input.ImporteEfectivo,
+                input.ImporteEfectivo,
+                voucher.SentidoFondos,
+                input.Observacion,
+                user,
+                new Date(),
+              ],
+            );
+            const id = await lastId(c);
+            await numberFinish(c, code, number, n);
+            const after = await movementDetail(c, id);
+            await audit(c, user, "ALTA_TESORERIA", "CAJAMOVIMIENTO", id, {
+              Despues: after,
+            });
+            return after;
           }
           const ids = input.Afectaciones.map((a) => a.CuentaCorriente).sort(
             (a, b) => (BigInt(a) < BigInt(b) ? -1 : 1),
@@ -889,7 +994,7 @@ export function createCashMovementStore(pool: Pool) {
             });
           }
           await numberFinish(c, code, number, n);
-          const result = await detail(c, id);
+          const result = await movementDetail(c, id);
           await audit(c, user, "ALTA", "CAJAMOVIMIENTO", id, result);
           await audit(c, user, "ALTA_DESDE_CAJA", "CUENTACORRIENTE", creditId, {
             CajaMovimiento: id,
@@ -910,7 +1015,7 @@ export function createCashMovementStore(pool: Pool) {
       validId(id);
       return tx(
         user,
-        "CAJA_ANULAR",
+        treasury ? "TESORERIA_ANULAR" : "CAJA_ANULAR",
         key,
         { id, ...input, version },
         async (c) => {
@@ -920,7 +1025,7 @@ export function createCashMovementStore(pool: Pool) {
             [id],
           );
           if (!locked[0]) fail("El movimiento no existe.", 404);
-          const before = await detail(c, id),
+          const before = await movementDetail(c, id),
             r = before.registro;
           if (
             before.version !== version ||
@@ -935,48 +1040,52 @@ export function createCashMovementStore(pool: Pool) {
             fail(
               "Para anular, seleccioná la misma apertura de caja del movimiento original.",
             );
-          const [credits] = await c.execute<RowDataPacket[]>(
-            "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=?",
-            [id],
-          );
-          if (!credits[0])
-            fail("Falta el crédito de Cuenta corriente relacionado.");
-          const creditId = String(credits[0].IDTabla);
-          const accounts = [
-            ...new Set([
-              creditId,
-              ...before.afectaciones.map((a) => a.CuentaCorriente),
-            ]),
-          ].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
-          const [accountRows] = await c.execute<RowDataPacket[]>(
-            "SELECT * FROM CUENTACORRIENTE WHERE IDTabla IN (" +
-              accounts.map(() => "?").join(",") +
-              ") ORDER BY IDTabla FOR UPDATE",
-            accounts,
-          );
-          const credit = accountRows.find(
-            (a) => String(a.IDTabla) === creditId,
-          );
-          if (
-            !credit ||
-            credit.Estado !== "CONFIRMADO" ||
-            credit.Naturaleza !== "CREDITO" ||
-            credit.Cuenta !== r.Cuenta ||
-            moneyUnits(String(credit.Importe)) !== moneyUnits(r.ImporteTotal)
-          )
-            fail("El crédito relacionado requiere revisión antes de anular.");
-          const applied = before.afectaciones.reduce(
-            (sum, a) => sum + moneyUnits(a.Importe),
-            0n,
-          );
-          if (
-            (await used(c, creditId)) > 0n ||
-            applied !==
-              moneyUnits(r.ImporteTotal) - moneyUnits(r.ImporteACuenta)
-          )
-            fail(
-              "El movimiento tiene aplicaciones posteriores. Deben resolverse antes de anular.",
+          let creditId: string | null = null;
+          if (treasury) ensureInternalCash(before);
+          else {
+            const [credits] = await c.execute<RowDataPacket[]>(
+              "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=?",
+              [id],
             );
+            if (!credits[0])
+              fail("Falta el crédito de Cuenta corriente relacionado.");
+            creditId = String(credits[0].IDTabla);
+            const accounts = [
+              ...new Set([
+                creditId,
+                ...before.afectaciones.map((a) => a.CuentaCorriente),
+              ]),
+            ].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+            const [accountRows] = await c.execute<RowDataPacket[]>(
+              "SELECT * FROM CUENTACORRIENTE WHERE IDTabla IN (" +
+                accounts.map(() => "?").join(",") +
+                ") ORDER BY IDTabla FOR UPDATE",
+              accounts,
+            );
+            const credit = accountRows.find(
+              (a) => String(a.IDTabla) === creditId,
+            );
+            if (
+              !credit ||
+              credit.Estado !== "CONFIRMADO" ||
+              credit.Naturaleza !== "CREDITO" ||
+              credit.Cuenta !== r.Cuenta ||
+              moneyUnits(String(credit.Importe)) !== moneyUnits(r.ImporteTotal)
+            )
+              fail("El crédito relacionado requiere revisión antes de anular.");
+            const applied = before.afectaciones.reduce(
+              (sum, a) => sum + moneyUnits(a.Importe),
+              0n,
+            );
+            if (
+              (await used(c, creditId)) > 0n ||
+              applied !==
+                moneyUnits(r.ImporteTotal) - moneyUnits(r.ImporteACuenta)
+            )
+              fail(
+                "El movimiento tiene aplicaciones posteriores. Deben resolverse antes de anular.",
+              );
+          }
           const [transfers] = await c.execute<RowDataPacket[]>(
             "SELECT IDTabla FROM TRANSFERENCIA WHERE CajaMovimiento=? FOR UPDATE",
             [id],
@@ -1022,10 +1131,11 @@ export function createCashMovementStore(pool: Pool) {
             "UPDATE CAJAMOVIMIENTO SET Estado='ANULADO',UsuarioAnulacion=?,AnuladoEn=?,MotivoAnulacion=? WHERE IDTabla=?",
             [user, now, input.Motivo, id],
           );
-          await c.execute(
-            "UPDATE CUENTACORRIENTE SET Estado='ANULADO',UsuarioAnulacion=?,AnuladoEn=?,MotivoAnulacion=? WHERE IDTabla=?",
-            [user, now, input.Motivo, creditId],
-          );
+          if (creditId)
+            await c.execute(
+              "UPDATE CUENTACORRIENTE SET Estado='ANULADO',UsuarioAnulacion=?,AnuladoEn=?,MotivoAnulacion=? WHERE IDTabla=?",
+              [user, now, input.Motivo, creditId],
+            );
           for (const e of events) {
             const state =
               e.Tipo === "RECEPCION"
@@ -1057,16 +1167,17 @@ export function createCashMovementStore(pool: Pool) {
               input.Motivo,
             );
           }
-          const after = await detail(c, id);
-          await audit(
-            c,
-            user,
-            "ANULACION",
-            "CUENTACORRIENTE",
-            creditId,
-            { CajaMovimiento: id },
-            input.Motivo,
-          );
+          const after = await movementDetail(c, id);
+          if (creditId)
+            await audit(
+              c,
+              user,
+              "ANULACION",
+              "CUENTACORRIENTE",
+              creditId,
+              { CajaMovimiento: id },
+              input.Motivo,
+            );
           await audit(
             c,
             user,
@@ -1088,7 +1199,7 @@ export function createCashMovementStore(pool: Pool) {
     },
     async reversalPreview(id: string): Promise<CashReversalPreview> {
       validId(id);
-      const original = (await detail(pool, id)).registro;
+      const original = (await movementDetail(pool, id)).registro;
       if (
         original.Estado !== "CONFIRMADO" ||
         original.CajaMovimientoOrigen ||
@@ -1098,7 +1209,13 @@ export function createCashMovementStore(pool: Pool) {
           "Solo se pueden revertir movimientos vigentes de una jornada cerrada.",
         );
       const code = await reversalSetup(pool, id);
-      const voucher = await reversalVoucher(pool, original, code);
+      const voucher = await reversalVoucher(
+        pool,
+        original,
+        code,
+        false,
+        module,
+      );
       const [rows] = await pool.execute<RowDataPacket[]>(
         "SELECT * FROM NUMERACION WHERE Comprobante=?",
         [code],
@@ -1120,7 +1237,7 @@ export function createCashMovementStore(pool: Pool) {
       validId(id);
       return tx(
         user,
-        "CAJA_REVERSAR",
+        treasury ? "TESORERIA_REVERSAR" : "CAJA_REVERSAR",
         key,
         { id, ...input, version },
         async (c) => {
@@ -1142,7 +1259,7 @@ export function createCashMovementStore(pool: Pool) {
             [id],
           );
           if (!locked[0]) fail("El movimiento no existe.", 404);
-          const original = await detail(c, id);
+          const original = await movementDetail(c, id);
           if (
             original.version !== version ||
             original.registro.RevertidoPor ||
@@ -1160,26 +1277,29 @@ export function createCashMovementStore(pool: Pool) {
               "La jornada original debe estar cerrada para revertir. Si continúa abierta, seleccioná esa jornada y utilizá Anular.",
             );
           const sense = r.Sentido === "INGRESO" ? "EGRESO" : "INGRESO";
-          await reversalVoucher(c, r, code, true);
-          const [credits] = await c.execute<RowDataPacket[]>(
-            "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=? FOR UPDATE",
-            [id],
-          );
-          if (!credits[0])
-            fail("Falta el movimiento de Cuenta corriente relacionado.");
-          if ((await used(c, String(credits[0].IDTabla))) > 0n)
-            fail("El crédito generado tiene aplicaciones posteriores.");
-          const originalApplied = original.afectaciones.reduce(
-            (s, a) => s + moneyUnits(a.Importe),
-            0n,
-          );
-          if (
-            originalApplied !==
-            moneyUnits(r.ImporteTotal) - moneyUnits(r.ImporteACuenta)
-          )
-            fail(
-              "La operación tiene aplicaciones posteriores y requiere revisar su reversión.",
+          await reversalVoucher(c, r, code, true, module);
+          if (treasury) ensureInternalCash(original);
+          else {
+            const [credits] = await c.execute<RowDataPacket[]>(
+              "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=? FOR UPDATE",
+              [id],
             );
+            if (!credits[0])
+              fail("Falta el movimiento de Cuenta corriente relacionado.");
+            if ((await used(c, String(credits[0].IDTabla))) > 0n)
+              fail("El crédito generado tiene aplicaciones posteriores.");
+            const originalApplied = original.afectaciones.reduce(
+              (s, a) => s + moneyUnits(a.Importe),
+              0n,
+            );
+            if (
+              originalApplied !==
+              moneyUnits(r.ImporteTotal) - moneyUnits(r.ImporteACuenta)
+            )
+              fail(
+                "La operación tiene aplicaciones posteriores y requiere revisar su reversión.",
+              );
+          }
           checkCashBalance(
             await cashBalance(c, box),
             (sense === "INGRESO" ? 1n : -1n) * moneyUnits(r.ImporteEfectivo),
@@ -1224,29 +1344,32 @@ export function createCashMovementStore(pool: Pool) {
             ],
           );
           const reverseId = await lastId(c);
-          await c.execute(
-            "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,CajaMovimiento,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,'DEUDA',?,?,'CONFIRMADO',?,?)",
-            [
-              r.Cliente,
-              code,
-              reverseId,
-              number,
-              date,
-              r.Cuenta,
-              r.ImporteTotal,
-              input.Motivo,
-              user,
-              now,
-            ],
-          );
-          const debtId = await lastId(c);
-          // El anticipo original absorbe esa parte de la contradeuda; la nueva deuda
-          // pendiente recupera solo lo cancelado. Las afectaciones anteriores se conservan.
-          if (moneyUnits(r.ImporteACuenta) > 0n)
+          let debtId: string | null = null;
+          if (!treasury) {
             await c.execute(
-              "INSERT INTO CAJAMOVIMIENTOAFECTACION (CajaMovimiento,CuentaCorriente,Importe,CreadoEn,Usuario) VALUES (?,?,?,?,?)",
-              [id, debtId, r.ImporteACuenta, now, user],
+              "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,CajaMovimiento,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Observacion,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,'DEUDA',?,?,'CONFIRMADO',?,?)",
+              [
+                r.Cliente,
+                code,
+                reverseId,
+                number,
+                date,
+                r.Cuenta,
+                r.ImporteTotal,
+                input.Motivo,
+                user,
+                now,
+              ],
             );
+            debtId = await lastId(c);
+            // El anticipo original absorbe esa parte de la contradeuda; la nueva deuda
+            // pendiente recupera solo lo cancelado. Las afectaciones anteriores se conservan.
+            if (moneyUnits(r.ImporteACuenta) > 0n)
+              await c.execute(
+                "INSERT INTO CAJAMOVIMIENTOAFECTACION (CajaMovimiento,CuentaCorriente,Importe,CreadoEn,Usuario) VALUES (?,?,?,?,?)",
+                [id, debtId, r.ImporteACuenta, now, user],
+              );
+          }
           const [transfers] = await c.execute<RowDataPacket[]>(
             "SELECT * FROM TRANSFERENCIA WHERE CajaMovimiento=?",
             [id],
@@ -1312,15 +1435,16 @@ export function createCashMovementStore(pool: Pool) {
             { CajaMovimientoOrigen: id },
             input.Motivo,
           );
-          await audit(
-            c,
-            user,
-            "ALTA_DESDE_REVERSIÓN",
-            "CUENTACORRIENTE",
-            debtId,
-            { CajaMovimiento: reverseId },
-          );
-          return detail(c, reverseId);
+          if (debtId)
+            await audit(
+              c,
+              user,
+              "ALTA_DESDE_REVERSIÓN",
+              "CUENTACORRIENTE",
+              debtId,
+              { CajaMovimiento: reverseId },
+            );
+          return movementDetail(c, reverseId);
         },
       );
     },
