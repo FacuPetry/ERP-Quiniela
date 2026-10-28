@@ -100,9 +100,15 @@ function movementServices<Input extends CashInput | TreasuryInput>(
         headers: headers(csrf, key),
         body: JSON.stringify(input),
       }),
-    reversalPreview: (id: string, signal: AbortSignal) =>
+    reversalPreview: (id: string, signal: AbortSignal, cajaSaldo?: string) =>
       apiRequest<CashReversalPreview>(
-        base + "/" + encodeURIComponent(id) + "/reversion",
+        base +
+          "/" +
+          encodeURIComponent(id) +
+          "/reversion" +
+          (cajaSaldo
+            ? "?" + new URLSearchParams({ CajaSaldo: cajaSaldo })
+            : ""),
         { signal },
       ),
     reverse: (

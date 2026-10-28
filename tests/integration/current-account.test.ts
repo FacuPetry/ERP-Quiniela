@@ -57,7 +57,10 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       [code, code, account, nature, module, funds],
     );
   await pool.query(
-    "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('CC_D',100000001)",
+    "INSERT INTO NUMERACION (Codigo,ProximoNumero,Activo) VALUES ('CC_D',100000001,0)",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
   );
   await pool.query(
     "INSERT INTO CONCEPTO (Codigo,Descripcion,Activo) VALUES ('CC_CON','Concepto vigente',1),('CC_INACT','Concepto desactivado',0)",
@@ -325,29 +328,37 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
     },
   );
   await t.test(
-    "Numerador sugiere sin consumir y actualiza solo al confirmar, con número editable",
+    "Numerador asigna automáticamente al confirmar y conserva entrada manual cuando está inactivo",
     async () => {
+      await pool.query("UPDATE NUMERACION SET Activo=1 WHERE Codigo='CC_D'");
       const before = await req("/opciones");
       await before.json();
       const [initial] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
         ["CC_D"],
       );
       assert.equal(String(initial[0]!.ProximoNumero), "100000001");
-      await create("0001-00000050", {});
-      await create("0001-00000025", {});
+      assert.equal(
+        (await create("0001-00000050", {})).registro.NumeroComprobante,
+        "100000001",
+      );
+      assert.equal(
+        (await create("0001-00000025", {})).registro.NumeroComprobante,
+        "100000002",
+      );
       const [next] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
         ["CC_D"],
       );
-      assert.equal(String(next[0]!.ProximoNumero), "100000051");
+      assert.equal(String(next[0]!.ProximoNumero), "100000003");
+      await pool.query("UPDATE NUMERACION SET Activo=0 WHERE Codigo='CC_D'");
       await create("0002-00000051");
       assert.equal((await req("", "POST", input("0000-00000001"))).status, 409);
       const [stays] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
         ["CC_D"],
       );
-      assert.equal(String(stays[0]!.ProximoNumero), "100000051");
+      assert.equal(String(stays[0]!.ProximoNumero), "100000003");
     },
   );
   await t.test(
@@ -481,7 +492,7 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       assert.equal(huge.registro.Importe, "9007199254740993.01");
       assert.equal((await list()).saldos!.Pagar, "9007199254741187.51");
       const [before] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
         ["CC_D"],
       );
       const key = randomUUID();
@@ -523,7 +534,7 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         /Falla de auditoría simulada/,
       );
       const [after] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
         ["CC_D"],
       );
       assert.equal(
@@ -618,7 +629,11 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         409,
       );
       const [rows] = await pool.query<RowDataPacket[]>("SHOW TABLES");
-      assert.equal(rows.length, 22, "No se agregan tablas al esquema");
+      assert.equal(
+        rows.length,
+        23,
+        "Tablas previstas incluido el registro de consumos",
+      );
     },
   );
   await t.test(
@@ -648,15 +663,18 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
           "X-CSRF-Token": admin.session.csrfToken,
         },
         body: JSON.stringify({
-          Comprobante: "CC_REPRO",
+          Codigo: "CC_REPRO",
           ProximoNumero: "100000001",
           Activo: true,
         }),
       });
       assert.equal(numerator.status, 201, await numerator.clone().text());
       const numbering = (await numerator.json()) as {
-        registro: { IDTabla: string };
+        registro: { Codigo: string };
       };
+      await pool.query(
+        "UPDATE COMPROBANTE SET Numerador='CC_REPRO' WHERE Codigo='CC_REPRO'",
+      );
       const date = new Intl.DateTimeFormat("sv-SE", {
         timeZone: "America/Argentina/Buenos_Aires",
       }).format(new Date());
@@ -685,8 +703,8 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       const persisted = await get(result.registro.IDTabla);
       assert.equal(persisted.registro.Estado, "CONFIRMADO");
       const [next] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE IDTabla=?",
-        [numbering.registro.IDTabla],
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
+        [numbering.registro.Codigo],
       );
       assert.equal(String(next[0]!.ProximoNumero), "100000002");
     },
@@ -714,8 +732,11 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
         ],
       );
       await pool.execute(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES (?,?)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES (?,?)",
         ["CC_CONCURRENT", "100001000"],
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       const attempts = await Promise.all(
         Array.from({ length: 5 }, () =>
@@ -726,34 +747,41 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
           ),
         ),
       );
-      assert.equal(attempts.filter((r) => r.status === 201).length, 1);
-      assert.equal(attempts.filter((r) => r.status === 409).length, 4);
+      assert.equal(attempts.filter((r) => r.status === 201).length, 5);
+      assert.equal(attempts.filter((r) => r.status === 409).length, 0);
       const [next] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero FROM NUMERACION WHERE Codigo=?",
         ["CC_CONCURRENT"],
       );
-      assert.equal(String(next[0]!.ProximoNumero), "100001001");
+      assert.equal(String(next[0]!.ProximoNumero), "100001005");
       await pool.execute(
         "INSERT INTO COMPROBANTE (Codigo,Descripcion,ModuloOrigen,Cuenta,Naturaleza,SentidoFondos) VALUES (?,?,?,?,?,?)",
         ["CC_MAX", "Último", "CUENTACORRIENTE", "COBRAR", "DEUDA", "NOAPLICA"],
       );
       await pool.execute(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES (?,?)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES (?,?)",
         ["CC_MAX", "999999999999"],
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       const last = await create("9999-99999999", { Comprobante: "CC_MAX" });
       assert.equal(last.registro.NumeroComprobante, "999999999999");
       assert.equal((await list("&q=9999-99999999")).total, 1);
       const [exhausted] = await pool.execute<RowDataPacket[]>(
-        "SELECT ProximoNumero,Activo FROM NUMERACION WHERE Comprobante=?",
+        "SELECT ProximoNumero,Activo FROM NUMERACION WHERE Codigo=?",
         ["CC_MAX"],
       );
       assert.equal(String(exhausted[0]!.ProximoNumero), "999999999999");
       assert.equal(Number(exhausted[0]!.Activo), 0);
       const options = (await (await req("/opciones")).json()) as {
-        numeradores: { Comprobante: string }[];
+        numeradores: { Comprobante: string; Activo: boolean }[];
       };
-      assert.ok(!options.numeradores.some((n) => n.Comprobante === "CC_MAX"));
+      assert.ok(
+        !options.numeradores.some(
+          (n) => n.Comprobante === "CC_MAX" && n.Activo,
+        ),
+      );
       assert.equal(
         (
           await req(

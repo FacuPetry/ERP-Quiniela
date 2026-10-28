@@ -49,7 +49,7 @@ try {
   if (!ready) throw new Error('MySQL de prueba no estuvo disponible dentro del tiempo previsto.');
   // Node ordena alfabéticamente los archivos incluso con concurrencia 1.
   // La preparación inicial debe verificarse antes de insertar fixtures de negocio.
-  for (const testFile of ['tests/integration/numbering-migration.test.ts', 'tests/integration/database.test.ts', 'tests/integration/masters.test.ts', 'tests/integration/current-account.test.ts', 'tests/integration/cash-movement.test.ts', 'tests/integration/list-order.test.ts', 'tests/integration/cash-corrections.test.ts', 'tests/integration/treasury.test.ts']) {
+  for (const testFile of ['tests/integration/numbering-migration.test.ts', 'tests/integration/database.test.ts', 'tests/integration/masters.test.ts', 'tests/integration/current-account.test.ts', 'tests/integration/cash-movement.test.ts', 'tests/integration/list-order.test.ts', 'tests/integration/cash-corrections.test.ts', 'tests/integration/treasury.test.ts', 'tests/integration/shared-numbering.test.ts']) {
     const child = spawn(process.execPath, ['--import', 'tsx', '--test', testFile], {
       cwd: root,
       stdio: 'inherit',
@@ -63,7 +63,7 @@ try {
   process.exitCode = 1;
 } finally {
   if (started) {
-    try { docker(['rm', '--force', name]); } catch { console.error('No se pudo retirar el contenedor de prueba.'); }
+    try { docker(['rm', '--force', '--volumes', name]); } catch { console.error('No se pudo retirar el contenedor de prueba.'); }
   }
   await rm(directory, { recursive: true, force: true });
 }

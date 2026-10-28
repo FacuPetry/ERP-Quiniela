@@ -5,7 +5,7 @@ import {
   type Response,
 } from "express";
 import { randomUUID } from "node:crypto";
-import type { z } from "zod";
+import { z } from "zod";
 import type { SessionResponse, CashModule } from "@erp/shared";
 import { requireSession, requireMasterWrite } from "../auth/middleware.js";
 import type { AuthService } from "../auth/service.js";
@@ -13,6 +13,7 @@ import { MasterRequestError } from "../masters/validation.js";
 import type { CashMovementStore } from "./store.js";
 import {
   creation,
+  id as openingId,
   treasuryCreation,
   query,
   pendingQuery,
@@ -98,6 +99,9 @@ export function cashMovementRouter(
       module === "TESORERIA" ? parse(treasuryCreation, req.body) : null;
     const input = treasury
       ? {
+          ...(treasury.NumeroAutomatico !== undefined
+            ? { NumeroAutomatico: treasury.NumeroAutomatico }
+            : {}),
           Comprobante: treasury.Comprobante,
           NumeroComprobante: treasury.NumeroComprobante,
           CajaSaldo: treasury.CajaSaldo,
@@ -134,7 +138,11 @@ export function cashMovementRouter(
     res.set("ETag", '"' + result.version + '"').json(result);
   });
   r.get("/:id/reversion", async (req, res) => {
-    res.json(await store.reversalPreview(String(req.params.id)));
+    const q = parse(
+      z.object({ CajaSaldo: openingId.optional() }).strict(),
+      req.query,
+    );
+    res.json(await store.reversalPreview(String(req.params.id), q.CajaSaldo));
   });
   r.post("/:id/revertir", ...requireMasterWrite, async (req, res) => {
     const version = /^"([a-f0-9]{64})"$/.exec(req.get("If-Match") ?? "")?.[1];

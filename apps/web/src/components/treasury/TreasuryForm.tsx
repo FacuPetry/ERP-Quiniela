@@ -3,6 +3,7 @@ import {
   cashCorrection,
   cashStateLabel,
   moneyUnits,
+  numberSuggestion,
   voucherNumberError,
   type CashDetail,
   type TreasuryInput,
@@ -79,7 +80,12 @@ export function TreasuryForm({
       );
   }, [data, old, validate]);
   useEffect(() => {
-    if (!old) setInput((s) => ({ ...s, CajaSaldo: selected?.IDTabla ?? "" }));
+    if (!old)
+      setInput((s) => ({
+        ...s,
+        CajaSaldo: selected?.IDTabla ?? "",
+        NumeroComprobante: "0",
+      }));
   }, [selected?.IDTabla, old]);
   function change<K extends keyof TreasuryInput>(
     key: K,
@@ -92,12 +98,20 @@ export function TreasuryForm({
     setInput((s) => ({
       ...s,
       Comprobante: code,
-      NumeroComprobante:
-        data?.numeradores.find((n) => n.Comprobante === code)?.ProximoNumero ??
-        "0",
+      NumeroComprobante: "0",
     }));
     setErrors((s) => ({ ...s, Comprobante: "", NumeroComprobante: "" }));
   }
+  const numbering = numberSuggestion(
+    input.Comprobante,
+    data?.numeradores ?? [],
+    selected?.Caja,
+    true,
+  );
+  const numberValue =
+    !readOnly && numbering.automatic
+      ? numbering.number
+      : input.NumeroComprobante;
   async function save(event: FormEvent) {
     event.preventDefault();
     if (busy || readOnly || !canWrite) return;
@@ -106,7 +120,7 @@ export function TreasuryForm({
     if (!input.CajaSaldo) invalid.CajaSaldo = "Seleccioná una caja abierta.";
     if (!input.Concepto) invalid.Concepto = "Seleccioná un concepto.";
     if (!input.FechaOrigen) invalid.FechaOrigen = "Ingresá una fecha válida.";
-    const numberError = voucherNumberError(input.NumeroComprobante);
+    const numberError = voucherNumberError(numberValue);
     if (numberError) invalid.NumeroComprobante = numberError;
     try {
       if (moneyUnits(input.Importe) <= 0n)
@@ -119,14 +133,19 @@ export function TreasuryForm({
       setError("Revisá los campos indicados.");
       return;
     }
-    const body = JSON.stringify(input);
+    const payload = {
+      ...input,
+      NumeroComprobante: numbering.automatic ? "0" : numberValue,
+      NumeroAutomatico: numbering.automatic,
+    };
+    const body = JSON.stringify(payload);
     if (retry.current.body !== body)
       retry.current = { body, key: crypto.randomUUID() };
     setBusy(true);
     setError("");
     setErrors({});
     try {
-      await treasuryServices.save(input, csrf, retry.current.key);
+      await treasuryServices.save(payload, csrf, retry.current.key);
       onSaved();
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) onExpired();
@@ -204,9 +223,9 @@ export function TreasuryForm({
           {(error || (!old && optionsError)) && (
             <p className="notice error" role="alert">
               {error || optionsError}
-              {!old && optionsError && (
+              {!old && (
                 <button type="button" onClick={reload}>
-                  Reintentar opciones
+                  Actualizar opciones
                 </button>
               )}
             </p>
@@ -269,8 +288,9 @@ export function TreasuryForm({
                         <NumeroComprobante
                           label="Número de comprobante"
                           size="md"
-                          value={input.NumeroComprobante}
-                          readOnly={readOnly}
+                          value={numberValue}
+                          readOnly={readOnly || numbering.automatic}
+                          hint={!readOnly ? numbering.notice : undefined}
                           disabled={busy}
                           onValueChange={(v) => change("NumeroComprobante", v)}
                           error={errors.NumeroComprobante}

@@ -1,11 +1,12 @@
 # Modelo de datos de referencia
 
-Se conserva el diseño de 21 tablas acordado. La definición ejecutable está en `apps/api/src/database/schema.ts` y su historial en `database/migrations`. No hay datos de negocio precargados.
+Se conserva el diseño de 21 tablas de negocio y se agrega NUMERACIONUSO para proteger consumos compartidos. La definición ejecutable está en `apps/api/src/database/schema.ts` y su historial en `database/migrations`. No hay datos de negocio precargados.
 
 | Tabla | Finalidad y referencias |
 |---|---|
 | COMPROBANTE | Maestro de configuración, no cabecera de una operación |
-| NUMERACION | Próximo número completo por Comprobante; configuración opcional y única |
+| NUMERACION | Numerador con Código, próximo número, Caja opcional y Activo; compartido por comprobantes |
+| NUMERACIONUSO | Consumos únicos por numerador y número, conservados tras anulaciones o reasociaciones |
 | CLIENTETIPO | Clasificación comercial |
 | CLIENTE | Cuenta comercial de un ClienteTipo |
 | CONCEPTO | Motivos de ingresos, egresos y ajustes |
@@ -81,3 +82,6 @@ La migración 0003 incorpora ImporteACuenta inicial y CajaMovimientoOrigen en CA
 ## Tesorería de efectivo (etapa 7)
 
 Reutiliza CAJAMOVIMIENTO sin cliente ni asiento de CUENTACORRIENTE, con ImporteTotal=ImporteEfectivo e ImporteACuenta=0. Aperturas y saldos físicos incluyen los movimientos confirmados de ambos módulos; los listados/detalles/correcciones separan los registros comerciales de los internos por sus relaciones persistidas, sin depender del maestro actual. No agrega columnas o tablas. Concepto es obligatorio. Las correcciones internas no generan deudas/créditos de cliente. Ver [alcance y pruebas](etapa-7.md).
+
+
+La migración 0006 traslada la asociación de numeración a COMPROBANTE.Numerador, conserva las configuraciones anteriores y registra sus emisiones históricas sin renumerarlas. Ver [Numeradores compartidos](numeracion-comprobantes.md).

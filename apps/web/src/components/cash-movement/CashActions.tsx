@@ -436,7 +436,7 @@ export function ReverseCash({
     setPreviewLoading(true);
     setPreviewError("");
     void services
-      .reversalPreview(detail.registro.IDTabla, request.signal)
+      .reversalPreview(detail.registro.IDTabla, request.signal, box)
       .then((result) => {
         if (!request.signal.aborted) setPreview(result);
       })
@@ -449,7 +449,7 @@ export function ReverseCash({
         if (!request.signal.aborted) setPreviewLoading(false);
       });
     return () => request.abort();
-  }, [detail.registro.IDTabla, revision, onExpired, services]);
+  }, [detail.registro.IDTabla, revision, onExpired, services, box]);
   function refresh() {
     reload();
     setRevision((value) => value + 1);

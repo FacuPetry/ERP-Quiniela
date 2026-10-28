@@ -69,7 +69,10 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
     "UPDATE COMPROBANTE SET ComprobanteReversion='AN_RP' WHERE Codigo='AN_P'",
   );
   await pool.query(
-    "INSERT INTO NUMERACION (Comprobante,ProximoNumero) VALUES ('AN_RC',100000001),('AN_RP',100000001)",
+    "INSERT INTO NUMERACION (Codigo,ProximoNumero) VALUES ('AN_RC',100000001),('AN_RP',100000001)",
+  );
+  await pool.query(
+    "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
   );
   const server = createApp({
     checkDatabase: async () => {},
@@ -837,13 +840,14 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
       assert.equal((await preview()).status, 409, "Exige Numerador");
       assert.equal((await send(originals[0]!)).status, 409);
       await pool.query(
-        "INSERT INTO NUMERACION (Comprobante,ProximoNumero,Activo) VALUES ('AN_RX',100000025,0)",
+        "INSERT INTO NUMERACION (Codigo,ProximoNumero,Activo) VALUES ('AN_RX',100000025,0)",
+      );
+      await pool.query(
+        "UPDATE COMPROBANTE c JOIN NUMERACION n ON n.Codigo=c.Codigo SET c.Numerador=n.Codigo WHERE c.Numerador IS NULL",
       );
       assert.equal((await preview()).status, 409);
       assert.equal((await send(originals[0]!)).status, 409);
-      await pool.query(
-        "UPDATE NUMERACION SET Activo=1 WHERE Comprobante='AN_RX'",
-      );
+      await pool.query("UPDATE NUMERACION SET Activo=1 WHERE Codigo='AN_RX'");
       for (const change of ["EsReversion=0", "Activo=0", "Cuenta='PAGAR'"]) {
         await pool.query(
           "UPDATE COMPROBANTE SET " + change + " WHERE Codigo='AN_RX'",
@@ -874,7 +878,7 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
         String(
           (
             await rows(
-              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='AN_RX'",
+              "SELECT ProximoNumero FROM NUMERACION WHERE Codigo='AN_RX'",
             )
           )[0]!.ProximoNumero,
         ),
@@ -921,7 +925,7 @@ test("Caja: anulación de jornada, reversión histórica y trazabilidad sin camp
         String(
           (
             await rows(
-              "SELECT ProximoNumero FROM NUMERACION WHERE Comprobante='AN_RX'",
+              "SELECT ProximoNumero FROM NUMERACION WHERE Codigo='AN_RX'",
             )
           )[0]!.ProximoNumero,
         ),

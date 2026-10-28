@@ -30,15 +30,24 @@ export const comprobante = mysqlTable('COMPROBANTE', {
   Naturaleza: varchar('Naturaleza', { length: 10 }).notNull(),
   SentidoFondos: varchar('SentidoFondos', { length: 20 }).notNull(),
   EsReversion: boolean('EsReversion').notNull().default(false),
+  Numerador: code('Numerador').references((): AnyMySqlColumn => numeracion.Codigo),
   ComprobanteReversion: code('ComprobanteReversion').references((): AnyMySqlColumn => comprobante.Codigo),
   Activo: boolean('Activo').notNull().default(true), Orden: int('Orden'),
 });
 export const numeracion = mysqlTable('NUMERACION', {
-  IDTabla: id(), Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
+  IDTabla: id(), Codigo: code('Codigo').notNull(), Caja: code('Caja').references((): AnyMySqlColumn => caja.Codigo),
   ProximoNumero: bigint('ProximoNumero', { mode: 'bigint', unsigned: true }).notNull(),
   Activo: boolean('Activo').notNull().default(true),
-}, t => [uniqueIndex('UQ_NUMERACION_Comprobante').on(t.Comprobante),
+}, t => [uniqueIndex('UQ_NUMERACION_Codigo').on(t.Codigo),
   check('CK_NUMERACION_Numero', sql`${t.ProximoNumero} BETWEEN 1 AND 999999999999 AND MOD(${t.ProximoNumero}, 100000000) > 0`)]);
+export const numeracionUso = mysqlTable('NUMERACIONUSO', {
+  IDTabla: id(), Numerador: fk('Numerador').notNull().references(() => numeracion.IDTabla),
+  Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
+  NumeroComprobante: bigint('NumeroComprobante', { mode: 'bigint', unsigned: true }).notNull(),
+  CreadoEn: instant('CreadoEn').notNull(),
+}, t => [uniqueIndex('UQ_NUMERACIONUSO_Numero').on(t.Numerador,t.NumeroComprobante),
+  uniqueIndex('UQ_NUMERACIONUSO_Comprobante').on(t.Comprobante,t.NumeroComprobante),
+  check('CK_NUMERACIONUSO_Numero', sql`${t.NumeroComprobante} BETWEEN 1 AND 999999999999 AND MOD(${t.NumeroComprobante},100000000)>0`)]);
 export const clienteTipo = mysqlTable('CLIENTETIPO', {
   Codigo: code('Codigo').primaryKey(), Descripcion: varchar('Descripcion', { length: 100 }).notNull(),
   Activo: boolean('Activo').notNull().default(true),

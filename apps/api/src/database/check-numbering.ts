@@ -1,10 +1,11 @@
 import mysql from "mysql2/promise";
 import { readConfig, databaseOptions } from "../config/env.js";
 import { inspectNumberingMigration } from "./numbering-preflight.js";
+import { inspectSharedNumberingMigration } from "./shared-numbering-preflight.js";
 let connection;
 try {
   connection = await mysql.createConnection(databaseOptions(readConfig()));
-  const issues = await inspectNumberingMigration(connection);
+  const issues = [...await inspectNumberingMigration(connection), ...await inspectSharedNumberingMigration(connection)];
   if (issues.length) {
     for (const issue of issues) console.error(issue);
     process.exitCode = 1;

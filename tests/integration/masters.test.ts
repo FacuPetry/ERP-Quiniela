@@ -754,7 +754,7 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       const [tables] = await pool.query<RowDataPacket[]>(
         "SELECT COUNT(*) AS total FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> '__drizzle_migrations'",
       );
-      assert.equal(Number(tables[0]?.total), 21);
+      assert.equal(Number(tables[0]?.total), 22);
       await pool.execute("DELETE FROM CLIENTE WHERE Codigo = ?", ["99999"]);
     },
   );
@@ -763,6 +763,7 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
     Codigo: "PR_ET4",
     EsReversion: false,
     ComprobanteReversion: null,
+    Numerador: null,
     Descripcion: "Premio",
     ModuloOrigen: "CUENTACORRIENTE",
     Cuenta: "PAGAR",
@@ -976,29 +977,31 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
     },
   );
   await t.test(
-    "Numerador único por comprobante: BIGINT completo, conflictos y auditoría",
+    "Numeradores por Código, Caja opcional y relación configurada desde Comprobantes",
     async () => {
       const saved = await create("numeraciones", {
-        Comprobante: "PR_ET4",
+        Codigo: "GENERAL_M",
         ProximoNumero: "100000025",
       });
-      const id = String(saved.registro.IDTabla);
+      assert.equal(saved.registro.Codigo, "GENERAL_M");
       assert.equal(saved.registro.ProximoNumero, "100000025");
-      assert.equal(Object.hasOwn(saved.registro, "Serie"), false);
-      assert.equal(Object.hasOwn(saved.registro, "Codigo"), false);
-      const duplicates = await Promise.all([
-        request("numeraciones", "POST", {
-          Comprobante: "PR_ET4",
-          ProximoNumero: "200000001",
-          Activo: true,
-        }),
-        request("numeraciones", "POST", {
-          Comprobante: "PR_ET4",
-          ProximoNumero: "300000001",
-          Activo: true,
-        }),
-      ]);
-      assert.ok(duplicates.every((r) => r.status === 409));
+      assert.equal(saved.registro.Caja, null);
+      assert.ok(!Object.hasOwn(saved.registro, "IDTabla"));
+      assert.ok(!Object.hasOwn(saved.registro, "Comprobante"));
+      assert.equal(
+        (
+          await request("numeraciones", "POST", {
+            Codigo: "GENERAL_M",
+            ProximoNumero: "200000001",
+            Activo: true,
+          })
+        ).status,
+        409,
+      );
+      await create("numeraciones", {
+        Codigo: "OTRO_M",
+        ProximoNumero: "100000025",
+      });
       for (const ProximoNumero of [
         "0",
         "100000000",
@@ -1010,64 +1013,65 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         assert.equal(
           (
             await request("numeraciones", "POST", {
-              Comprobante: "PR_ET4",
+              Codigo: "INVALIDO_M",
               ProximoNumero,
               Activo: true,
             })
           ).status,
           400,
-          ProximoNumero,
         );
-      const invalid = await request("numeraciones", "POST", {
-        Comprobante: "PR_ET4",
-        ProximoNumero: "100000001",
-        Serie: "1",
-        Activo: true,
+      assert.equal(
+        (
+          await request("numeraciones", "POST", {
+            Codigo: "INVALIDO_M",
+            ProximoNumero: "100000001",
+            Comprobante: "PR_ET4",
+            Activo: true,
+          })
+        ).status,
+        400,
+      );
+      await create("cajas", {
+        Codigo: "MN_CAJA",
+        Nombre: "Caja del numerador",
       });
-      assert.equal(invalid.status, 400);
-      const before = await get("numeraciones/" + id);
       const changed = await update(
-        "numeraciones/" + id,
-        { ...before.registro, ProximoNumero: "100000026" },
-        before.version,
+        "numeraciones/GENERAL_M",
+        { ...saved.registro, Caja: "MN_CAJA", ProximoNumero: "100000026" },
+        saved.version,
       );
       assert.equal(
         (
           await request(
-            "numeraciones/" + id,
+            "numeraciones/GENERAL_M",
             "PUT",
-            before.registro,
-            before.version,
+            saved.registro,
+            saved.version,
           )
         ).status,
         409,
       );
       const filtered = (await (
-        await request("numeraciones?referencia=PR_ET4")
+        await request("numeraciones?referencia=MN_CAJA")
       ).json()) as MasterList;
       assert.equal(filtered.total, 1);
-      assert.equal(filtered.descripciones?.Comprobante?.PR_ET4, "Premio");
+      assert.equal(filtered.descripciones?.Caja?.MN_CAJA, "Caja del numerador");
+      const c = await get("comprobantes/PR_ET4");
+      await update(
+        "comprobantes/PR_ET4",
+        { ...c.registro, Numerador: "GENERAL_M" },
+        c.version,
+      );
       assert.equal(
-        (
-          await request(
-            "comprobantes/PR_ET4",
-            "DELETE",
-            {},
-            (await get("comprobantes/PR_ET4")).version,
-          )
-        ).status,
+        (await request("numeraciones/GENERAL_M", "DELETE", {}, changed.version))
+          .status,
         409,
       );
-      assert.equal(changed.registro.ProximoNumero, "100000026");
     },
   );
   await t.test(
-    "Cambiar o borrar el Numerador no altera el número histórico; no se retrocede dentro del punto de venta",
+    "Cambiar el Numerador conserva números históricos y controla máximos de todos sus comprobantes",
     async () => {
-      const number = (await (
-        await request("numeraciones?referencia=PR_ET4")
-      ).json()) as MasterList;
-      const id = String(number.registros[0]!.IDTabla);
       await pool.execute(
         "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?)",
         [
@@ -1083,12 +1087,11 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
           new Date(),
         ],
       );
-      const before = await get("numeraciones/" + id);
-      assert.equal(before.camposSoloLectura, undefined);
+      const before = await get("numeraciones/GENERAL_M");
       assert.equal(
         (
           await request(
-            "numeraciones/" + id,
+            "numeraciones/GENERAL_M",
             "PUT",
             { ...before.registro, ProximoNumero: "100000050" },
             before.version,
@@ -1096,19 +1099,24 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         ).status,
         409,
       );
-      const other = await update(
-        "numeraciones/" + id,
+      const changed = await update(
+        "numeraciones/GENERAL_M",
         { ...before.registro, ProximoNumero: "200000001" },
         before.version,
       );
+      const c = await get("comprobantes/PR_ET4");
+      await update(
+        "comprobantes/PR_ET4",
+        { ...c.registro, Numerador: null },
+        c.version,
+      );
       assert.equal(
-        (await request("numeraciones/" + id, "DELETE", {}, other.version))
+        (await request("numeraciones/GENERAL_M", "DELETE", {}, changed.version))
           .status,
         204,
       );
       const [rows] = await pool.execute<RowDataPacket[]>(
-        "SELECT NumeroComprobante FROM CUENTACORRIENTE WHERE Comprobante=?",
-        ["PR_ET4"],
+        "SELECT NumeroComprobante FROM CUENTACORRIENTE WHERE Comprobante='PR_ET4'",
       );
       assert.equal(String(rows[0]!.NumeroComprobante), "100000050");
     },

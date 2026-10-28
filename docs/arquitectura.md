@@ -74,3 +74,8 @@ ImporteACuenta conserva el importe original; las aplicaciones tienen fecha y usu
 
 
 Caja activa es una preferencia de interfaz por usuario/sesión/pestaña, no una nueva relación financiera: ActiveCashProvider la conserva al navegar y revalida el estado de su apertura mediante un endpoint autenticado de lectura. El payload continúa enviando CajaSaldo, validado bajo bloqueo por el servidor tanto en alta como en reversión. Cajas usa directamente MasterPage y conserva solo su maestro. El panel de aperturas/cierres se abre exclusivamente desde CashPage con la extensión de ActionToolbar; reutiliza DataTable y MasterProperties. El listado principal de Cuenta corriente excluye CajaMovimiento IS NOT NULL solo en su consulta de filas y conteo; el cálculo de saldos y la disponibilidad de pendientes conserva los asientos financieros internos.
+
+
+## Numeración compartida (revisión 0006)
+
+La implementación actual se describe en [Numeradores compartidos](numeracion-comprobantes.md). Sustituye las reglas iniciales de numeración por comprobante: COMPROBANTE.Numerador referencia NUMERACION.Codigo y varias configuraciones pueden compartirlo. El servicio database/numbering.ts centraliza la emisión; NUMERACIONUSO conserva los consumos independientemente de asociaciones posteriores. Cuenta corriente no exige caja; los módulos de fondos permiten entrada manual si el numerador no es válido para la caja. Las reversiones mantienen su exigencia de numerador activo/compatible. Los módulos futuros deben utilizar este servicio, sin implementar otra asignación a partir de SELECT MAX.

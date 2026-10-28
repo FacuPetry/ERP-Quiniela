@@ -1,3 +1,4 @@
+import type { NumberingOption } from "./voucher-number.js";
 export interface CurrentAccountRecord {
   IDTabla: string;
   Cliente: string;
@@ -39,9 +40,10 @@ export interface CurrentAccountOptions {
     Cuenta: string;
     Naturaleza: string;
   }[];
-  numeradores: { Comprobante: string; ProximoNumero: string }[];
+  numeradores: NumberingOption[];
 }
 export interface CurrentAccountInput {
+  NumeroAutomatico?: boolean | undefined;
   /** Opcional para conservar compatibilidad con clientes anteriores. */
   Concepto?: string | null;
   Cliente: string;

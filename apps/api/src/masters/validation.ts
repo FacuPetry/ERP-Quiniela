@@ -4,6 +4,7 @@ import {
   integerFieldError,
   voucherNumberError,
   masterDefinitions,
+  ModuloComprobante,
   type MasterDefinition,
 } from "@erp/shared";
 
@@ -106,6 +107,7 @@ export const listQuery = z
     pagina: z.coerce.number().int().min(1).max(100000).default(1),
     limite: z.coerce.number().int().min(1).max(100).default(20),
     referencia: z.string().trim().max(20).optional(),
+    modulo: z.enum(ModuloComprobante).optional(),
   })
   .strict();
 export type ListQuery = z.infer<typeof listQuery>;

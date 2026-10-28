@@ -27,6 +27,7 @@ export const money = z
 export const creation = z
   .object({
     Cliente: z.string().trim().min(1).max(20),
+    NumeroAutomatico: z.boolean().optional(),
     Comprobante: z.string().trim().min(1).max(20),
     Concepto: z
       .string()
@@ -39,7 +40,7 @@ export const creation = z
     NumeroComprobante: z
       .string()
       .superRefine((value, context) => {
-        const error = voucherNumberError(value);
+        const error = value === "0" ? undefined : voucherNumberError(value);
         if (error) context.addIssue({ code: "custom", message: error });
       })
       .transform((value) => BigInt(value).toString()),
@@ -54,6 +55,13 @@ export const creation = z
       .transform((v) => v || null),
   })
   .strict()
+  .superRefine((v, c) => {
+    if (!v.NumeroAutomatico) {
+      const e = voucherNumberError(v.NumeroComprobante);
+      if (e)
+        c.addIssue({ code: "custom", path: ["NumeroComprobante"], message: e });
+    }
+  })
   .refine((v) => !v.Vencimiento || v.Vencimiento >= v.FechaOrigen, {
     path: ["Vencimiento"],
     message: "El vencimiento no puede ser anterior a la fecha de origen.",

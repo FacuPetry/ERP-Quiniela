@@ -24,12 +24,12 @@ test('Integración con MySQL/MariaDB real en una base efímera', async t => {
   t.after(async () => { await pool.end(); await connection.end(); });
   await applyMigrations(config);
 
-  await t.test('crea únicamente las 21 tablas acordadas más el historial técnico', async () => {
+  await t.test('crea únicamente las tablas financieras más el registro de consumos e historial técnico', async () => {
     const [rows] = await connection.query<RowDataPacket[]>('SHOW TABLES');
     const actual = rows.map(row => Object.values(row)[0]).sort();
     const expected = ['AUDITORIA', 'BANCO', 'BANCOCUENTA', 'BANCOMOVIMIENTO', 'CAJA', 'CAJAMOVIMIENTO',
       'CAJAMOVIMIENTOAFECTACION', 'CAJASALDO', 'CHEQUE', 'CHEQUEEVENTO', 'CLIENTE', 'CLIENTETIPO',
-      'COMPROBANTE', 'CONCEPTO', 'CUENTACORRIENTE', 'NUMERACION', 'ROL', 'SESION', 'SOLICITUD',
+      'COMPROBANTE', 'CONCEPTO', 'CUENTACORRIENTE', 'NUMERACION', 'NUMERACIONUSO', 'ROL', 'SESION', 'SOLICITUD',
       'TRANSFERENCIA', 'USUARIO', '__drizzle_migrations'].sort();
     assert.deepEqual(actual, expected);
     const [engines] = await connection.query<RowDataPacket[]>("SELECT ENGINE AS engine FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE()");
@@ -38,7 +38,7 @@ test('Integración con MySQL/MariaDB real en una base efímera', async t => {
 
   await t.test('todas las PK IDTabla comienzan en 100000001', async () => {
     const [rows] = await connection.query<RowDataPacket[]>("SELECT TABLE_NAME AS name, AUTO_INCREMENT AS nextId FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> '__drizzle_migrations' AND AUTO_INCREMENT IS NOT NULL");
-    assert.equal(rows.length, 13);
+    assert.equal(rows.length, 14);
     for (const row of rows) assert.equal(String(row.nextId), '100000001', row.name);
   });
 

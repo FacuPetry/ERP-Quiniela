@@ -24,6 +24,7 @@ import {
   initialMasterFieldValue,
 } from "../controls";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
+import { FormSections } from "../ui/FormSections";
 import { FormToolbarActions } from "../ui/FormToolbarActions";
 
 export function MasterForm({
@@ -61,7 +62,15 @@ export function MasterForm({
   const form = useRef<HTMLFormElement>(null);
   const summary = useRef<HTMLDivElement>(null);
   const identity = master.primaryKey ?? "Codigo";
-  const visibleFields = masterFormFields(master);
+  const baseFields = masterFormFields(master);
+  const visibleFields = master.sections
+    ? master.sections.flatMap((section) =>
+        section.fields.flatMap((name) => {
+          const field = baseFields.find((field) => field.name === name);
+          return field ? [field] : [];
+        }),
+      )
+    : baseFields;
   const automatic = Boolean(master.automaticCode && !previous);
   const formId = useId();
   const [suggestionLoading, setSuggestionLoading] = useState(automatic);
@@ -344,6 +353,30 @@ export function MasterForm({
       />
     );
   }
+  function renderFields(fields: readonly MasterField[]) {
+    return (
+      <div className="form-grid">
+        {fields.map((field) =>
+          field.name === visibleFields[0]?.name ? (
+            <div className="form-identity-row" key={field.name}>
+              {renderField(field)}
+              <div className="form-status-field">
+                <CheckBox
+                  id="master-Activo"
+                  label="Registro activo"
+                  value={record.Activo}
+                  disabled={busy || readOnly}
+                  onValueChange={(next) => change("Activo", next)}
+                />
+              </div>
+            </div>
+          ) : (
+            renderField(field)
+          ),
+        )}
+      </div>
+    );
+  }
   return (
     <section
       className="panel record-form"
@@ -415,26 +448,25 @@ export function MasterForm({
               )}
             </div>
           )}
-          <div className="form-grid">
-            {visibleFields.map((field, index) =>
-              index === 0 ? (
-                <div className="form-identity-row" key={field.name}>
-                  {renderField(field)}
-                  <div className="form-status-field">
-                    <CheckBox
-                      id="master-Activo"
-                      label="Registro activo"
-                      value={record.Activo}
-                      disabled={busy || readOnly}
-                      onValueChange={(next) => change("Activo", next)}
-                    />
-                  </div>
-                </div>
-              ) : (
-                renderField(field)
-              ),
-            )}
-          </div>
+          {master.sections ? (
+            <FormSections
+              idPrefix={"master-" + master.key}
+              sections={master.sections.map((section) => ({
+                key: section.key,
+                title: section.title,
+                content: renderFields(
+                  section.fields.flatMap((name) => {
+                    const field = visibleFields.find(
+                      (candidate) => candidate.name === name,
+                    );
+                    return field ? [field] : [];
+                  }),
+                ),
+              }))}
+            />
+          ) : (
+            renderFields(visibleFields)
+          )}
         </div>
       </form>
     </section>

@@ -37,3 +37,33 @@ export function nextVoucher(value: string): string | null {
     ? null
     : (BigInt(value) + 1n).toString();
 }
+
+export interface NumberingOption {
+  Comprobante: string;
+  Codigo: string;
+  ProximoNumero: string;
+  Caja: string | null;
+  Activo: boolean;
+}
+/** Cuenta corriente no depende de una caja; las operaciones de fondos sí. */
+export function numberSuggestion(
+  code: string,
+  options: readonly NumberingOption[],
+  caja?: string | null,
+  usesCash = false,
+) {
+  const n = options.find((n) => n.Comprobante === code);
+  const automatic = Boolean(
+    n?.Activo && (!usesCash || !n.Caja || n.Caja === caja),
+  );
+  return {
+    automatic,
+    number: automatic ? n!.ProximoNumero : "0",
+    notice:
+      !code || automatic
+        ? ""
+        : usesCash
+          ? "No hay un numerador configurado para esta caja y comprobante. Podés ingresar el número manualmente."
+          : "No hay un numerador activo configurado para este comprobante. Podés ingresar el número manualmente.",
+  };
+}
