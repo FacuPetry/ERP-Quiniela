@@ -28,78 +28,6 @@ export async function numberingOptions(
     ProximoNumero: String(r.ProximoNumero),
   }));
 }
-export async function highestNumeratorNumber(
-  c: Conn,
-  codigo: string,
-  value: string,
-  includeVoucher: string | null = null,
-) {
-  const start = (BigInt(value) / voucherBase) * voucherBase;
-  const [rows] = await c.execute<RowDataPacket[]>(
-    `SELECT MAX(NumeroComprobante) AS ultimo FROM (
-    SELECT a.NumeroComprobante FROM CUENTACORRIENTE a JOIN COMPROBANTE v ON v.Codigo=a.Comprobante WHERE v.Numerador=? OR v.Codigo=?
-    UNION ALL SELECT m.NumeroComprobante FROM CAJAMOVIMIENTO m JOIN COMPROBANTE v ON v.Codigo=m.Comprobante WHERE v.Numerador=? OR v.Codigo=?
-  ) x WHERE NumeroComprobante BETWEEN ? AND ?`,
-    [
-      codigo,
-      includeVoucher,
-      codigo,
-      includeVoucher,
-      (start + 1n).toString(),
-      (start + voucherBase - 1n).toString(),
-    ],
-  );
-  return rows[0]!.ultimo == null ? null : BigInt(rows[0]!.ultimo);
-}
-export async function assertNumeratorNext(
-  c: Conn,
-  codigo: string,
-  next: string,
-  includeVoucher: string | null = null,
-) {
-  const last = await highestNumeratorNumber(c, codigo, next, includeVoucher);
-  if (last !== null && BigInt(next) <= last)
-    throw new MasterRequestError(
-      409,
-      "Revisá el próximo número del numerador compartido.",
-      {
-        ProximoNumero:
-          "Debe superar " +
-          last +
-          " en ese punto de venta, incluidos los anulados de los comprobantes asociados.",
-      },
-    );
-}
-export async function validateNumeratorLink(
-  c: PoolConnection,
-  comprobante: string,
-  numerador: string,
-) {
-  const [rows] = await c.execute<RowDataPacket[]>(
-    "SELECT ProximoNumero,Activo FROM NUMERACION WHERE Codigo=? LOCK IN SHARE MODE",
-    [numerador],
-  );
-  if (rows[0]?.Activo) {
-    try {
-      await assertNumeratorNext(
-        c,
-        numerador,
-        String(rows[0].ProximoNumero),
-        comprobante,
-      );
-    } catch (error) {
-      if (error instanceof MasterRequestError)
-        throw new MasterRequestError(
-          error.status,
-          "Ajustá el próximo número del numerador " +
-            numerador +
-            " antes de asociarlo.",
-          { Numerador: error.campos?.ProximoNumero ?? error.message },
-        );
-      throw error;
-    }
-  }
-}
 async function configured(c: Conn, code: string, lock = false) {
   const [vouchers] = await c.execute<RowDataPacket[]>(
     "SELECT Codigo,Numerador FROM COMPROBANTE WHERE Codigo=?" +
@@ -155,28 +83,18 @@ export async function issueNumber(
   expectedAutomatic?: boolean,
 ) {
   const n = await configured(c, code, true);
-  const automatic = await suitable(c, n, module, opening);
-  if (requireAutomatic && !automatic)
+  const available = await suitable(c, n, module, opening);
+  if (requireAutomatic && !available)
     fail(
       "No hay un numerador activo configurado para esta caja y comprobante. La reversión requiere uno válido.",
     );
-  if (expectedAutomatic !== undefined && expectedAutomatic !== automatic)
+  if (expectedAutomatic === true && !available)
     fail(
       "La configuración del numerador cambió. Actualizá las opciones y revisá el número antes de guardar.",
     );
-  let number = requested;
-  if (automatic) {
-    number = String(n!.ProximoNumero);
-    const last = await highestNumeratorNumber(c, String(n!.Codigo), number);
-    if (last !== null && last >= BigInt(number)) {
-      const next = nextVoucher(last.toString());
-      if (next === null)
-        fail(
-          "Se agotó el numerador. Configurá un nuevo punto de venta antes de continuar.",
-        );
-      number = next;
-    }
-  }
+  const automatic =
+    available && (requireAutomatic || expectedAutomatic !== false);
+  const number = automatic ? String(n!.ProximoNumero) : requested;
   const invalid = voucherNumberError(number);
   if (invalid) throw new MasterRequestError(400, invalid);
   for (const table of ["CUENTACORRIENTE", "CAJAMOVIMIENTO"]) {
@@ -189,7 +107,14 @@ export async function issueNumber(
         "Ese comprobante y número ya están registrados, incluidos anulados y revertidos.",
       );
   }
-  if (automatic) {
+  // Una edición manual solo adelanta el mismo punto; nunca retrocede la sugerencia.
+  const advances =
+    available &&
+    (automatic ||
+      (BigInt(number) / voucherBase ===
+        BigInt(n!.ProximoNumero) / voucherBase &&
+        BigInt(number) >= BigInt(n!.ProximoNumero)));
+  if (advances) {
     const next = nextVoucher(number);
     await c.execute(
       "UPDATE NUMERACION SET ProximoNumero=?,Activo=? WHERE IDTabla=?",

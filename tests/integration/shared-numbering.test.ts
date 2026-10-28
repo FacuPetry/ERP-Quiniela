@@ -6,6 +6,7 @@ import type { RowDataPacket } from "mysql2/promise";
 import type {
   CashDetail,
   CurrentAccountDetail,
+  CurrentAccountOptions,
   MasterDetail,
   CashOptions,
   SessionResponse,
@@ -437,8 +438,8 @@ test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e id
             }),
           )
         ).status,
-        409,
-        "Un número automático no admite forzar entrada manual",
+        201,
+        "La sugerencia también admite una edición manual con numerador activo",
       );
     },
   );
@@ -529,18 +530,9 @@ test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e id
           c.version,
         ),
       );
-      const n = await readN();
-      assert.equal(
-        (
-          await req(
-            "maestros/numeraciones/NS_GENERAL",
-            "PUT",
-            { ...n.registro, ProximoNumero: "100000003" },
-            n.version,
-          )
-        ).status,
-        409,
-      );
+      const reset = await updateN("NS_GENERAL", { ProximoNumero: "100000003" });
+      assert.equal(reset.registro.ProximoNumero, "100000003");
+      const n = await updateN("NS_GENERAL", { ProximoNumero: initial });
       assert.equal(
         (await req("maestros/numeraciones/NS_GENERAL", "DELETE", {}, n.version))
           .status,
@@ -607,7 +599,7 @@ test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e id
     },
   );
   await t.test(
-    "asociar historia previa requiere un próximo número seguro y conserva los movimientos",
+    "se asocia y sugiere el número configurado aunque existan números mayores o anulados",
     async () => {
       await good(
         await master("comprobantes", {
@@ -635,31 +627,35 @@ test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e id
       const c = await good<MasterDetail>(
         await req("maestros/comprobantes/NS_OLD"),
       );
-      const conflict = await req(
-        "maestros/comprobantes/NS_OLD",
-        "PUT",
-        { ...c.registro, Numerador: "NS_GENERAL" },
-        c.version,
+      await good(
+        await master("numeraciones", {
+          Codigo: "NS_FLEX",
+          ProximoNumero: "100000001",
+          Activo: true,
+        }),
+        201,
       );
-      assert.equal(conflict.status, 409);
-      assert.ok(
-        ((await conflict.json()) as { campos: Record<string, string> }).campos
-          .Numerador,
-      );
-      await updateN("NS_GENERAL", { ProximoNumero: "100000501" });
       await good(
         await req(
           "maestros/comprobantes/NS_OLD",
           "PUT",
-          { ...c.registro, Numerador: "NS_GENERAL" },
+          { ...c.registro, Numerador: "NS_FLEX" },
           c.version,
         ),
+      );
+      const configured = await good<CurrentAccountOptions>(
+        await req("cuenta-corriente/opciones"),
+      );
+      assert.equal(
+        configured.numeradores.find((n) => n.Comprobante === "NS_OLD")!
+          .ProximoNumero,
+        "100000001",
       );
       const fresh = await good<CurrentAccountDetail>(
         await req("cuenta-corriente", "POST", cc("NS_OLD")),
         201,
       );
-      assert.equal(fresh.registro.NumeroComprobante, "100000501");
+      assert.equal(fresh.registro.NumeroComprobante, "100000001");
       const preserved = await good<CurrentAccountDetail>(
         await req("cuenta-corriente/" + old.registro.IDTabla),
       );
@@ -744,21 +740,6 @@ test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e id
       const detached = await good<MasterDetail>(
         await req("maestros/comprobantes/NS_ARCH_C"),
       );
-      assert.equal(
-        (
-          await req(
-            "maestros/comprobantes/NS_ARCH_C",
-            "PUT",
-            {
-              ...detached.registro,
-              Numerador: "NS_ARCH",
-            },
-            detached.version,
-          )
-        ).status,
-        409,
-      );
-      await updateN("NS_ARCH", { ProximoNumero: "300000002" });
       await good(
         await req(
           "maestros/comprobantes/NS_ARCH_C",
@@ -770,11 +751,139 @@ test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e id
           detached.version,
         ),
       );
+      assert.equal(
+        (await req("cuenta-corriente", "POST", cc("NS_ARCH_C"))).status,
+        409,
+        "La asociación es libre; guardar un número ya usado sigue sujeto al UNIQUE del movimiento",
+      );
+      assert.equal(
+        (await readN("NS_ARCH")).registro.ProximoNumero,
+        "300000001",
+      );
       const next = await good<CurrentAccountDetail>(
-        await req("cuenta-corriente", "POST", cc("NS_ARCH_C")),
+        await req(
+          "cuenta-corriente",
+          "POST",
+          cc("NS_ARCH_C", {
+            NumeroAutomatico: false,
+            NumeroComprobante: "300000002",
+          }),
+        ),
         201,
       );
       assert.equal(next.registro.NumeroComprobante, "300000002");
+      assert.equal(
+        (await readN("NS_ARCH")).registro.ProximoNumero,
+        "300000003",
+      );
+    },
+  );
+  await t.test(
+    "editar la sugerencia permite números menores y otros puntos; los mayores adelantan el numerador sin consultar historia",
+    async () => {
+      await good(
+        await master("numeraciones", {
+          Codigo: "NS_EDIT",
+          ProximoNumero: "100000020",
+          Activo: true,
+        }),
+        201,
+      );
+      for (const [Codigo, ModuloOrigen, Cuenta, Naturaleza, SentidoFondos] of [
+        ["NS_EDIT_CC", "CUENTACORRIENTE", "COBRAR", "DEUDA", "NOAPLICA"],
+        ["NS_EDIT_TI", "TESORERIA", "NOAPLICA", "NOAPLICA", "INGRESO"],
+        ["NS_EDIT_CASH", "COBROSPAGOS", "COBRAR", "CREDITO", "INGRESO"],
+      ])
+        await good(
+          await master("comprobantes", {
+            Codigo,
+            Descripcion: Codigo,
+            ModuloOrigen,
+            Cuenta,
+            Naturaleza,
+            SentidoFondos,
+            Numerador: "NS_EDIT",
+            Activo: true,
+          }),
+          201,
+        );
+      const low = await good<CurrentAccountDetail>(
+        await req(
+          "cuenta-corriente",
+          "POST",
+          cc("NS_EDIT_CC", {
+            NumeroAutomatico: false,
+            NumeroComprobante: "100000010",
+          }),
+        ),
+        201,
+      );
+      assert.equal(low.registro.NumeroComprobante, "100000010");
+      assert.equal(
+        (await readN("NS_EDIT")).registro.ProximoNumero,
+        "100000020",
+      );
+      const higher = await good<CashDetail>(
+        await req(
+          "tesoreria",
+          "POST",
+          treasury("NS_EDIT_TI", boxes[0]!.IDTabla, {
+            NumeroAutomatico: false,
+            NumeroComprobante: "100000090",
+          }),
+        ),
+        201,
+      );
+      assert.equal(higher.registro.NumeroComprobante, "100000090");
+      assert.equal(
+        (await readN("NS_EDIT")).registro.ProximoNumero,
+        "100000091",
+      );
+      const otherPoint = await good<CashDetail>(
+        await req(
+          "caja-movimiento",
+          "POST",
+          cash("NS_EDIT_CASH", boxes[0]!.IDTabla, {
+            NumeroAutomatico: false,
+            NumeroComprobante: "200000005",
+          }),
+        ),
+        201,
+      );
+      assert.equal(otherPoint.registro.NumeroComprobante, "200000005");
+      assert.equal(
+        (await readN("NS_EDIT")).registro.ProximoNumero,
+        "100000091",
+      );
+      await updateN("NS_EDIT", { ProximoNumero: "100000002" });
+      const automatic = await good<CurrentAccountDetail>(
+        await req("cuenta-corriente", "POST", cc("NS_EDIT_CC")),
+        201,
+      );
+      assert.equal(
+        automatic.registro.NumeroComprobante,
+        "100000002",
+        "No salta al máximo histórico 90 o 91",
+      );
+      assert.equal(
+        (await readN("NS_EDIT")).registro.ProximoNumero,
+        "100000003",
+      );
+      await good(
+        await req(
+          "tesoreria",
+          "POST",
+          treasury("NS_EDIT_TI", boxes[0]!.IDTabla, {
+            NumeroAutomatico: false,
+            NumeroComprobante: "100000003",
+          }),
+        ),
+        201,
+      );
+      assert.equal(
+        (await readN("NS_EDIT")).registro.ProximoNumero,
+        "100000004",
+      );
     },
   );
   await t.test(

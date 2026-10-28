@@ -1070,7 +1070,7 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
     },
   );
   await t.test(
-    "Cambiar el Numerador conserva números históricos y controla máximos de todos sus comprobantes",
+    "Cambiar el Numerador y su próximo número no compara máximos históricos ni modifica operaciones",
     async () => {
       await pool.execute(
         "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,NumeroComprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -1088,21 +1088,16 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
         ],
       );
       const before = await get("numeraciones/GENERAL_M");
-      assert.equal(
-        (
-          await request(
-            "numeraciones/GENERAL_M",
-            "PUT",
-            { ...before.registro, ProximoNumero: "100000050" },
-            before.version,
-          )
-        ).status,
-        409,
+      const reset = await update(
+        "numeraciones/GENERAL_M",
+        { ...before.registro, ProximoNumero: "100000001" },
+        before.version,
       );
+      assert.equal(reset.registro.ProximoNumero, "100000001");
       const changed = await update(
         "numeraciones/GENERAL_M",
-        { ...before.registro, ProximoNumero: "200000001" },
-        before.version,
+        { ...reset.registro, ProximoNumero: "200000001" },
+        reset.version,
       );
       const c = await get("comprobantes/PR_ET4");
       await update(

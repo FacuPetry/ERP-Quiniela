@@ -199,7 +199,7 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
         maxLength: 12,
         kind: "voucher",
         defaultValue: "0",
-        hint: "Guardar la configuración no consume números. Se revisan los movimientos de los comprobantes asociados.",
+        hint: "Guardar la configuración no consume números. La sugerencia puede ajustarse al registrar un movimiento.",
       },
       {
         name: "Caja",

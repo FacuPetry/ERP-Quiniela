@@ -2,7 +2,6 @@ import { displayDate } from "../controls/date-value";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   moneyUnits,
-  numberSuggestion,
   cashStateLabel,
   cashCorrection,
   moneyText,
@@ -21,6 +20,7 @@ import {
   TextArea,
   AmountBox,
   NumeroComprobante,
+  useVoucherNumber,
   todayISO,
 } from "../controls";
 import { ClientSearch } from "../current-account/ClientSearch";
@@ -155,16 +155,11 @@ export function CashForm({
         ((c.Cuenta === "COBRAR" && c.SentidoFondos === "INGRESO") ||
           (c.Cuenta === "PAGAR" && c.SentidoFondos === "EGRESO")),
     );
-  const numbering = numberSuggestion(
-    input.Comprobante,
-    options.numeradores,
-    activeBox?.Caja,
-    true,
-  );
-  const numberValue =
-    !readOnly && numbering.automatic
-      ? numbering.number
-      : input.NumeroComprobante;
+  const numbering = useVoucherNumber(input.Comprobante, options.numeradores, {
+    codigo: activeBox?.Caja ?? null,
+    apertura: activeBox?.IDTabla ?? null,
+  });
+  const numberValue = readOnly ? input.NumeroComprobante : numbering.number;
   function change<K extends keyof typeof input>(
     key: K,
     value: (typeof input)[K],
@@ -453,8 +448,8 @@ export function CashForm({
                       <NumeroComprobante
                         label="Número de comprobante"
                         value={numberValue}
-                        onValueChange={(v) => change("NumeroComprobante", v)}
-                        readOnly={readOnly || numbering.automatic}
+                        onValueChange={numbering.onValueChange}
+                        readOnly={readOnly}
                         hint={!readOnly ? numbering.notice : undefined}
                         disabled={busy}
                         size="md"

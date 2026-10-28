@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import {
   voucherNumberError,
-  numberSuggestion,
   type CurrentAccountDetail,
   type CurrentAccountInput,
   type CurrentAccountOptions,
@@ -14,6 +13,7 @@ import {
   DatePicker,
   AmountBox,
   NumeroComprobante,
+  useVoucherNumber,
   todayISO,
   defaultNumericValue,
 } from "../controls";
@@ -137,11 +137,8 @@ export function CurrentAccountForm({
     setInput((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: "" }));
   }
-  const numbering = numberSuggestion(input.Comprobante, options.numeradores);
-  const numberValue =
-    !previous && numbering.automatic
-      ? numbering.number
-      : input.NumeroComprobante;
+  const numbering = useVoucherNumber(input.Comprobante, options.numeradores);
+  const numberValue = previous ? input.NumeroComprobante : numbering.number;
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (previous || busy || loading) return;
@@ -326,12 +323,16 @@ export function CurrentAccountForm({
                           size="md"
                           value={numberValue}
                           required={!previous}
-                          readOnly={Boolean(previous) || numbering.automatic}
+                          readOnly={Boolean(previous)}
                           hint={!previous ? numbering.notice : undefined}
                           disabled={busy || loading}
-                          onValueChange={(value) =>
-                            change("NumeroComprobante", value)
-                          }
+                          onValueChange={(value) => {
+                            numbering.onValueChange(value);
+                            setErrors((current) => ({
+                              ...current,
+                              NumeroComprobante: "",
+                            }));
+                          }}
                         />
                       )}
                     </div>
