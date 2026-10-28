@@ -18,6 +18,7 @@ import {
   opening,
   closing,
   reversal,
+  annulment,
 } from "./validation.js";
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const r = schema.safeParse(value);
@@ -96,6 +97,22 @@ export function cashMovementRouter(
       .set("ETag", '"' + result.version + '"')
       .status(201)
       .json(result);
+  });
+  r.post("/:id/anular", ...requireMasterWrite, async (req, res) => {
+    const version = /^"([a-f0-9]{64})"$/.exec(req.get("If-Match") ?? "")?.[1];
+    if (!version)
+      throw new MasterRequestError(
+        400,
+        "Volvé a abrir el movimiento antes de anularlo.",
+      );
+    const result = await store.annul(
+      String(req.params.id),
+      parse(annulment, req.body),
+      version,
+      user(res),
+      key(req),
+    );
+    res.set("ETag", '"' + result.version + '"').json(result);
   });
   r.post("/:id/revertir", ...requireMasterWrite, async (req, res) => {
     const version = /^"([a-f0-9]{64})"$/.exec(req.get("If-Match") ?? "")?.[1];

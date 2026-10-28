@@ -2,6 +2,8 @@ import { displayDate } from "../controls/date-value";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   moneyUnits,
+  cashStateLabel,
+  cashCorrection,
   moneyText,
   type CashInput,
   type CashValue,
@@ -50,7 +52,7 @@ export function CashForm({
   onClose,
   onSaved,
   onExpired,
-  onReverse,
+  onCorrection,
   onRelated,
 }: {
   detail?: CashDetail;
@@ -59,7 +61,7 @@ export function CashForm({
   onClose: () => void;
   onSaved: () => void;
   onExpired: () => void;
-  onReverse?: (d: CashDetail) => void;
+  onCorrection?: (d: CashDetail) => void;
   onRelated: (id: string) => void;
 }) {
   const { selected: activeBox, validate: validateBox } = useActiveCash();
@@ -324,13 +326,23 @@ export function CashForm({
             </button>
           ) : (
             canWrite &&
+            old.Estado === "CONFIRMADO" &&
             !old.RevertidoPor &&
             !old.CajaMovimientoOrigen && (
               <button
                 className="button danger"
-                onClick={() => onReverse?.(detail!)}
+                onClick={() => onCorrection?.(detail!)}
+                disabled={!cashCorrection(old, activeBox?.IDTabla ?? null)}
+                title={
+                  !activeBox
+                    ? "Seleccioná una caja abierta."
+                    : old.JornadaEstado !== "CERRADO" &&
+                        old.CajaSaldo !== activeBox.IDTabla
+                      ? "Seleccioná la apertura original para anular."
+                      : undefined
+                }
               >
-                Revertir
+                {old.JornadaEstado === "CERRADO" ? "Revertir" : "Anular"}
               </button>
             )
           )}
@@ -362,6 +374,10 @@ export function CashForm({
             >
               Reintentar opciones
             </button>
+          )}
+          {old && <p className="muted small">Estado: {cashStateLabel(old)}</p>}
+          {old?.Estado === "ANULADO" && (
+            <p className="notice">Motivo de anulación: {old.MotivoAnulacion}</p>
           )}
           {old && (old.RevertidoPor || old.CajaMovimientoOrigen) && (
             <p className="notice">

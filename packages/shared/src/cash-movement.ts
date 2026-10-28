@@ -48,6 +48,11 @@ export interface CashRecord {
   FechaOrigen: string;
   CajaSaldo: string;
   CajaNombre: string;
+  JornadaEstado: string | null;
+  JornadaAperturaEn: string | null;
+  UsuarioNombre: string;
+  AnuladoEn: string | null;
+  AnuladoPor: string | null;
   Concepto: string | null;
   ConceptoDescripcion: string | null;
   Sentido: string;
@@ -82,8 +87,20 @@ export interface AllocationDetail extends Allocation {
   Pendiente: string;
   FechaOrigen: string;
 }
+export interface RelatedCashMovement {
+  IDTabla: string;
+  ComprobanteDescripcion: string;
+  NumeroComprobanteTexto: string;
+  FechaOrigen: string;
+  CajaNombre: string;
+  JornadaAperturaEn: string | null;
+}
 export interface CashDetail {
   registro: CashRecord;
+  relacionados: {
+    original: RelatedCashMovement | null;
+    reversion: RelatedCashMovement | null;
+  };
   version: string;
   valores: ValueDetail[];
   afectaciones: AllocationDetail[];
@@ -147,4 +164,38 @@ export function moneyText(n: bigint): string {
   return (
     sign + (a / 100n).toString() + "." + (a % 100n).toString().padStart(2, "0")
   );
+}
+
+/** Identificación visual derivada: no agrega campos al registro SQL. */
+export function cashStateLabel(
+  record: Pick<CashRecord, "Estado" | "CajaMovimientoOrigen">,
+): string {
+  if (record.Estado === "ANULADO") return "Anulado";
+  if (record.Estado === "REVERTIDO") return "Revertido";
+  return record.CajaMovimientoOrigen ? "Confirmado · Reversión" : "Confirmado";
+}
+export function cashCorrection(
+  record: Pick<
+    CashRecord,
+    | "Estado"
+    | "CajaMovimientoOrigen"
+    | "RevertidoPor"
+    | "CajaSaldo"
+    | "JornadaEstado"
+  >,
+  selectedOpening: string | null,
+): "anular" | "revertir" | null {
+  if (
+    !selectedOpening ||
+    record.Estado !== "CONFIRMADO" ||
+    record.RevertidoPor ||
+    record.CajaMovimientoOrigen
+  )
+    return null;
+  if (record.JornadaEstado === "CERRADO")
+    return selectedOpening !== record.CajaSaldo ? "revertir" : null;
+  return record.JornadaEstado === "ABIERTO" &&
+    record.CajaSaldo === selectedOpening
+    ? "anular"
+    : null;
 }

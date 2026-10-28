@@ -2,6 +2,7 @@ import { displayDate } from "../controls/date-value";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   masterDefinitions,
+  cashCorrection,
   type CashOptions,
   type CashDetail,
   type CashOpening,
@@ -18,10 +19,11 @@ import {
   cashOpen,
   cashClose,
   cashReverse,
+  cashAnnul,
 } from "../../services/cash-movement";
 import { ApiRequestError } from "../../services/http";
 import { useActiveCash } from "./ActiveCash";
-import { TextBox } from "../controls";
+import { TextBox, CheckBox } from "../controls";
 import { amount, message } from "./format";
 function useCashOptions(onExpired: () => void) {
   const [data, setData] = useState<CashOptions | null>(null),
@@ -470,7 +472,13 @@ export function ReverseCash({
         >
           <button
             className="button danger"
-            disabled={busy || !code || !box || !reason.trim()}
+            disabled={
+              busy ||
+              !code ||
+              !box ||
+              !reason.trim() ||
+              cashCorrection(detail.registro, box) !== "revertir"
+            }
             onClick={() => {
               void save();
             }}
@@ -544,5 +552,122 @@ export function ReverseCash({
         </div>
       )}
     </OffCanvas>
+  );
+}
+
+export function AnnulCash({
+  detail,
+  csrf,
+  onClose,
+  onSaved,
+  onExpired,
+}: {
+  detail: CashDetail;
+  csrf: string;
+  onClose: () => void;
+  onSaved: () => void;
+  onExpired: () => void;
+}) {
+  const { selected } = useActiveCash();
+  const [reason, setReason] = useState("");
+  const [bankConfirmation, setBankConfirmation] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const retry = useRef({ body: "", key: "" });
+  const hasTransfers = detail.valores.some((v) => v.Tipo === "TRANSFERENCIA");
+  const available =
+    cashCorrection(detail.registro, selected?.IDTabla ?? null) === "anular";
+  async function save() {
+    if (
+      !available ||
+      busy ||
+      !reason.trim() ||
+      (hasTransfers && !bankConfirmation)
+    )
+      return;
+    const input = {
+      CajaSaldo: selected!.IDTabla,
+      Motivo: reason.trim(),
+      ConfirmarCorreccionBancaria: bankConfirmation,
+    };
+    const body = JSON.stringify(input);
+    if (retry.current.body !== body)
+      retry.current = { body, key: crypto.randomUUID() };
+    setBusy(true);
+    setError("");
+    try {
+      await cashAnnul(detail, input, csrf, retry.current.key);
+      onSaved();
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 401) onExpired();
+      else setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal title="Anular cobro o pago" busy={busy} onClose={onClose}>
+      <div className="modal-body">
+        <p>
+          Se anulará {detail.registro.ComprobanteDescripcion}{" "}
+          {detail.registro.NumeroComprobanteTexto} en su misma apertura de caja.
+          Se conservará su historial y se liberarán sus afectaciones.
+        </p>
+        {!available && (
+          <p className="notice" role="status">
+            Seleccioná la apertura original y comprobá que continúa abierta.
+          </p>
+        )}
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
+        )}
+        <TextArea
+          label="Motivo de anulación"
+          value={reason}
+          required
+          maxLength={500}
+          disabled={busy}
+          onValueChange={setReason}
+        />
+        {hasTransfers && (
+          <CheckBox
+            label="Confirmo que corrijo una registración errónea y que no intento deshacer una transferencia bancaria ejecutada."
+            value={bankConfirmation}
+            onValueChange={setBankConfirmation}
+            disabled={busy}
+          />
+        )}
+      </div>
+      <div className="modal-actions">
+        <FormToolbarActions
+          closeAction={
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={onClose}
+            >
+              Cancelar
+            </button>
+          }
+        >
+          <button
+            className="button danger"
+            disabled={
+              busy ||
+              !available ||
+              !reason.trim() ||
+              (hasTransfers && !bankConfirmation)
+            }
+            onClick={() => {
+              void save();
+            }}
+          >
+            Confirmar anulación
+          </button>
+        </FormToolbarActions>
+      </div>
+    </Modal>
   );
 }

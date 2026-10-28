@@ -1,3 +1,4 @@
+import { cashBankMovements } from "../database/bank-movements.js";
 import { listOrder, type ListOrderQuery } from "../database/list-order.js";
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
@@ -17,19 +18,26 @@ import {
   type PendingList,
   type ValueDetail,
   type CashValue,
+  type RelatedCashMovement,
 } from "@erp/shared";
 import { financialTransactions } from "../database/financial-transaction.js";
 import { lastVoucher } from "../database/voucher-sequence.js";
 import { MasterRequestError } from "../masters/validation.js";
-import { query, pendingQuery, closing, reversal } from "./validation.js";
+import {
+  query,
+  pendingQuery,
+  closing,
+  reversal,
+  annulment,
+} from "./validation.js";
 import type { z } from "zod";
 type Conn = Pool | PoolConnection;
 const eligible =
   "c.Activo=1 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='CREDITO' AND ((c.Cuenta='COBRAR' AND c.SentidoFondos='INGRESO') OR (c.Cuenta='PAGAR' AND c.SentidoFondos='EGRESO'))";
 const joins =
-  " FROM CAJAMOVIMIENTO m JOIN COMPROBANTE c ON c.Codigo=m.Comprobante LEFT JOIN CLIENTE cl ON cl.Codigo=m.Cliente LEFT JOIN CAJASALDO cs ON cs.IDTabla=m.CajaSaldo LEFT JOIN CAJA ca ON ca.Codigo=cs.Caja LEFT JOIN CONCEPTO co ON co.Codigo=m.Concepto LEFT JOIN CAJAMOVIMIENTO rev ON rev.CajaMovimientoOrigen=m.IDTabla";
+  " FROM CAJAMOVIMIENTO m LEFT JOIN USUARIO u ON u.IDTabla=m.Usuario LEFT JOIN USUARIO ua ON ua.IDTabla=m.UsuarioAnulacion JOIN COMPROBANTE c ON c.Codigo=m.Comprobante LEFT JOIN CLIENTE cl ON cl.Codigo=m.Cliente LEFT JOIN CAJASALDO cs ON cs.IDTabla=m.CajaSaldo LEFT JOIN CAJA ca ON ca.Codigo=cs.Caja LEFT JOIN CONCEPTO co ON co.Codigo=m.Concepto LEFT JOIN CAJAMOVIMIENTO rev ON rev.CajaMovimientoOrigen=m.IDTabla";
 const projection =
-  "m.*,(SELECT cc.Cuenta FROM CUENTACORRIENTE cc WHERE cc.CajaMovimiento=m.IDTabla LIMIT 1) AS Cuenta,IF(m.CajaMovimientoOrigen IS NULL AND m.Estado='CONFIRMADO',m.ImporteTotal-COALESCE((SELECT SUM(x.Importe) FROM CAJAMOVIMIENTOAFECTACION x WHERE x.CajaMovimiento=m.IDTabla),0),0) AS DisponibleACuenta,c.Descripcion AS ComprobanteDescripcion,cl.Nombre AS ClienteNombre,ca.Nombre AS CajaNombre,co.Descripcion AS ConceptoDescripcion,rev.IDTabla AS RevertidoPor,DATE_FORMAT(m.FechaOrigen,'%Y-%m-%d') AS FechaOrigen";
+  "m.*,(SELECT cc.Cuenta FROM CUENTACORRIENTE cc WHERE cc.CajaMovimiento=m.IDTabla LIMIT 1) AS Cuenta,IF(m.CajaMovimientoOrigen IS NULL AND m.Estado='CONFIRMADO',m.ImporteTotal-COALESCE((SELECT SUM(x.Importe) FROM CAJAMOVIMIENTOAFECTACION x WHERE x.CajaMovimiento=m.IDTabla),0),0) AS DisponibleACuenta,c.Descripcion AS ComprobanteDescripcion,cl.Nombre AS ClienteNombre,ca.Nombre AS CajaNombre,cs.Estado AS JornadaEstado,cs.AperturaEn AS JornadaAperturaEn,u.Nombre AS UsuarioNombre,ua.Nombre AS AnuladoPor,co.Descripcion AS ConceptoDescripcion,rev.IDTabla AS RevertidoPor,DATE_FORMAT(m.FechaOrigen,'%Y-%m-%d') AS FechaOrigen";
 const numberSQL = (field: string) =>
   `CONVERT(CONCAT(LPAD((${field} DIV 100000000),4,'0'),'-',LPAD(MOD(${field},100000000),8,'0')) USING utf8mb4) COLLATE utf8mb4_unicode_ci`;
 const stringify = (r: RowDataPacket) =>
@@ -86,11 +94,11 @@ async function detail(c: Conn, id: string): Promise<CashDetail> {
   if (!rows[0]) fail("El movimiento no existe.", 404);
   const record = rec(rows[0]);
   const [transfers] = await c.execute<RowDataPacket[]>(
-    "SELECT t.IDTabla,'TRANSFERENCIA' AS Tipo,COALESCE(t.Referencia,'') AS Numero,t.BancoCuenta,t.Importe,b.Codigo AS Banco,b.Nombre AS BancoNombre,bc.Nombre AS CuentaNombre,'REGISTRADA' AS Estado FROM TRANSFERENCIA t JOIN BANCOCUENTA bc ON bc.Codigo=t.BancoCuenta JOIN BANCO b ON b.Codigo=bc.Banco WHERE t.CajaMovimiento=? ORDER BY t.IDTabla",
-    [id],
+    "SELECT t.IDTabla,'TRANSFERENCIA' AS Tipo,COALESCE(t.Referencia,'') AS Numero,t.BancoCuenta,t.Importe,b.Codigo AS Banco,b.Nombre AS BancoNombre,bc.Nombre AS CuentaNombre,? AS Estado FROM TRANSFERENCIA t JOIN BANCOCUENTA bc ON bc.Codigo=t.BancoCuenta JOIN BANCO b ON b.Codigo=bc.Banco WHERE t.CajaMovimiento=? ORDER BY t.IDTabla",
+    [record.Estado === "ANULADO" ? "ANULADA" : "REGISTRADA", id],
   );
   const [cheques] = await c.execute<RowDataPacket[]>(
-    "SELECT ch.IDTabla,ch.Tipo,ch.Numero,ch.Banco,ch.BancoCuenta,ch.CuentaLibradora,ch.Importe,ch.Estado,DATE_FORMAT(ch.Emision,'%Y-%m-%d') AS Emision,DATE_FORMAT(ch.Vencimiento,'%Y-%m-%d') AS Vencimiento,b.Nombre AS BancoNombre,bc.Nombre AS CuentaNombre FROM CHEQUEEVENTO e JOIN CHEQUE ch ON ch.IDTabla=e.Cheque JOIN BANCO b ON b.Codigo=ch.Banco LEFT JOIN BANCOCUENTA bc ON bc.Codigo=ch.BancoCuenta WHERE e.CajaMovimiento=? AND e.Tipo IN ('RECEPCION','EMISION','ENDOSO','DEVOLUCION','ANULACION','RECUPERACION') ORDER BY e.IDTabla",
+    "SELECT DISTINCT ch.IDTabla,ch.Tipo,ch.Numero,ch.Banco,ch.BancoCuenta,ch.CuentaLibradora,ch.Importe,ch.Estado,DATE_FORMAT(ch.Emision,'%Y-%m-%d') AS Emision,DATE_FORMAT(ch.Vencimiento,'%Y-%m-%d') AS Vencimiento,b.Nombre AS BancoNombre,bc.Nombre AS CuentaNombre FROM CHEQUEEVENTO e JOIN CHEQUE ch ON ch.IDTabla=e.Cheque JOIN BANCO b ON b.Codigo=ch.Banco LEFT JOIN BANCOCUENTA bc ON bc.Codigo=ch.BancoCuenta WHERE e.CajaMovimiento=? AND e.Tipo IN ('RECEPCION','EMISION','ENDOSO','DEVOLUCION','ANULACION','RECUPERACION') ORDER BY ch.IDTabla",
     [id],
   );
   const [allocations] = await c.execute<RowDataPacket[]>(
@@ -108,8 +116,29 @@ async function detail(c: Conn, id: string): Promise<CashDetail> {
       ]),
     )
     .digest("hex");
+  const relatedIds = [record.CajaMovimientoOrigen, record.RevertidoPor].filter(
+    (v): v is string => Boolean(v),
+  );
+  const related = new Map<string, RelatedCashMovement>();
+  if (relatedIds.length) {
+    const [records] = await c.execute<RowDataPacket[]>(
+      "SELECT m.IDTabla,c.Descripcion AS ComprobanteDescripcion,m.NumeroComprobante,DATE_FORMAT(m.FechaOrigen,'%Y-%m-%d') AS FechaOrigen,ca.Nombre AS CajaNombre,cs.AperturaEn AS JornadaAperturaEn FROM CAJAMOVIMIENTO m JOIN COMPROBANTE c ON c.Codigo=m.Comprobante LEFT JOIN CAJASALDO cs ON cs.IDTabla=m.CajaSaldo LEFT JOIN CAJA ca ON ca.Codigo=cs.Caja WHERE m.IDTabla IN (" +
+        relatedIds.map(() => "?").join(",") +
+        ")",
+      relatedIds,
+    );
+    for (const row of records)
+      related.set(String(row.IDTabla), {
+        ...stringify(row),
+        NumeroComprobanteTexto: formatVoucher(String(row.NumeroComprobante)),
+      } as unknown as RelatedCashMovement);
+  }
   return {
     registro: record,
+    relacionados: {
+      original: related.get(record.CajaMovimientoOrigen ?? "") ?? null,
+      reversion: related.get(record.RevertidoPor ?? "") ?? null,
+    },
     version,
     valores: [...transfers, ...cheques].map(
       stringify,
@@ -297,13 +326,15 @@ export function createCashMovementStore(pool: Pool) {
           Sentido: "m.Sentido",
           ImporteTotal: "m.ImporteTotal",
           Estado:
-            "CASE WHEN rev.IDTabla IS NOT NULL THEN 'Revertido' WHEN m.CajaMovimientoOrigen IS NOT NULL THEN 'Reversión' ELSE 'Confirmado' END",
+            "CASE WHEN m.Estado='ANULADO' THEN 'Anulado' WHEN rev.IDTabla IS NOT NULL THEN 'Revertido' WHEN m.CajaMovimientoOrigen IS NOT NULL THEN 'Confirmado · Reversión' ELSE 'Confirmado' END",
         },
         "m.IDTabla",
       );
       const p: (string | number)[] = [],
         clauses: string[] = [];
-      if (q.Estado === "REVERTIDO") clauses.push("rev.IDTabla IS NOT NULL");
+      if (q.Estado === "ANULADO") clauses.push("m.Estado='ANULADO'");
+      else if (q.Estado === "REVERTIDO")
+        clauses.push("rev.IDTabla IS NOT NULL");
       else if (q.Estado === "CONFIRMADO")
         clauses.push("m.Estado='CONFIRMADO' AND rev.IDTabla IS NULL");
       if (q.Desde) {
@@ -808,6 +839,192 @@ export function createCashMovementStore(pool: Pool) {
         JSON.stringify([code, voucherParts(number).point]),
       );
     },
+    async annul(
+      id: string,
+      input: z.infer<typeof annulment>,
+      version: string,
+      user: string,
+      key: string,
+    ) {
+      validId(id);
+      return tx(
+        user,
+        "CAJA_ANULAR",
+        key,
+        { id, ...input, version },
+        async (c) => {
+          const box = await opening(c, input.CajaSaldo);
+          const [locked] = await c.execute<RowDataPacket[]>(
+            "SELECT IDTabla FROM CAJAMOVIMIENTO WHERE IDTabla=? FOR UPDATE",
+            [id],
+          );
+          if (!locked[0]) fail("El movimiento no existe.", 404);
+          const before = await detail(c, id),
+            r = before.registro;
+          if (
+            before.version !== version ||
+            r.Estado !== "CONFIRMADO" ||
+            r.RevertidoPor ||
+            r.CajaMovimientoOrigen
+          )
+            fail(
+              "El movimiento cambió, está anulado o tiene una reversión. Volvé a consultarlo.",
+            );
+          if (r.CajaSaldo !== input.CajaSaldo)
+            fail(
+              "Para anular, seleccioná la misma apertura de caja del movimiento original.",
+            );
+          const [credits] = await c.execute<RowDataPacket[]>(
+            "SELECT IDTabla FROM CUENTACORRIENTE WHERE CajaMovimiento=?",
+            [id],
+          );
+          if (!credits[0])
+            fail("Falta el crédito de Cuenta corriente relacionado.");
+          const creditId = String(credits[0].IDTabla);
+          const accounts = [
+            ...new Set([
+              creditId,
+              ...before.afectaciones.map((a) => a.CuentaCorriente),
+            ]),
+          ].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1));
+          const [accountRows] = await c.execute<RowDataPacket[]>(
+            "SELECT * FROM CUENTACORRIENTE WHERE IDTabla IN (" +
+              accounts.map(() => "?").join(",") +
+              ") ORDER BY IDTabla FOR UPDATE",
+            accounts,
+          );
+          const credit = accountRows.find(
+            (a) => String(a.IDTabla) === creditId,
+          );
+          if (
+            !credit ||
+            credit.Estado !== "CONFIRMADO" ||
+            credit.Naturaleza !== "CREDITO" ||
+            credit.Cuenta !== r.Cuenta ||
+            moneyUnits(String(credit.Importe)) !== moneyUnits(r.ImporteTotal)
+          )
+            fail("El crédito relacionado requiere revisión antes de anular.");
+          const applied = before.afectaciones.reduce(
+            (sum, a) => sum + moneyUnits(a.Importe),
+            0n,
+          );
+          if (
+            (await used(c, creditId)) > 0n ||
+            applied !==
+              moneyUnits(r.ImporteTotal) - moneyUnits(r.ImporteACuenta)
+          )
+            fail(
+              "El movimiento tiene aplicaciones posteriores. Deben resolverse antes de anular.",
+            );
+          const [transfers] = await c.execute<RowDataPacket[]>(
+            "SELECT IDTabla FROM TRANSFERENCIA WHERE CajaMovimiento=? FOR UPDATE",
+            [id],
+          );
+          if (transfers.length && !input.ConfirmarCorreccionBancaria)
+            fail(
+              "Confirmá que se trata de una corrección de registración y no de deshacer una transferencia bancaria ejecutada.",
+              400,
+            );
+          checkCashBalance(
+            await cashBalance(c, box),
+            (r.Sentido === "INGRESO" ? -1n : 1n) *
+              moneyUnits(r.ImporteEfectivo),
+          );
+          const [events] = await c.execute<RowDataPacket[]>(
+            "SELECT * FROM CHEQUEEVENTO WHERE CajaMovimiento=? AND Tipo IN ('RECEPCION','EMISION','ENDOSO') ORDER BY Cheque FOR UPDATE",
+            [id],
+          );
+          for (const e of events) {
+            const [cheques] = await c.execute<RowDataPacket[]>(
+              "SELECT * FROM CHEQUE WHERE IDTabla=? FOR UPDATE",
+              [String(e.Cheque)],
+            );
+            const cheque = cheques[0];
+            const expected =
+              e.Tipo === "RECEPCION"
+                ? "CARTERA"
+                : e.Tipo === "EMISION"
+                  ? "EMITIDO"
+                  : "ENDOSADO";
+            const [later] = await c.execute<RowDataPacket[]>(
+              "SELECT IDTabla FROM CHEQUEEVENTO WHERE Cheque=? AND IDTabla>? LIMIT 1",
+              [String(e.Cheque), String(e.IDTabla)],
+            );
+            if (!cheque || cheque.Estado !== expected || later.length)
+              fail(
+                "Un cheque tiene cambios posteriores. Deben resolverse antes de anular el movimiento.",
+              );
+          }
+          const bankBefore = await cashBankMovements(c, id);
+          const now = new Date();
+          await c.execute(
+            "UPDATE CAJAMOVIMIENTO SET Estado='ANULADO',UsuarioAnulacion=?,AnuladoEn=?,MotivoAnulacion=? WHERE IDTabla=?",
+            [user, now, input.Motivo, id],
+          );
+          await c.execute(
+            "UPDATE CUENTACORRIENTE SET Estado='ANULADO',UsuarioAnulacion=?,AnuladoEn=?,MotivoAnulacion=? WHERE IDTabla=?",
+            [user, now, input.Motivo, creditId],
+          );
+          for (const e of events) {
+            const state =
+              e.Tipo === "RECEPCION"
+                ? "RECEPCION_ANULADA"
+                : e.Tipo === "EMISION"
+                  ? "ANULADO"
+                  : "CARTERA";
+            const type =
+              e.Tipo === "RECEPCION"
+                ? "ANULACION_RECEPCION"
+                : e.Tipo === "EMISION"
+                  ? "ANULACION"
+                  : "RECUPERACION";
+            await c.execute("UPDATE CHEQUE SET Estado=? WHERE IDTabla=?", [
+              state,
+              String(e.Cheque),
+            ]);
+            await c.execute(
+              "INSERT INTO CHEQUEEVENTO (Cheque,Tipo,Fecha,CajaMovimiento,Usuario,CreadoEn,Observacion) VALUES (?,?,?,?,?,?,?)",
+              [String(e.Cheque), type, today(), id, user, now, input.Motivo],
+            );
+            await audit(
+              c,
+              user,
+              type,
+              "CHEQUE",
+              String(e.Cheque),
+              { CajaMovimiento: id },
+              input.Motivo,
+            );
+          }
+          const after = await detail(c, id);
+          await audit(
+            c,
+            user,
+            "ANULACION",
+            "CUENTACORRIENTE",
+            creditId,
+            { CajaMovimiento: id },
+            input.Motivo,
+          );
+          await audit(
+            c,
+            user,
+            "ANULACION",
+            "CAJAMOVIMIENTO",
+            id,
+            {
+              Antes: before,
+              Despues: after,
+              BancoAntes: bankBefore,
+              BancoDespues: await cashBankMovements(c, id),
+              ConfirmarCorreccionBancaria: input.ConfirmarCorreccionBancaria,
+            },
+            input.Motivo,
+          );
+          return after;
+        },
+      );
+    },
     async reverse(
       id: string,
       input: z.infer<typeof reversal>,
@@ -838,8 +1055,16 @@ export function createCashMovementStore(pool: Pool) {
             original.registro.Estado !== "CONFIRMADO"
           )
             fail("El movimiento cambió o ya tiene una reversión.");
-          const r = original.registro,
-            sense = r.Sentido === "INGRESO" ? "EGRESO" : "INGRESO";
+          const r = original.registro;
+          const [source] = await c.execute<RowDataPacket[]>(
+            "SELECT Estado FROM CAJASALDO WHERE IDTabla=? FOR UPDATE",
+            [r.CajaSaldo],
+          );
+          if (source[0]?.Estado !== "CERRADO")
+            fail(
+              "La jornada original debe estar cerrada para revertir. Si continúa abierta, seleccioná esa jornada y utilizá Anular.",
+            );
+          const sense = r.Sentido === "INGRESO" ? "EGRESO" : "INGRESO";
           const [v] = await c.execute<RowDataPacket[]>(
             "SELECT c.* FROM COMPROBANTE c WHERE c.Codigo=? AND c.Activo=1 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='DEUDA' AND c.Cuenta=? AND c.SentidoFondos=? LOCK IN SHARE MODE",
             [code, r.Cuenta, sense],
