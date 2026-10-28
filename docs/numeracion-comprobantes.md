@@ -19,33 +19,37 @@ NumeroComprobante conserva dos inputs unidos y el formato de cuatro y ocho dígi
 
 El rango es punto 0000–9999, correlativo 00000001–99999999. El cero inicial del control no es un número manual válido para guardar. Los enteros viajan como texto decimal y se calculan con BigInt. El último correlativo desactiva el numerador; no cambia de punto automáticamente. Los cheques mantienen sus números e identidad bancaria propios.
 
-## Consumos e integridad
+## Configuración e integridad sin historial de numeradores
 
-NUMERACIONUSO es un registro técnico de emisiones, sin ABM: conserva Numerador interno, Comprobante, número completo y fecha. Sus claves únicas impiden repetir un número dentro del mismo numerador y reutilizar un comprobante/número ya consumido. El cobro/pago y su asiento interno de Cuenta corriente representan una única emisión y registran un solo consumo.
+NUMERACION es solamente configuración: Código, Próximo número, Caja opcional y Activo. No existe una tabla de consumos ni una relación desde las operaciones hacia el numerador. Los números definitivos se conservan en CUENTACORRIENTE y CAJAMOVIMIENTO. El cobro/pago y su asiento interno de Cuenta corriente se generan con el mismo número y adelantan una sola vez el correlativo.
 
-- Anular o revertir no libera números ni retrocede la secuencia.
-- Cambiar qué numerador utiliza un comprobante afecta las operaciones futuras; no traslada ni elimina sus consumos anteriores.
-- Un numerador utilizado se desactiva; no se elimina aunque ya no tenga comprobantes asociados.
-- Al editar o reactivar un numerador, su Próximo número debe superar los consumidos en ese punto, incluyendo anulados, consumos de comprobantes antes asociados e historia de los actualmente asociados.
-- Asociar un comprobante con historia anterior requiere un próximo número seguro. Si debe ajustarse, se informa en el campo Numerador y no se cambia silenciosamente su configuración ni los movimientos. Crear GENERAL con un valor superior al máximo histórico es una forma de agrupar comprobantes anteriores.
-- Las emisiones manuales anteriores siguen protegidas por comprobante/número. Si ocupan valores de una secuencia asociada posteriormente, la asignación automática evita reutilizarlos.
+- Anular o revertir no retrocede ProximoNumero. Los números de los movimientos anulados o revertidos siguen participando en los controles de duplicados.
+- Para eliminar un numerador, ningún comprobante debe tenerlo configurado. Si se quitan todas las asociaciones, puede eliminarse aunque se haya usado antes o tenga una Caja asignada. Esto no cambia ni elimina movimientos.
+- Al editar o reactivar un numerador, su Próximo número debe superar los números ya registrados en ese punto por los comprobantes **actualmente asociados**.
+- Asociar un comprobante con movimientos anteriores requiere un próximo número seguro, considerando también esos movimientos. Si debe ajustarse, se informa en el campo Numerador y no se cambian silenciosamente los movimientos.
+- La asignación automática toma el mayor entre ProximoNumero y el siguiente a los números registrados de sus comprobantes asociados, manteniendo un mismo punto de venta. Las emisiones manuales también se tienen en cuenta en esa revisión.
+- La unicidad por comprobante/número se valida entre Cuenta corriente y Movimientos de caja, incluidos anulados y revertidos. El bloqueo del comprobante protege también las emisiones manuales simultáneas; cada tabla conserva su restricción única correspondiente.
+
+Eliminar y recrear un numerador crea una nueva configuración: no recupera una secuencia anterior. Al desasociar comprobantes tampoco se mantiene una memoria independiente de qué numerador emitió sus números. Es posible que comprobantes no asociados entre sí utilicen el mismo número; el comprobante forma parte de su identidad. Al volver a asociar un comprobante con movimientos se siguen verificando sus números anteriores. Esta es la diferencia deliberada frente al historial eliminado; no se promete una reserva perpetua entre asociaciones antiguas.
 
 `database/numbering.ts` centraliza sugerencias, compatibilidad por caja, asignación y validación de máximos para Cuenta corriente, Cobros y pagos y Tesorería. Valores deberá utilizarlo cuando incorpore emisión de comprobantes; no tiene otra implementación de numeración.
 
-La transacción bloquea primero el comprobante y luego la fila del numerador. Compartirlo entre comprobantes o instancias sigue serializando la asignación. Consumo, incremento, movimiento, auditoría y solicitud idempotente se confirman juntos o se revierten juntos. Las reversiones bloquean ambos comprobantes antes del numerador para mantener el mismo orden.
+La transacción bloquea primero el comprobante y luego la fila del numerador con FOR UPDATE. Compartirlo entre comprobantes o instancias serializa la asignación sobre ProximoNumero, sin un registro adicional de consumos. Incremento, movimiento, auditoría y solicitud idempotente se confirman juntos o se revierten juntos. Las reversiones bloquean ambos comprobantes antes del numerador para mantener el mismo orden. La sugerencia no es una reserva: el número definitivo se asigna al guardar.
 
 En altas automáticas el cliente envía NumeroAutomatico=true y NumeroComprobante=0 como marcador, manteniendo visible la sugerencia real. El servidor no utiliza ese marcador como número almacenado. La identidad idempotente excluye la sugerencia variable: una respuesta perdida o un refresco de opciones no genera otro movimiento al reintentar. Si cambia la configuración entre edición y confirmación, se informa el cambio y se pueden actualizar las opciones preservando el borrador.
 
-## Migración 0006
+## Migraciones 0006 y 0007
 
 No se modifican los números, importes, estados, claves ni cierres de los movimientos existentes.
 
 1. NUMERACION conserva IDTabla, ProximoNumero y Activo. Agrega Codigo (inicialmente igual al antiguo Comprobante) y Caja=NULL.
 2. COMPROBANTE agrega Numerador y recibe la relación que antes estaba en NUMERACION.
-3. NUMERACIONUSO incorpora los números históricos de los comprobantes que tenían numerador. Se reconoce el asiento interno vinculado de un cobro/pago para registrar una sola emisión.
+3. La migración 0006 incorporó inicialmente NUMERACIONUSO. Se conserva sin editar como parte del historial de migraciones ya publicado.
 4. Solo después de copiar las relaciones se elimina NUMERACION.Comprobante y su restricción única. No se fusionan numeradores automáticamente: luego se puede seleccionar el mismo desde varios comprobantes.
 
-Quedan 21 tablas de negocio más NUMERACIONUSO: `db:check` debe informar **22/22**, además del historial técnico de migraciones.
+La migración **0007_numeradores_sin_historial** elimina únicamente NUMERACIONUSO y sus dependencias. No modifica NUMERACION, COMPROBANTE, movimientos, importes, afectaciones, cierres, auditoría ni números existentes. Una base nueva recorre ambas migraciones; una base con la 0006 aplicada ejecuta solamente la pendiente. DROP TABLE IF EXISTS permite completar el registro de migración si el proceso se interrumpe después de eliminar la tabla.
+
+Quedan las 21 tablas originales: `db:check` debe informar **21/21**, además del historial técnico de migraciones. También verifica que no permanezca NUMERACIONUSO.
 
 El preflight identifica duplicados reales y un DDL parcial antes de ejecutar cambios. No elimina, fusiona ni renumera datos ambiguos. En bases anteriores también se ejecutan las comprobaciones de las migraciones 0002/0003. Ante una migración interrumpida hay que revisar su estructura e historial; MySQL/MariaDB no revierten automáticamente todo el DDL.
 
@@ -64,7 +68,7 @@ Codex no inspeccionó ni modificó la base del alojamiento. Tanto producción co
    ```
 
    Ejecutar el siguiente solo si el anterior termina correctamente. El primero es de solo lectura; el segundo aplica migraciones pendientes y repite el preflight. No importar el SQL directamente ni usar db:generate en el alojamiento.
-4. Reiniciar/reanudar la aplicación, recargar los formularios y verificar 22/22 tablas. El código anterior depende de NUMERACION.Comprobante y no es compatible con el esquema nuevo; una vuelta atrás requiere un procedimiento coordinado.
+4. Reiniciar/reanudar la aplicación, recargar los formularios y verificar 21/21 tablas. Las versiones que dependen de NUMERACIONUSO no son compatibles con su eliminación; publicar el código y aplicar la migración en la misma ventana sin escritores.
 
 ## Cómo probar
 
@@ -72,6 +76,6 @@ Codex no inspeccionó ni modificó la base del alojamiento. Tanto producción co
 2. Crear GENERAL, activo, Próximo número 0001-00000100. En Comprobantes asociarlo a RECIBO y PAGO. Guardar operaciones alternadas: 100, 101, 102. Repetir en dos pestañas con la misma sugerencia: ambos guardados deben obtener números diferentes.
 3. Crear CAJA01 asociado a una caja. Usarlo desde un comprobante de Cuenta corriente sin seleccionar caja: debe funcionar automáticamente. En Cobros y pagos/Tesorería elegir la caja correspondiente: automático; elegir otra: cero, aviso y entrada manual habilitada, sin avanzar CAJA01.
 4. Probar un comprobante sin numerador y otro cuyo numerador esté inactivo: aviso y carga manual. No se debe guardar un cero manual ni repetir número del mismo comprobante.
-5. Anular una operación: el próximo número no retrocede. Desasociar un comprobante no debe permitir reutilizar sus consumos ni eliminar el numerador utilizado. Probar error de guardado y reintento: no debe consumir otro número.
+5. Anular una operación: el próximo número no retrocede. Un numerador asociado no se elimina; al quitar todas las asociaciones, sí se puede eliminar aunque haya emitido antes. Consultar los movimientos anteriores: sus números permanecen iguales. Intentar repetir un número del mismo comprobante sigue rechazándose aunque su numerador se haya eliminado. Probar error de guardado y reintento: no debe avanzar el próximo número ni duplicar el movimiento.
 6. Configurar una reversión con numerador por caja: caja incompatible impide confirmarla; otra apertura de la misma caja continúa la secuencia correctamente.
 7. En Comprobantes revisar Datos generales (Código/Activo, Descripción, Módulo, Orden) y Opciones (Numerador, Cuenta, Naturaleza, Sentido, Exclusivo y Reversión). Probar navegación, sticky y móvil. En filtros debe aparecer Módulo de origen, sin filtro de reversión.

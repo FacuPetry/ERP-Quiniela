@@ -388,11 +388,23 @@ export function createMasterStore(pool: Pool) {
             `UPDATE ${tableName(master)} SET ${fields.map((field) => "`" + field + "` = ?").join(", ")} WHERE \`${primaryKey(master)}\` = ?`,
             [...fields.map((field) => input[field] ?? null), code],
           );
-        } else if (action === "BAJA")
+        } else if (action === "BAJA") {
+          if (master.key === "numeraciones") {
+            const [vouchers] = await connection.execute<RowDataPacket[]>(
+              "SELECT Codigo FROM COMPROBANTE WHERE Numerador=? LIMIT 1",
+              [code],
+            );
+            if (vouchers.length)
+              throw new MasterRequestError(
+                409,
+                "El numerador tiene comprobantes asociados y no puede eliminarse. Quitá esas asociaciones desde Comprobantes o desactivalo desde Modificar.",
+              );
+          }
           await connection.execute(
             `DELETE FROM ${tableName(master)} WHERE \`${primaryKey(master)}\` = ?`,
             [code],
           );
+        }
         const after = input ? { ...input } : null;
         await connection.execute(
           "INSERT INTO AUDITORIA (Usuario, Accion, Tabla, Registro, Fecha, Detalle) VALUES (?, ?, ?, ?, ?, ?)",

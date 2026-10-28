@@ -50,6 +50,13 @@
       "when": 1793204155033,
       "tag": "0006_numeradores_compartidos",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1793208260660,
+      "tag": "0007_numeradores_sin_historial",
+      "breakpoints": true
     }
   ]
 }

@@ -40,14 +40,6 @@ export const numeracion = mysqlTable('NUMERACION', {
   Activo: boolean('Activo').notNull().default(true),
 }, t => [uniqueIndex('UQ_NUMERACION_Codigo').on(t.Codigo),
   check('CK_NUMERACION_Numero', sql`${t.ProximoNumero} BETWEEN 1 AND 999999999999 AND MOD(${t.ProximoNumero}, 100000000) > 0`)]);
-export const numeracionUso = mysqlTable('NUMERACIONUSO', {
-  IDTabla: id(), Numerador: fk('Numerador').notNull().references(() => numeracion.IDTabla),
-  Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
-  NumeroComprobante: bigint('NumeroComprobante', { mode: 'bigint', unsigned: true }).notNull(),
-  CreadoEn: instant('CreadoEn').notNull(),
-}, t => [uniqueIndex('UQ_NUMERACIONUSO_Numero').on(t.Numerador,t.NumeroComprobante),
-  uniqueIndex('UQ_NUMERACIONUSO_Comprobante').on(t.Comprobante,t.NumeroComprobante),
-  check('CK_NUMERACIONUSO_Numero', sql`${t.NumeroComprobante} BETWEEN 1 AND 999999999999 AND MOD(${t.NumeroComprobante},100000000)>0`)]);
 export const clienteTipo = mysqlTable('CLIENTETIPO', {
   Codigo: code('Codigo').primaryKey(), Descripcion: varchar('Descripcion', { length: 100 }).notNull(),
   Activo: boolean('Activo').notNull().default(true),

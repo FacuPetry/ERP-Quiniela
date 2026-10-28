@@ -21,7 +21,7 @@ import { createMasterStore } from "../../apps/api/src/masters/store.js";
 import { createCashMovementStore } from "../../apps/api/src/cash-movement/store.js";
 import { createCurrentAccountStore } from "../../apps/api/src/current-account/store.js";
 
-test("Numeradores compartidos: secuencia global, cajas, consumo histórico e idempotencia", async (t) => {
+test("Numeradores compartidos sin historial: secuencia, cajas, eliminación e idempotencia", async (t) => {
   assert.equal(process.env.TEST_DATABASE_ISOLATED, "1");
   const config = readConfig();
   assert.equal(config.DB_NAME, "erp_quiniela_test");
@@ -127,6 +127,89 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
       ),
     );
   };
+  await t.test(
+    "solo Comprobantes referencia al Numerador; no hay historial ni FK desde operaciones",
+    async () => {
+      const dependencies = await rows(
+        "SELECT TABLE_NAME AS tabla,COLUMN_NAME AS columna,REFERENCED_COLUMN_NAME AS destino FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_SCHEMA=DATABASE() AND REFERENCED_TABLE_NAME='NUMERACION' ORDER BY TABLE_NAME,COLUMN_NAME",
+      );
+      assert.deepEqual(
+        dependencies.map((r) => ({ ...r })),
+        [{ tabla: "COMPROBANTE", columna: "Numerador", destino: "Codigo" }],
+      );
+      assert.equal((await rows("SHOW TABLES LIKE 'NUMERACIONUSO'")).length, 0);
+    },
+  );
+  await t.test(
+    "un numerador sin consumos se elimina después de quitar sus comprobantes asociados",
+    async () => {
+      await good(
+        await master("numeraciones", {
+          Codigo: "NS_UNUSED",
+          ProximoNumero: "100000001",
+          Caja: "NS_A",
+          Activo: true,
+        }),
+        201,
+      );
+      await good(
+        await master("comprobantes", {
+          Codigo: "NS_UNUSED_C",
+          Descripcion: "Sin emisiones",
+          ModuloOrigen: "CUENTACORRIENTE",
+          Cuenta: "COBRAR",
+          Naturaleza: "DEUDA",
+          SentidoFondos: "NOAPLICA",
+          Numerador: "NS_UNUSED",
+          Activo: true,
+        }),
+        201,
+      );
+      const n = await readN("NS_UNUSED");
+      const linked = await req(
+        "maestros/numeraciones/NS_UNUSED",
+        "DELETE",
+        {},
+        n.version,
+      );
+      assert.equal(linked.status, 409);
+      assert.match(
+        ((await linked.json()) as { error: string }).error,
+        /tiene comprobantes asociados/,
+      );
+      const c = await good<MasterDetail>(
+        await req("maestros/comprobantes/NS_UNUSED_C"),
+      );
+      await good(
+        await req(
+          "maestros/comprobantes/NS_UNUSED_C",
+          "PUT",
+          { ...c.registro, Numerador: null },
+          c.version,
+        ),
+      );
+      const removed = await req(
+        "maestros/numeraciones/NS_UNUSED",
+        "DELETE",
+        {},
+        n.version,
+      );
+      assert.equal(removed.status, 204, await removed.text());
+      assert.equal((await req("maestros/numeraciones/NS_UNUSED")).status, 404);
+      assert.equal(
+        (await rows("SELECT Codigo FROM CAJA WHERE Codigo='NS_A'")).length,
+        1,
+      );
+      assert.equal(
+        (
+          await good<MasterDetail>(
+            await req("maestros/comprobantes/NS_UNUSED_C"),
+          )
+        ).registro.Numerador,
+        null,
+      );
+    },
+  );
   await good(
     await master("numeraciones", {
       Codigo: "NS_GENERAL",
@@ -263,7 +346,7 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
       assert.equal(
         (
           await rows(
-            "SELECT * FROM NUMERACIONUSO u JOIN NUMERACION n ON n.IDTabla=u.Numerador WHERE n.Codigo='NS_GENERAL'",
+            "SELECT a.NumeroComprobante FROM CUENTACORRIENTE a JOIN COMPROBANTE v ON v.Codigo=a.Comprobante WHERE v.Numerador='NS_GENERAL' AND a.CajaMovimiento IS NULL UNION ALL SELECT m.NumeroComprobante FROM CAJAMOVIMIENTO m JOIN COMPROBANTE v ON v.Codigo=m.Comprobante WHERE v.Numerador='NS_GENERAL'",
           )
         ).length,
         4,
@@ -304,11 +387,6 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
         (await req("tesoreria", "POST", manual)).status,
         409,
         "Tampoco se repite un número manual del comprobante",
-      );
-      assert.equal(
-        (await rows("SELECT * FROM NUMERACIONUSO WHERE Comprobante='NS_TB'"))
-          .length,
-        0,
       );
       const options = await good<CashOptions>(await req("tesoreria/opciones"));
       assert.equal(
@@ -428,7 +506,7 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
     },
   );
   await t.test(
-    "anular y reasociar no liberan consumos anteriores; no se puede borrar un numerador usado",
+    "anular no retrocede el correlativo y desasociar conserva los números de los movimientos",
     async () => {
       const initial = (await readN()).registro.ProximoNumero;
       await good(
@@ -471,7 +549,7 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
       assert.equal(
         (
           await rows(
-            "SELECT * FROM NUMERACIONUSO WHERE Comprobante='NS_TI' AND NumeroComprobante=100000003",
+            "SELECT * FROM CAJAMOVIMIENTO WHERE Comprobante='NS_TI' AND NumeroComprobante=100000003 AND Estado='ANULADO'",
           )
         ).length,
         1,
@@ -490,12 +568,12 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
     },
   );
   await t.test(
-    "fallo posterior revierte consumo, movimiento, correlativo y solicitud idempotente",
+    "fallo posterior revierte movimiento, correlativo y solicitud idempotente",
     async () => {
       const before = await readN(),
         key = randomUUID(),
         count = Number(
-          (await rows("SELECT COUNT(*) AS n FROM NUMERACIONUSO"))[0]!.n,
+          (await rows("SELECT COUNT(*) AS n FROM CAJAMOVIMIENTO"))[0]!.n,
         );
       await pool.query("RENAME TABLE AUDITORIA TO AUDITORIA_NS_FAIL");
       try {
@@ -511,7 +589,7 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
         before.registro.ProximoNumero,
       );
       assert.equal(
-        Number((await rows("SELECT COUNT(*) AS n FROM NUMERACIONUSO"))[0]!.n),
+        Number((await rows("SELECT COUNT(*) AS n FROM CAJAMOVIMIENTO"))[0]!.n),
         count,
       );
       assert.equal(
@@ -589,7 +667,7 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
     },
   );
   await t.test(
-    "los consumos impiden borrar o retroceder aun después de quitar todas las asociaciones",
+    "un numerador usado se elimina al desasociarlo; recrearlo no borra ni permite duplicar sus movimientos",
     async () => {
       await good(
         await master("numeraciones", {
@@ -612,7 +690,10 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
         }),
         201,
       );
-      await good(await req("cuenta-corriente", "POST", cc("NS_ARCH_C")), 201);
+      const original = await good<CurrentAccountDetail>(
+        await req("cuenta-corriente", "POST", cc("NS_ARCH_C")),
+        201,
+      );
       const c = await good<MasterDetail>(
         await req("maestros/comprobantes/NS_ARCH_C"),
       );
@@ -625,22 +706,75 @@ test("Numeradores compartidos: secuencia global, cajas, consumo histórico e ide
         ),
       );
       const n = await readN("NS_ARCH");
-      assert.equal(
-        (await req("maestros/numeraciones/NS_ARCH", "DELETE", {}, n.version))
-          .status,
-        409,
+      const removed = await req(
+        "maestros/numeraciones/NS_ARCH",
+        "DELETE",
+        {},
+        n.version,
+      );
+      assert.equal(removed.status, 204, await removed.text());
+      assert.equal((await req("maestros/numeraciones/NS_ARCH")).status, 404);
+      assert.deepEqual(
+        await good<CurrentAccountDetail>(
+          await req("cuenta-corriente/" + original.registro.IDTabla),
+        ),
+        original,
       );
       assert.equal(
         (
           await req(
-            "maestros/numeraciones/NS_ARCH",
-            "PUT",
-            { ...n.registro, ProximoNumero: "300000001" },
-            n.version,
+            "cuenta-corriente",
+            "POST",
+            cc("NS_ARCH_C", {
+              NumeroAutomatico: false,
+              NumeroComprobante: "300000001",
+            }),
           )
         ).status,
         409,
       );
+      await good(
+        await master("numeraciones", {
+          Codigo: "NS_ARCH",
+          ProximoNumero: "300000001",
+          Activo: true,
+        }),
+        201,
+      );
+      const detached = await good<MasterDetail>(
+        await req("maestros/comprobantes/NS_ARCH_C"),
+      );
+      assert.equal(
+        (
+          await req(
+            "maestros/comprobantes/NS_ARCH_C",
+            "PUT",
+            {
+              ...detached.registro,
+              Numerador: "NS_ARCH",
+            },
+            detached.version,
+          )
+        ).status,
+        409,
+      );
+      await updateN("NS_ARCH", { ProximoNumero: "300000002" });
+      await good(
+        await req(
+          "maestros/comprobantes/NS_ARCH_C",
+          "PUT",
+          {
+            ...detached.registro,
+            Numerador: "NS_ARCH",
+          },
+          detached.version,
+        ),
+      );
+      const next = await good<CurrentAccountDetail>(
+        await req("cuenta-corriente", "POST", cc("NS_ARCH_C")),
+        201,
+      );
+      assert.equal(next.registro.NumeroComprobante, "300000002");
     },
   );
   await t.test(

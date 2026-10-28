@@ -754,7 +754,7 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       const [tables] = await pool.query<RowDataPacket[]>(
         "SELECT COUNT(*) AS total FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> '__drizzle_migrations'",
       );
-      assert.equal(Number(tables[0]?.total), 22);
+      assert.equal(Number(tables[0]?.total), 21);
       await pool.execute("DELETE FROM CLIENTE WHERE Codigo = ?", ["99999"]);
     },
   );
