@@ -10,6 +10,7 @@ import {
   amountFormat,
   parseAmountInput,
   formatAmount,
+  editAmount,
 } from "../apps/web/src/components/controls/amount-value.js";
 
 test("DatePicker interpreta los ejemplos y siempre conserva una fecha civil ISO", () => {
@@ -122,4 +123,60 @@ test("Fechas visibles usan dd/MM/yyyy sin modificar fechas civiles y mantienen l
     /^26\/10\/2026 22:30$/,
   );
   assert.equal(displayDateTime("no es fecha"), "");
+});
+
+test("AmountBox edita sin miles ni decimales de relleno y conserva el valor exacto al reformatear", () => {
+  const config = amountFormat();
+  for (const value of [
+    "1000.00",
+    "1250.50",
+    "0.00",
+    "0.01",
+    "-1234.50",
+    "9999999999999999.99",
+  ]) {
+    const editing = editAmount(value, config);
+    assert.ok(!editing.includes(config.group), editing);
+    assert.equal(parseAmountInput(editing, config, 16).value, value);
+  }
+  assert.equal(editAmount("1000.00", config), "1000");
+  assert.equal(editAmount("1250.50", config), "1250,5");
+  const appended = parseAmountInput(
+    editAmount("1000.00", config) + "0",
+    config,
+    16,
+  );
+  assert.equal(appended.value, "10000.00");
+  assert.equal(formatAmount(appended.value, config), "10.000,00");
+  const inserted = parseAmountInput("10200", config, 16);
+  assert.equal(formatAmount(inserted.value, config), "10.200,00");
+  const deleted = parseAmountInput(
+    editAmount("1000.00", config).slice(0, -1),
+    config,
+    16,
+  );
+  assert.equal(formatAmount(deleted.value, config), "100,00");
+});
+test("AmountBox conserva máscaras y regiones configurables al entrar y salir de edición", () => {
+  for (const config of [
+    amountFormat("#,##0"),
+    amountFormat("0.00"),
+    amountFormat("#,##0.000"),
+    amountFormat("#,##0.00", "en-US"),
+  ]) {
+    const value = parseAmountInput("1000", config).value;
+    assert.equal(editAmount(value, config), "1000");
+    assert.equal(
+      parseAmountInput(editAmount(value, config) + "0", config).value,
+      parseAmountInput("10000", config).value,
+    );
+  }
+  assert.equal(
+    editAmount("1250.50", amountFormat("#,##0.00", "en-US")),
+    "1250.5",
+  );
+  assert.equal(editAmount("1250.567", amountFormat("#,##0.000")), "1250,567");
+  assert.equal(editAmount("", amountFormat()), "");
+  assert.equal(editAmount("incorrecto", amountFormat()), "incorrecto");
+  assert.ok(parseAmountInput("12,345", amountFormat()).error);
 });
