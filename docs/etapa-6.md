@@ -108,13 +108,13 @@ ImporteACuenta conserva la intención original. DisponibleACuenta se consulta co
 
 ## Reversión y cierres anteriores
 
-Revertir exige motivo, versión vigente, caja abierta, comprobante de la misma cuenta/naturaleza Deuda/sentido contrario y número válido. Se genera una operación con fecha actual y una deuda nueva. El original conserva sus importes, estado físico CONFIRMADO, fecha y apertura; la interfaz deriva Revertido desde su vínculo. Los informes financieros deben sumar el original y su contramovimiento en sus respectivas fechas; no deben excluir el original por el estado visual derivado Revertido. La reversión tiene un enlace único al original y no se permite revertir nuevamente el original ni la propia reversión en esta entrega.
+Revertir exige apertura original cerrada, motivo, versión vigente, otra apertura abierta seleccionada, comprobante de la misma cuenta/naturaleza Deuda/sentido contrario y número válido. Se genera una operación con fecha actual y una deuda nueva. El original conserva sus importes, estado físico CONFIRMADO, fecha y apertura; la interfaz deriva Revertido desde su vínculo. Los informes financieros deben sumar el original y su contramovimiento en sus respectivas fechas; no deben excluir el original por el estado visual derivado Revertido. La reversión tiene un enlace único al original y no se permite revertir nuevamente el original ni la propia reversión en esta entrega.
 
 Las afectaciones históricas permanecen. Si había un importe a cuenta sin aplicaciones posteriores, se utiliza ese remanente para absorber esa parte de la nueva contradeuda, registrando una afectación adicional con fecha y responsable actuales. Ejemplo: deuda 80, cobro 100 y anticipo 20; al revertir se registra contradeuda 100, se absorben los 20 a cuenta y quedan 80 pendientes. No reaparece además la deuda original ni queda un anticipo utilizable tras devolverlo.
 
 Las transferencias de la reversión registran el efecto bancario contrario en su cuenta original; no ejecutan transferencias en el banco. Los eventos de cheques permiten devolver un recibido aún en cartera, anular un propio aún emitido o recuperar un tercero endosado. Si existe cualquier evento posterior al de la operación original, se bloquea la reversión hasta resolver su circuito: no se recupera automáticamente un cheque que ya circuló.
 
-Aperturas, cierres, confirmaciones y reversiones son transaccionales y auditados. SOLICITUD controla reintentos. La reversión usa la cuenta histórica del movimiento de Cuenta corriente, aunque se modifique después el maestro del comprobante.
+Aperturas, cierres, confirmaciones, anulaciones y reversiones son transaccionales y auditados. SOLICITUD controla reintentos. La reversión usa la cuenta histórica del movimiento de Cuenta corriente, aunque se modifique después el maestro del comprobante.
 
 ## Prueba manual
 
@@ -195,3 +195,5 @@ WHERE a.IDTabla = ID_DEL_PREMIO;
 ```
 
 Esta revisión no cambia filtros ni reglas financieras y no identifica automáticamente la causa de un movimiento de Hostinger sin sus datos: una reproducción correcta en la base aislada no equivale a diagnosticar el registro del usuario.
+
+La distinción entre anulación de la misma apertura y reversión de una apertura cerrada, los estados derivados y Propiedades relacionadas se detallan en [Anulación y reversión de Caja](caja-anulacion-reversion.md). No agrega columnas ni migraciones: reutiliza CajaMovimientoOrigen y los campos de anulación existentes. El reverso se identifica dentro de Estado como Confirmado · Reversión.

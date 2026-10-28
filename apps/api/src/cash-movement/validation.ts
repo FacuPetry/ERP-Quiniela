@@ -139,7 +139,9 @@ export const query = z
   .object({
     ...listOrderFields,
     q: z.string().trim().max(100).default(""),
-    Estado: z.enum(["TODOS", "CONFIRMADO", "REVERTIDO"]).default("TODOS"),
+    Estado: z
+      .enum(["TODOS", "CONFIRMADO", "ANULADO", "REVERTIDO"])
+      .default("TODOS"),
     Desde: date.optional(),
     Hasta: date.optional(),
     pagina: z.coerce.number().int().min(1).max(100000).default(1),
@@ -176,5 +178,13 @@ export const reversal = z
     NumeroComprobante: number,
     CajaSaldo: id,
     Motivo: z.string().trim().min(1).max(500),
+  })
+  .strict();
+
+export const annulment = z
+  .object({
+    CajaSaldo: id,
+    Motivo: z.string().trim().min(1, "Ingresá el motivo.").max(500),
+    ConfirmarCorreccionBancaria: z.boolean().default(false),
   })
   .strict();

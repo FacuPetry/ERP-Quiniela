@@ -94,3 +94,19 @@ export const cashCheque = (id: string, signal: AbortSignal) =>
     base + "/cheques/" + encodeURIComponent(id),
     { signal },
   );
+
+export const cashAnnul = (
+  d: CashDetail,
+  input: {
+    CajaSaldo: string;
+    Motivo: string;
+    ConfirmarCorreccionBancaria: boolean;
+  },
+  csrf: string,
+  key: string,
+) =>
+  apiRequest<CashDetail>(base + "/" + d.registro.IDTabla + "/anular", {
+    method: "POST",
+    headers: { ...headers(csrf, key), "If-Match": '"' + d.version + '"' },
+    body: JSON.stringify(input),
+  });

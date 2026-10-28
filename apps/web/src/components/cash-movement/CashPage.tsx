@@ -14,9 +14,10 @@ import { DataTable } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
 import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { initialListFilters } from "../ui/filter-defaults";
-import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
+import { CashProperties } from "./CashProperties";
+import { cashStateLabel, cashCorrection } from "@erp/shared";
 import { CashForm } from "./CashForm";
-import { CashBoxes, ReverseCash } from "./CashActions";
+import { CashBoxes, ReverseCash, AnnulCash } from "./CashActions";
 import { useActiveCash } from "./ActiveCash";
 import { amount, message } from "./format";
 import "./cash-movement.css";
@@ -31,103 +32,12 @@ const filtersConfig: FilterField[] = [
       { value: "TODOS", label: "Todos" },
       { value: "CONFIRMADO", label: "Confirmados" },
       { value: "REVERTIDO", label: "Revertidos" },
+      { value: "ANULADO", label: "Anulados" },
     ],
   },
   { key: "Desde", label: "Fecha desde", kind: "date" },
   { key: "Hasta", label: "Fecha hasta", kind: "date" },
 ];
-const properties: PropertyField<CashDetail>[] = [
-  {
-    key: "comprobante",
-    label: "Comprobante",
-    render: (d) => d.registro.ComprobanteDescripcion,
-  },
-  {
-    key: "numero",
-    label: "Número",
-    render: (d) => d.registro.NumeroComprobanteTexto,
-  },
-  {
-    key: "cliente",
-    label: "Cliente",
-    render: (d) => d.registro.Cliente + " - " + d.registro.ClienteNombre,
-  },
-  {
-    key: "fecha",
-    label: "Fecha",
-    render: (d) => displayDate(d.registro.FechaOrigen),
-  },
-  { key: "caja", label: "Caja", render: (d) => d.registro.CajaNombre },
-  {
-    key: "total",
-    label: "Total",
-    render: (d) => amount(d.registro.ImporteTotal),
-  },
-  {
-    key: "cash",
-    label: "Efectivo",
-    render: (d) => amount(d.registro.ImporteEfectivo),
-  },
-  {
-    key: "advance",
-    label: "Importe inicial a cuenta",
-    render: (d) => amount(d.registro.ImporteACuenta),
-  },
-  {
-    key: "available",
-    label: "Disponible a cuenta",
-    render: (d) => amount(d.registro.DisponibleACuenta),
-  },
-  {
-    key: "state",
-    label: "Estado",
-    render: (d) =>
-      d.registro.Estado === "REVERTIDO"
-        ? "Revertido"
-        : d.registro.CajaMovimientoOrigen
-          ? "Reversión confirmada"
-          : "Confirmado",
-  },
-  {
-    key: "note",
-    label: "Observaciones",
-    render: (d) => d.registro.Observacion,
-  },
-  {
-    key: "values",
-    label: "Valores",
-    render: (d) =>
-      d.valores
-        .map(
-          (v) =>
-            `${v.Tipo === "TRANSFERENCIA" ? "Transferencia" : v.Tipo === "PROPIO" ? "Cheque propio" : "Cheque de terceros"} · ${v.CuentaNombre ?? v.BancoNombre} · ${v.Numero} · ${amount(v.Importe)}`,
-        )
-        .join("\n"),
-  },
-];
-function Properties({
-  id,
-  onClose,
-  onExpired,
-}: {
-  id: string;
-  onClose: () => void;
-  onExpired: () => void;
-}) {
-  const load = useCallback(
-    (signal: AbortSignal) => cashDetail(id, signal),
-    [id],
-  );
-  return (
-    <RecordProperties
-      title="Propiedades · Cobros y pagos"
-      loadRecord={load}
-      fields={properties}
-      onClose={onClose}
-      onExpired={onExpired}
-    />
-  );
-}
 export function CashPage({
   session,
   onExpired,
@@ -150,6 +60,7 @@ export function CashPage({
     [filtering, setFiltering] = useState(false),
     [managingBoxes, setManagingBoxes] = useState(false),
     [reverse, setReverse] = useState<CashDetail | null>(null),
+    [annul, setAnnul] = useState<CashDetail | null>(null),
     [property, setProperty] = useState<string | null>(null);
   const sorting = useListSorting(setPage);
   const handler = useRef(onExpired),
@@ -214,7 +125,7 @@ export function CashPage({
     try {
       const d = await cashDetail(row.IDTabla);
       if (!mounted.current) return;
-      if (action === "reverse") setReverse(d);
+      if (action === "correct") correct(d);
       else setView({ detail: d });
     } catch (e) {
       if (mounted.current) {
@@ -226,32 +137,56 @@ export function CashPage({
       if (mounted.current) setBusy(false);
     }
   }
+  function correct(d: CashDetail) {
+    const action = cashCorrection(d.registro, activeBox?.IDTabla ?? null);
+    if (action === "anular") setAnnul(d);
+    else if (action === "revertir") setReverse(d);
+    else
+      setError(
+        "Seleccioná la apertura original si sigue abierta; para revertir una jornada cerrada necesitás otra caja abierta seleccionada.",
+      );
+  }
   function saved() {
     setView(null);
     setReverse(null);
+    setAnnul(null);
     if (requested) setRevision((n) => n + 1);
   }
   const row = data?.registros.find((r) => r.IDTabla === selected);
-  const reversal = reverse && (
-    <ReverseCash
-      detail={reverse}
-      csrf={session.csrfToken}
-      onClose={() => setReverse(null)}
-      onSaved={saved}
-      onExpired={expired}
-    />
+  const reversal = (
+    <>
+      {annul && (
+        <AnnulCash
+          detail={annul}
+          csrf={session.csrfToken}
+          onClose={() => setAnnul(null)}
+          onSaved={saved}
+          onExpired={expired}
+        />
+      )}
+      {reverse && (
+        <ReverseCash
+          detail={reverse}
+          csrf={session.csrfToken}
+          onClose={() => setReverse(null)}
+          onSaved={saved}
+          onExpired={expired}
+        />
+      )}
+    </>
   );
   if (view)
     return (
       <>
         <CashForm
+          key={view.detail?.registro.IDTabla ?? "new"}
           {...(view.detail ? { detail: view.detail } : {})}
           csrf={session.csrfToken}
           canWrite={canWrite}
           onClose={() => setView(null)}
           onSaved={saved}
           onExpired={expired}
-          {...(canWrite ? { onReverse: setReverse } : {})}
+          {...(canWrite ? { onCorrection: correct } : {})}
           onRelated={(id) => {
             void open({ IDTabla: id } as CashRecord);
           }}
@@ -278,7 +213,10 @@ export function CashPage({
             labels={{
               add: "Agregar cobro o pago",
               edit: "Consultar cobro o pago",
-              remove: "Revertir movimiento",
+              remove:
+                row?.JornadaEstado === "CERRADO"
+                  ? "Revertir movimiento"
+                  : "Anular movimiento",
               filter: "Filtrar",
             }}
             selected={Boolean(row)}
@@ -301,7 +239,7 @@ export function CashPage({
             editIcon="eye"
             removeIcon="close"
             removeDisabled={
-              row?.Estado !== "CONFIRMADO" || Boolean(row.CajaMovimientoOrigen)
+              !row || !cashCorrection(row, activeBox?.IDTabla ?? null)
             }
             filtersActive={Object.entries(filters).some(
               ([k, v]) => v !== defaults[k as keyof typeof defaults],
@@ -311,7 +249,7 @@ export function CashPage({
               void open(row);
             }}
             onDelete={() => {
-              void open(row, "reverse");
+              void open(row, "correct");
             }}
             onFilter={() => setFiltering(true)}
             onRefresh={refresh}
@@ -383,12 +321,7 @@ export function CashPage({
               key: "state",
               sort: "Estado",
               label: "Estado",
-              render: (r) =>
-                r.Estado === "REVERTIDO"
-                  ? "Revertido"
-                  : r.CajaMovimientoOrigen
-                    ? "Reversión"
-                    : "Confirmado",
+              render: (r) => cashStateLabel(r),
             },
           ]}
         />
@@ -426,7 +359,7 @@ export function CashPage({
         />
       )}
       {property && (
-        <Properties
+        <CashProperties
           id={property}
           onClose={() => setProperty(null)}
           onExpired={expired}
