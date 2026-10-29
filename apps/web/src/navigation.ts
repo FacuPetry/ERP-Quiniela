@@ -43,7 +43,7 @@ export const modules: {
     icon: "values",
     description: "Consulta de cheques y transferencias desde un mismo lugar.",
     detail:
-      "Los cheques conservarán su identidad e historial. Cheques y transferencias se almacenarán en tablas separadas.",
+      "Consultá cheques propios, de terceros y transferencias, sus eventos y operaciones relacionadas.",
   },
   {
     path: "/tipos-cliente",
