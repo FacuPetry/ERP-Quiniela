@@ -174,7 +174,9 @@ export function createValuesStore(pool: Pool) {
     async detail(family: ValueFamily, id: string): Promise<ValueRecordDetail> {
       return snapshot(pool, async (c) => {
         const [rows] = await c.execute<RowDataPacket[]>(
-          `SELECT ${projection} FROM (${valuesSql}) v WHERE v.Familia=? AND v.IDTabla=?`,
+          // Familia proviene de literales del UNION. Normalizar ambos lados evita
+          // mezclar su collation con la del parámetro de una sentencia preparada.
+          `SELECT ${projection} FROM (${valuesSql}) v WHERE CONVERT(v.Familia USING utf8mb4) COLLATE utf8mb4_unicode_ci=CONVERT(? USING utf8mb4) COLLATE utf8mb4_unicode_ci AND v.IDTabla=?`,
           [family, id],
         );
         if (!rows[0])

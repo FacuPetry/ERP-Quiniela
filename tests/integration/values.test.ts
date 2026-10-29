@@ -19,6 +19,7 @@ import { createAuthStore } from "../../apps/api/src/auth/store.js";
 import { hashPassword } from "../../apps/api/src/auth/crypto.js";
 import { createCashMovementStore } from "../../apps/api/src/cash-movement/store.js";
 import { createValuesStore } from "../../apps/api/src/values/store.js";
+import { valueQuery } from "../../apps/api/src/values/validation.js";
 
 test("Valores: consulta de instrumentos reales, historial, filtros y ausencia de escrituras", async (t) => {
   assert.equal(process.env.TEST_DATABASE_ISOLATED, "1");
@@ -438,6 +439,61 @@ test("Valores: consulta de instrumentos reales, historial, filtros y ausencia de
             (await req("/valores/CHEQUE/" + third.IDTabla, method, as)).status,
             405,
           );
+    },
+  );
+  await t.test(
+    "detalle y búsqueda conservan resultados con las collations de MySQL/MariaDB y sentencias preparadas",
+    async () => {
+      const { pool: detailPool } = createDatabase(config);
+      const store = createValuesStore(detailPool);
+      const targets = [
+        ["CHEQUE", third.IDTabla],
+        ["TRANSFERENCIA", firstTransfer.IDTabla],
+        ["TRANSFERENCIA", annulled.valores[0]!.IDTabla],
+        ["TRANSFERENCIA", original.valores[0]!.IDTabla],
+      ] as const;
+      try {
+        const expected = await Promise.all(
+          targets.map(([family, id]) => detail(family, id)),
+        );
+        const names = (
+          await rows("SHOW COLLATION WHERE Charset='utf8mb4'")
+        ).map((r) => String(r.Collation));
+        const queries = [
+          { Banco: "VX_B", q: "Valores" },
+          { Banco: "VX_B", Tipo: "TRANSFERENCIA", Estado: "CONFIRMADO" },
+          { Banco: "VX_B", Estado: "REVERTIDO" },
+          { Banco: "VX_B", FechaPor: "VENCIMIENTO" },
+        ].map((query) => valueQuery.parse(query));
+        const expectedLists = await Promise.all(
+          queries.map((query) => createValuesStore(pool).list(query)),
+        );
+        for (const collation of [
+          "utf8mb4_general_ci",
+          "utf8mb4_unicode_ci",
+          "utf8mb4_bin",
+          "utf8mb4_uca1400_ai_ci",
+          "utf8mb4_0900_ai_ci",
+        ].filter((name) => names.includes(name))) {
+          await detailPool.query("SET NAMES utf8mb4 COLLATE " + collation);
+          for (let i = 0; i < targets.length; i++) {
+            const [family, id] = targets[i]!;
+            assert.deepEqual(
+              await store.detail(family, id),
+              expected[i],
+              collation + " " + family,
+            );
+          }
+          for (let i = 0; i < queries.length; i++)
+            assert.deepEqual(
+              await store.list(queries[i]!),
+              expectedLists[i],
+              collation,
+            );
+        }
+      } finally {
+        await detailPool.end();
+      }
     },
   );
   await t.test(
