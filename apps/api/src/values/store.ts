@@ -13,15 +13,18 @@ import {
 import { listOrder, optionOrder } from "../database/list-order.js";
 import { MasterRequestError } from "../masters/validation.js";
 import type { ValueQuery } from "./validation.js";
+import { chequeDeposits } from "./deposits.js";
 
 const state = (alias: string) =>
   `CASE WHEN ${alias}.Estado='ANULADO' THEN 'ANULADO' WHEN EXISTS(SELECT 1 FROM CAJAMOVIMIENTO reverse_m WHERE reverse_m.CajaMovimientoOrigen=${alias}.IDTabla AND reverse_m.Estado='CONFIRMADO') THEN 'REVERTIDO' ELSE ${alias}.Estado END`;
 // Un cheque tiene una fila, independientemente de cuántos eventos/operaciones tenga.
 const valuesSql = `
  SELECT ch.IDTabla,'CHEQUE' AS Familia,ch.Tipo,ch.Numero,ch.Emision AS Fecha,ch.Vencimiento,ch.Importe,ch.Estado,
- ch.Banco,b.Nombre AS BancoNombre,ch.BancoCuenta,bc.Nombre AS CuentaNombre,cl.Nombre AS ClienteNombre,
+ ch.Banco,b.Nombre AS BancoNombre,COALESCE(ch.BancoCuenta,deposit_e.BancoCuenta) AS BancoCuenta,bc.Nombre AS CuentaNombre,cl.Nombre AS ClienteNombre,
  c.Descripcion AS ComprobanteDescripcion,m.NumeroComprobante,m.IDTabla AS OrigenCajaMovimiento,ch.CreadoEn,u.Nombre AS UsuarioNombre,cl.Codigo AS Cliente,ch.Librador
- FROM CHEQUE ch JOIN BANCO b ON b.Codigo=ch.Banco LEFT JOIN BANCOCUENTA bc ON bc.Codigo=ch.BancoCuenta
+ FROM CHEQUE ch JOIN BANCO b ON b.Codigo=ch.Banco
+ LEFT JOIN CHEQUEEVENTO deposit_e ON deposit_e.IDTabla=(SELECT MAX(de.IDTabla) FROM CHEQUEEVENTO de WHERE de.Cheque=ch.IDTabla AND de.Tipo='DEPOSITO')
+ LEFT JOIN BANCOCUENTA bc ON bc.Codigo=COALESCE(ch.BancoCuenta,deposit_e.BancoCuenta)
  JOIN COMPROBANTE c ON c.Codigo=ch.Comprobante JOIN USUARIO u ON u.IDTabla=ch.Usuario
  LEFT JOIN CHEQUEEVENTO first_e ON first_e.IDTabla=(SELECT MIN(e.IDTabla) FROM CHEQUEEVENTO e WHERE e.Cheque=ch.IDTabla AND e.Tipo IN ('RECEPCION','EMISION') AND e.CajaMovimiento IS NOT NULL)
  LEFT JOIN CAJAMOVIMIENTO m ON m.IDTabla=first_e.CajaMovimiento LEFT JOIN CLIENTE cl ON cl.Codigo=m.Cliente
@@ -76,6 +79,7 @@ const roots = (family: ValueFamily) =>
 
 export function createValuesStore(pool: Pool) {
   return {
+    deposit: chequeDeposits(pool),
     async list(q: ValueQuery): Promise<ValueList> {
       const order =
         listOrder(

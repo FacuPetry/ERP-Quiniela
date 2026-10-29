@@ -86,6 +86,6 @@ Reutiliza CAJAMOVIMIENTO sin cliente ni asiento de CUENTACORRIENTE, con ImporteT
 La migración 0006 traslada la asociación a COMPROBANTE.Numerador y conserva las configuraciones anteriores. La 0007 elimina el historial técnico NUMERACIONUSO sin alterar configuraciones ni operaciones. La asignación compartida se protege bloqueando la fila de NUMERACION y actualizando ProximoNumero dentro de la misma transacción del movimiento. Ver [Numeradores compartidos](numeracion-comprobantes.md).
 
 
-## Valores: primera consulta (etapa 8)
+## Valores: consulta y depósito (etapa 8)
 
-Consulta CHEQUE, CHEQUEEVENTO y TRANSFERENCIA junto con sus operaciones y reversiones existentes. No agrega ni modifica tablas o relaciones, y no calcula disponibilidad bancaria. Cada cheque conserva una identidad aunque tenga múltiples eventos; familia e ID distinguen instrumentos de tablas diferentes. Ver [alcance y prueba](etapa-8.md).
+Consulta CHEQUE, CHEQUEEVENTO y TRANSFERENCIA junto con sus operaciones y reversiones existentes. El depósito de terceros reutiliza CHEQUEEVENTO (Tipo DEPOSITO, BancoCuenta de destino, CajaMovimiento NULL) y cambia CHEQUE.Estado a DEPOSITADO. No altera la cuenta libradora ni genera BANCOMOVIMIENTO hasta una futura acreditación. No agrega ni modifica tablas o relaciones, y no calcula disponibilidad bancaria. Cada cheque conserva una identidad aunque tenga múltiples eventos; familia e ID distinguen instrumentos de tablas diferentes. Ver [alcance y prueba](etapa-8.md).

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { valueStates } from "@erp/shared";
-import { date, id } from "../cash-movement/validation.js";
+import { code, date, id } from "../cash-movement/validation.js";
 import { listOrderFields } from "../database/list-order-validation.js";
 
 export const valueIdentity = z
@@ -34,3 +34,27 @@ export const valueQuery = z
     "Revisá el rango de fechas.",
   );
 export type ValueQuery = z.infer<typeof valueQuery>;
+
+export const chequeDeposit = z
+  .object({
+    Cheques: z
+      .array(id)
+      .min(1)
+      .max(100)
+      .refine(
+        (ids) => new Set(ids).size === ids.length,
+        "No repitas cheques en el depósito.",
+      )
+      .transform((ids) =>
+        [...ids].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1)),
+      ),
+    BancoCuenta: code,
+    Fecha: date,
+    Observacion: z
+      .string()
+      .trim()
+      .max(4000)
+      .nullable()
+      .transform((v) => v || null),
+  })
+  .strict();
