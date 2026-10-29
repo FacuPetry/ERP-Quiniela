@@ -18,6 +18,8 @@ import { displayDate, displayDateTime } from "../controls/date-value";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
 import { message } from "../cash-movement/format";
 import { valueFields } from "./ValueProperties";
+import "../cash-movement/cash-movement.css";
+import "./values.css";
 
 export function ValueView({
   row,
@@ -116,7 +118,7 @@ export function ValueView({
                 key: "general",
                 title: "Datos generales",
                 content: (
-                  <dl className="properties-fields">
+                  <dl className="properties-fields value-general-fields">
                     {valueFields
                       .filter((f) => !f.visible || f.visible(detail))
                       .map((f) => (
@@ -191,26 +193,30 @@ export function ValueView({
                       ],
                     }}
                     toolbar={(actions) => (
-                      <ActionToolbar
-                        labels={{ edit: "Consultar operación relacionada" }}
-                        readOnly
-                        selected={actions.selected}
-                        busy={false}
-                        filtersActive={false}
-                        editDisabled={
-                          !operation(
-                            detail.historial.find((e) => e.Clave === historyKey)
-                              ?.CajaMovimiento,
-                          )
-                        }
-                        onEdit={() => {
-                          const e = detail.historial.find(
-                            (e) => e.Clave === historyKey,
-                          );
-                          if (e) openEvent(e);
-                        }}
-                        onProperties={actions.onProperties}
-                      />
+                      <div className="cash-section-toolbar">
+                        <h3>Historial</h3>
+                        <ActionToolbar
+                          labels={{ edit: "Consultar operación relacionada" }}
+                          readOnly
+                          selected={actions.selected}
+                          busy={false}
+                          filtersActive={false}
+                          editDisabled={
+                            !operation(
+                              detail.historial.find(
+                                (e) => e.Clave === historyKey,
+                              )?.CajaMovimiento,
+                            )
+                          }
+                          onEdit={() => {
+                            const e = detail.historial.find(
+                              (e) => e.Clave === historyKey,
+                            );
+                            if (e) openEvent(e);
+                          }}
+                          onProperties={actions.onProperties}
+                        />
+                      </div>
                     )}
                     columns={[
                       {
@@ -268,18 +274,21 @@ export function ValueView({
                     onSelectionChange={setOperationKey}
                     onRowActivate={onOperation}
                     toolbar={(actions) => (
-                      <ActionToolbar
-                        labels={{ edit: "Consultar operación relacionada" }}
-                        readOnly
-                        selected={actions.selected}
-                        busy={false}
-                        filtersActive={false}
-                        onEdit={() => {
-                          const op = operation(operationKey);
-                          if (op) onOperation(op);
-                        }}
-                        onProperties={actions.onProperties}
-                      />
+                      <div className="cash-section-toolbar">
+                        <h3>Operaciones relacionadas</h3>
+                        <ActionToolbar
+                          labels={{ edit: "Consultar operación relacionada" }}
+                          readOnly
+                          selected={actions.selected}
+                          busy={false}
+                          filtersActive={false}
+                          onEdit={() => {
+                            const op = operation(operationKey);
+                            if (op) onOperation(op);
+                          }}
+                          onProperties={actions.onProperties}
+                        />
+                      </div>
                     )}
                     columns={[
                       {
