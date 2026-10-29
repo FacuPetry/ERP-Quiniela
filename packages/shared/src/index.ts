@@ -37,3 +37,4 @@ export * from './voucher-number.js';
 export * from './cash-movement.js';
 
 export * from "./list-sort.js";
+export * from './values.js';

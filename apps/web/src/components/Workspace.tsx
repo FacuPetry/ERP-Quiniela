@@ -20,6 +20,7 @@ import { ActiveCashProvider } from "./cash-movement/ActiveCash";
 import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
+import { ValuesPage } from "./values/ValuesPage";
 
 function AppLink({
   path,
@@ -346,7 +347,8 @@ function WorkspaceContent({
                 <div className="section-heading">
                   <h2 id="shortcuts-title">Módulos del sistema</h2>
                   <span className="muted small">
-                    Cuenta corriente, Cobros y pagos y Tesorería disponibles
+                    Cuenta corriente, Cobros y pagos, Tesorería y Valores
+                    disponibles
                   </span>
                 </div>
                 <div className="module-grid">
@@ -368,6 +370,7 @@ function WorkspaceContent({
                             "/cuenta-corriente",
                             "/cobros-pagos",
                             "/tesoreria",
+                            "/valores",
                           ].includes(item.path)
                             ? "Abrir módulo"
                             : "Ver alcance"}{" "}
@@ -456,6 +459,8 @@ function WorkspaceContent({
               session={session}
               onExpired={onLogout}
             />
+          ) : path === "/valores" ? (
+            <ValuesPage key={path} onExpired={onLogout} />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -494,7 +499,7 @@ function WorkspaceContent({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 7 · Tesorería</span>
+            <span>Etapa 8 · Consulta de Valores</span>
           </footer>
         </main>
       </div>

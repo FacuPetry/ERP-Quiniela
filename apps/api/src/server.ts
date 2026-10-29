@@ -7,6 +7,7 @@ import { createAuthService } from './auth/service.js';
 import { createCurrentAccountStore } from './current-account/store.js';
 import { createCashMovementStore } from './cash-movement/store.js';
 import { createMasterStore } from './masters/store.js';
+import { createValuesStore } from './values/store.js';
 
 const config = readConfig();
 const { pool } = createDatabase(config);
@@ -16,6 +17,7 @@ const app = createApp({
   currentAccount: createCurrentAccountStore(pool),
   cashMovement: createCashMovementStore(pool),
   treasury: createCashMovementStore(pool, "TESORERIA"),
+  values: createValuesStore(pool),
   secureCookie: config.NODE_ENV === 'production',
   checkDatabase: async () => { await pool.query('SELECT 1'); },
   ...(config.NODE_ENV === 'production' ? { webDist: resolve(projectRoot, 'apps/web/dist') } : {}),

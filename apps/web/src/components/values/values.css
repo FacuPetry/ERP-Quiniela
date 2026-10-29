@@ -1,0 +1,9 @@
+.value-general-fields .properties-field {
+  padding: 7px 0;
+}
+.value-general-fields .properties-field:first-child {
+  padding-top: 0;
+}
+.value-general-fields .properties-field dt {
+  margin-bottom: 3px;
+}

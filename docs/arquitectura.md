@@ -79,3 +79,8 @@ Caja activa es una preferencia de interfaz por usuario/sesión/pestaña, no una 
 ## Numeración compartida (revisión 0006)
 
 La implementación actual se describe en [Numeradores compartidos](numeracion-comprobantes.md). Sustituye las reglas iniciales de numeración por comprobante: COMPROBANTE.Numerador referencia NUMERACION.Codigo y varios comprobantes pueden compartirlo. El servicio database/numbering.ts centraliza la emisión y serializa ProximoNumero mediante el bloqueo transaccional de NUMERACION. No guarda un historial de consumos; un numerador sin comprobantes asociados puede eliminarse. Los números definitivos permanecen en las operaciones. Asociar o editar un numerador no consulta máximos históricos; los controles de duplicados por comprobante se aplican al guardar. El hook useVoucherNumber comparte la sugerencia editable entre formularios. Cuenta corriente no exige caja; los módulos de fondos permiten entrada manual si el numerador no es válido para la caja. Las reversiones mantienen su exigencia de numerador activo/compatible. Los módulos futuros deben utilizar este servicio, sin implementar otra asignación a partir de SELECT MAX.
+
+
+## Valores: consulta (etapa 8)
+
+El módulo `values` ofrece únicamente lecturas autenticadas: `/api/valores` (filtros/orden/paginación) y `/api/valores/:family/:id` (datos, historial y operaciones). Las consultas usan transacciones READ ONLY; el estado de instrumentos y operaciones se interpreta por separado. ValuesPage/ValueView reutilizan DataTable, ActionToolbar, FilterDialog, FormSections y RecordProperties; las operaciones relacionadas reutilizan CashProperties. No exige caja abierta ni crea instrumentos o eventos. Ver [etapa 8](etapa-8.md).
