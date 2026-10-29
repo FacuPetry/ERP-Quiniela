@@ -5,6 +5,7 @@ export const valueTypes = [
 ] as const;
 export const valueStates = [
   { value: "CARTERA", label: "En cartera" },
+  { value: "DEPOSITADO", label: "Depositado" },
   { value: "EMITIDO", label: "Emitido" },
   { value: "ENDOSADO", label: "Endosado" },
   { value: "DEVUELTO", label: "Devuelto" },
@@ -81,6 +82,18 @@ export interface ValueList {
   pagina: number;
   limite: number;
 }
+export interface ChequeDepositInput {
+  Cheques: string[];
+  BancoCuenta: string;
+  Fecha: string;
+  Observacion: string | null;
+}
+export interface ChequeDepositResult {
+  Cheques: string[];
+  BancoCuenta: string;
+  Fecha: string;
+  ImporteTotal: string;
+}
 export const valueTypeLabel = (value: string) =>
   valueTypes.find((v) => v.value === value)?.label ?? value;
 export const valueStateLabel = (value: string) =>
@@ -90,6 +103,7 @@ export function valueEventLabel(value: string) {
     RECEPCION: "Recepción",
     EMISION: "Emisión",
     ENDOSO: "Endoso",
+    DEPOSITO: "Depósito",
     DEVOLUCION: "Devolución",
     ANULACION: "Anulación",
     RECUPERACION: "Recuperación",

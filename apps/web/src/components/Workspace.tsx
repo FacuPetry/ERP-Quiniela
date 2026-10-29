@@ -460,7 +460,7 @@ function WorkspaceContent({
               onExpired={onLogout}
             />
           ) : path === "/valores" ? (
-            <ValuesPage key={path} onExpired={onLogout} />
+            <ValuesPage key={path} session={session} onExpired={onLogout} />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -499,7 +499,7 @@ function WorkspaceContent({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 8 · Consulta de Valores</span>
+            <span>Etapa 8 · Valores</span>
           </footer>
         </main>
       </div>

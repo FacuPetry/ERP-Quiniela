@@ -7,6 +7,7 @@ import {
   type ValueList,
   type ValueOperation,
   type ValueRecord,
+  type SessionResponse,
 } from "@erp/shared";
 import { valueList } from "../../services/values";
 import { ApiRequestError } from "../../services/http";
@@ -22,6 +23,7 @@ import { cashServices, treasuryServices } from "../../services/cash-movement";
 import { amount, message } from "../cash-movement/format";
 import { ValueProperties } from "./ValueProperties";
 import { ValueView } from "./ValueView";
+import { ChequeDeposit } from "./ChequeDeposit";
 
 const defaults = {
   q: "",
@@ -85,7 +87,15 @@ const fields: FilterField[] = [
   { key: "Desde", label: "Fecha desde", kind: "date" },
   { key: "Hasta", label: "Fecha hasta", kind: "date" },
 ];
-export function ValuesPage({ onExpired }: { onExpired: () => void }) {
+export function ValuesPage({
+  session,
+  onExpired,
+}: {
+  session: SessionResponse;
+  onExpired: () => void;
+}) {
+  const [depositing, setDepositing] = useState(false),
+    [notice, setNotice] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>(() =>
       initialListFilters(defaults, ["Desde", "Hasta"]),
     ),
@@ -182,8 +192,29 @@ export function ValuesPage({ onExpired }: { onExpired: () => void }) {
               onFilter={() => setFiltering(true)}
               onRefresh={refresh}
               refreshing={loading}
+              startActions={
+                session.usuario.rol.codigo === "ADMIN"
+                  ? [
+                      {
+                        key: "deposit",
+                        label: "Depositar cheques",
+                        icon: "bank",
+                        showLabel: true,
+                        onClick: () => {
+                          setNotice("");
+                          setDepositing(true);
+                        },
+                      },
+                    ]
+                  : []
+              }
             />
           </div>
+          {notice && (
+            <p className="notice" role="status">
+              {notice}
+            </p>
+          )}
           {error && (
             <p className="notice error" role="alert">
               {error}
@@ -285,6 +316,20 @@ export function ValuesPage({ onExpired }: { onExpired: () => void }) {
             setSelected(null);
             refresh();
             setFiltering(false);
+          }}
+        />
+      )}
+      {depositing && (
+        <ChequeDeposit
+          csrf={session.csrfToken}
+          onExpired={expired}
+          onClose={() => setDepositing(false)}
+          onSaved={(result) => {
+            setDepositing(false);
+            setNotice(
+              `Depósito registrado: ${result.Cheques.length} ${result.Cheques.length === 1 ? "cheque" : "cheques"} · ${amount(result.ImporteTotal)}. Pendiente de acreditación bancaria.`,
+            );
+            if (requested) setRevision((n) => n + 1);
           }}
         />
       )}

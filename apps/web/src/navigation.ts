@@ -43,7 +43,7 @@ export const modules: {
     icon: "values",
     description: "Consulta de cheques y transferencias desde un mismo lugar.",
     detail:
-      "Consultá cheques propios, de terceros y transferencias, sus eventos y operaciones relacionadas.",
+      "Consultá cheques y transferencias, su historial y operaciones, y registrá depósitos de cheques de terceros.",
   },
   {
     path: "/tipos-cliente",

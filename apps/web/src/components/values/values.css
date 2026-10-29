@@ -7,3 +7,10 @@
 .value-general-fields .properties-field dt {
   margin-bottom: 3px;
 }
+
+/* El contenido ancho debe desplazarse dentro de DataTable, no expandir
+   las columnas de la grilla ni el cuerpo del OffCanvas en móviles. */
+.value-deposit,
+.value-deposit > * {
+  min-width: 0;
+}
