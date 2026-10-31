@@ -1,21 +1,28 @@
 import { randomUUID } from "node:crypto";
-import { Router, type ErrorRequestHandler } from "express";
+import { Router, type ErrorRequestHandler, type RequestHandler } from "express";
 import { z } from "zod";
 import type { SessionResponse } from "@erp/shared";
 import type { AuthService } from "../auth/service.js";
 import { requireSession, requireMasterWrite } from "../auth/middleware.js";
 import { MasterRequestError } from "../masters/validation.js";
-import { chequeDeposit, valueIdentity, valueQuery } from "./validation.js";
+import {
+  chequeDeposit,
+  chequeAccreditation,
+  valueIdentity,
+  valueQuery,
+} from "./validation.js";
 import type { ValuesStore } from "./store.js";
-export function valuesRouter(auth: AuthService, store: ValuesStore) {
-  const r = Router();
-  r.use(requireSession(auth));
-  r.post("/depositos", ...requireMasterWrite, async (req, res) => {
-    const input = chequeDeposit.safeParse(req.body);
+function chequeAction<T>(
+  schema: z.ZodType<T>,
+  save: (input: T, user: string, key: string) => Promise<unknown>,
+  label: string,
+): RequestHandler {
+  return async (req, res) => {
+    const input = schema.safeParse(req.body);
     if (!input.success)
       throw new MasterRequestError(
         400,
-        "Revisá los datos del depósito.",
+        `Revisá los datos de ${label}.`,
         Object.fromEntries(
           input.error.issues.map((i) => [
             String(i.path[0] ?? "formulario"),
@@ -30,13 +37,27 @@ export function valuesRouter(auth: AuthService, store: ValuesStore) {
         "Falta una clave válida para controlar los reintentos.",
       );
     res.json(
-      await store.deposit(
+      await save(
         input.data,
         (res.locals.session as SessionResponse).usuario.id,
         key.data,
       ),
     );
-  });
+  };
+}
+export function valuesRouter(auth: AuthService, store: ValuesStore) {
+  const r = Router();
+  r.use(requireSession(auth));
+  r.post(
+    "/depositos",
+    ...requireMasterWrite,
+    chequeAction(chequeDeposit, store.deposit, "depósito"),
+  );
+  r.post(
+    "/acreditaciones",
+    ...requireMasterWrite,
+    chequeAction(chequeAccreditation, store.accredit, "acreditación"),
+  );
   r.get("/", async (req, res) => {
     const q = valueQuery.safeParse(req.query);
     if (!q.success)

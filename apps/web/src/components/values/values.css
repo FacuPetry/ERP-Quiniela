@@ -10,7 +10,7 @@
 
 /* El contenido ancho debe desplazarse dentro de DataTable, no expandir
    las columnas de la grilla ni el cuerpo del OffCanvas en móviles. */
-.value-deposit,
-.value-deposit > * {
+.value-cheque-operation,
+.value-cheque-operation > * {
   min-width: 0;
 }

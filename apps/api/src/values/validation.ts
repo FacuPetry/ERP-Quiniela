@@ -35,7 +35,7 @@ export const valueQuery = z
   );
 export type ValueQuery = z.infer<typeof valueQuery>;
 
-export const chequeDeposit = z
+export const chequeAccreditation = z
   .object({
     Cheques: z
       .array(id)
@@ -43,12 +43,11 @@ export const chequeDeposit = z
       .max(100)
       .refine(
         (ids) => new Set(ids).size === ids.length,
-        "No repitas cheques en el depósito.",
+        "No repitas cheques en la operación.",
       )
       .transform((ids) =>
         [...ids].sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1)),
       ),
-    BancoCuenta: code,
     Fecha: date,
     Observacion: z
       .string()
@@ -56,5 +55,15 @@ export const chequeDeposit = z
       .max(4000)
       .nullable()
       .transform((v) => v || null),
+  })
+  .strict();
+// Conservar el orden canónico anterior para que los reintentos de depósitos
+// ya registrados mantengan su huella después de actualizar la aplicación.
+export const chequeDeposit = z
+  .object({
+    Cheques: chequeAccreditation.shape.Cheques,
+    BancoCuenta: code,
+    Fecha: chequeAccreditation.shape.Fecha,
+    Observacion: chequeAccreditation.shape.Observacion,
   })
   .strict();
