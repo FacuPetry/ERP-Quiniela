@@ -6,6 +6,7 @@ export const valueTypes = [
 export const valueStates = [
   { value: "CARTERA", label: "En cartera" },
   { value: "DEPOSITADO", label: "Depositado" },
+  { value: "ACREDITADO", label: "Acreditado" },
   { value: "EMITIDO", label: "Emitido" },
   { value: "ENDOSADO", label: "Endosado" },
   { value: "DEVUELTO", label: "Devuelto" },
@@ -64,6 +65,8 @@ export interface ValueEvent {
   CajaMovimiento: string | null;
   Operacion: string | null;
   EstadoOperacion: string | null;
+  SentidoBancario?: string | null;
+  ImporteBancario?: string | null;
 }
 export interface ValueRecordDetail {
   registro: ValueRecord;
@@ -82,11 +85,18 @@ export interface ValueList {
   pagina: number;
   limite: number;
 }
-export interface ChequeDepositInput {
+export interface ChequeAccreditationInput {
   Cheques: string[];
-  BancoCuenta: string;
   Fecha: string;
   Observacion: string | null;
+}
+export interface ChequeDepositInput extends ChequeAccreditationInput {
+  BancoCuenta: string;
+}
+export interface ChequeAccreditationResult {
+  Cheques: string[];
+  Fecha: string;
+  ImporteTotal: string;
 }
 export interface ChequeDepositResult {
   Cheques: string[];
@@ -104,6 +114,7 @@ export function valueEventLabel(value: string) {
     EMISION: "Emisión",
     ENDOSO: "Endoso",
     DEPOSITO: "Depósito",
+    ACREDITACION: "Acreditación",
     DEVOLUCION: "Devolución",
     ANULACION: "Anulación",
     RECUPERACION: "Recuperación",

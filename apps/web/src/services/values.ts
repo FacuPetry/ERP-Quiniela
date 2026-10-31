@@ -4,6 +4,8 @@ import type {
   ValueList,
   ChequeDepositInput,
   ChequeDepositResult,
+  ChequeAccreditationInput,
+  ChequeAccreditationResult,
 } from "@erp/shared";
 import { apiRequest } from "./http";
 export const valueList = (query: Record<string, string>, signal: AbortSignal) =>
@@ -19,12 +21,13 @@ export const valueDetail = (
       signal,
     },
   );
-export const depositCheques = (
-  input: ChequeDepositInput,
+function saveChequeOperation<T>(
+  action: string,
+  input: ChequeAccreditationInput,
   csrf: string,
   key: string,
-) =>
-  apiRequest<ChequeDepositResult>("/valores/depositos", {
+) {
+  return apiRequest<T>(`/valores/${action}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -34,3 +37,20 @@ export const depositCheques = (
     },
     body: JSON.stringify(input),
   });
+}
+export const depositCheques = (
+  input: ChequeDepositInput,
+  csrf: string,
+  key: string,
+) => saveChequeOperation<ChequeDepositResult>("depositos", input, csrf, key);
+export const accreditCheques = (
+  input: ChequeAccreditationInput,
+  csrf: string,
+  key: string,
+) =>
+  saveChequeOperation<ChequeAccreditationResult>(
+    "acreditaciones",
+    input,
+    csrf,
+    key,
+  );

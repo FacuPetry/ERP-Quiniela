@@ -1,6 +1,6 @@
-# Etapa 8 — Valores: consulta y depósito de cheques de terceros
+# Etapa 8 — Valores: consulta, depósito y acreditación de cheques de terceros
 
-Centraliza la consulta de cheques propios, cheques de terceros y transferencias ya registrados desde Cobros y pagos. La segunda entrega agrega el depósito de cheques de terceros en cartera; no incorpora todavía acreditaciones, rechazos o débitos de cheques propios. No requiere caja abierta, nuevas tablas, migraciones, variables o dependencias.
+Centraliza la consulta de cheques propios, cheques de terceros y transferencias ya registrados desde Cobros y pagos. Permite depositar cheques de terceros en cartera y confirmar su acreditación bancaria. No incorpora todavía rechazos, devoluciones ni débitos de cheques propios. No requiere caja abierta, nuevas tablas, migraciones, variables o dependencias.
 
 ## Listado
 
@@ -14,7 +14,7 @@ Centraliza la consulta de cheques propios, cheques de terceros y transferencias 
 
 ## Consulta y Propiedades
 
-Toolbar estándar: Consultar (ojo), Propiedades, Filtrar y Actualizar. No hay Agregar/Modificar/Eliminar. ADMIN dispone además de Depositar cheques, una acción específica que abre el OffCanvas grande. Doble clic abre la misma consulta que el ojo. Propiedades permanece deshabilitado sin fila seleccionada y abre el OffCanvas pequeño existente.
+Toolbar estándar: Consultar (ojo), Propiedades, Filtrar y Actualizar. No hay Agregar/Modificar/Eliminar. ADMIN dispone además de Depositar cheques y Acreditar cheques; ambas acciones utilizan el mismo panel configurable dentro del OffCanvas grande. Doble clic abre la misma consulta que el ojo. Propiedades permanece deshabilitado sin fila seleccionada y abre el OffCanvas pequeño existente.
 
 Consultar valor usa FormSections: Datos generales, Historial y Operaciones relacionadas. Mantiene navegación lateral, scroll, sticky y presentación responsive. Los datos son de solo lectura.
 
@@ -25,7 +25,7 @@ Consultar valor usa FormSections: Datos generales, Historial y Operaciones relac
 
 ## Backend y seguridad
 
-Rutas autenticadas `GET /api/valores` y `GET /api/valores/:family/:id`, con familia CHEQUE o TRANSFERENCIA e identificador BIGINT válido. Los usuarios de consulta y ADMIN acceden al mismo contenido de lectura, sin CSRF. `POST /api/valores/depositos` requiere ADMIN, petición de aplicación, CSRF y una clave UUID de idempotencia. Las otras escrituras no están implementadas y responden 405; sin sesión, 401.
+Rutas autenticadas `GET /api/valores` y `GET /api/valores/:family/:id`, con familia CHEQUE o TRANSFERENCIA e identificador BIGINT válido. Los usuarios de consulta y ADMIN acceden al mismo contenido de lectura, sin CSRF. `POST /api/valores/depositos` y `POST /api/valores/acreditaciones` requieren ADMIN, petición de aplicación, CSRF y una clave UUID de idempotencia. Las otras escrituras no están implementadas y responden 405; sin sesión, 401.
 
 El repositorio ejecuta las lecturas dentro de transacciones READ ONLY con snapshot coherente para datos/conteo y detalle/eventos/operaciones. Las consultas no cambian CHEQUE, CHEQUEEVENTO, TRANSFERENCIA, BANCOMOVIMIENTO, saldos, aplicaciones, numeración, auditoría o cierres. No ofrece saldos bancarios disponibles: su definición y el saldo inicial bancario siguen pendientes.
 
@@ -48,8 +48,8 @@ Las pruebas de integración usan MySQL/MariaDB aislados y movimientos financiero
 - Se eligen cuenta bancaria propia activa y fecha (hoy sugerido), con observaciones opcionales. También debe estar activo el banco de la cuenta. La selección admite hasta 100 cheques completos por depósito; no divide instrumentos ni permite modificar su importe.
 - Al confirmar se revalidan todos los cheques, bloqueados por ID ascendente. Deben seguir siendo de terceros y estar en CARTERA. La fecha no puede anteceder a la emisión ni a ningún evento comercial anterior; el vencimiento se conserva y se muestra, sin confundirlo con acreditación efectiva.
 - Una transacción registra un evento DEPOSITO por cheque, su cuenta de destino, fecha, usuario, instante y observación; actualiza el estado a DEPOSITADO y registra auditoría e idempotencia. Si falla un cheque o la auditoría, no se confirma ninguna parte del lote. Los reintentos idénticos, incluso simultáneos, devuelven el mismo resultado. Otra solicitud que intenta depositar o endosar el mismo cheque debe revalidar su estado bajo el mismo bloqueo de CHEQUE.
-- La cuenta de destino vive en CHEQUEEVENTO.BancoCuenta. No se cambia CHEQUE.Banco ni CHEQUE.BancoCuenta: se conserva la identidad del instrumento y de la cuenta libradora. La consulta obtiene la cuenta propia del último depósito para cheques de terceros sin cuenta propia, incluyendo filtros y Propiedades; el banco visible del instrumento sigue siendo su banco librador. El evento conserva su cuenta aunque ese maestro luego se desactive.
-- El depósito **no acredita fondos**: no inserta BANCOMOVIMIENTO, TRANSFERENCIA, CAJAMOVIMIENTO ni CUENTACORRIENTE, no modifica afectaciones, numeradores, efectivo ni cierres y no requiere caja abierta o comprobante adicional. La futura acreditación será otro evento con su efecto bancario, sin duplicarlo.
+- La cuenta de destino vive en CHEQUEEVENTO.BancoCuenta. No se cambia CHEQUE.Banco ni CHEQUE.BancoCuenta: se conserva la identidad del instrumento y de la cuenta libradora. La consulta obtiene prioritariamente la cuenta propia del último depósito, incluyendo filtros y Propiedades; el banco visible del instrumento sigue siendo su banco librador. El evento conserva su cuenta aunque ese maestro luego se desactive.
+- El depósito **no acredita fondos**: no inserta BANCOMOVIMIENTO, TRANSFERENCIA, CAJAMOVIMIENTO ni CUENTACORRIENTE, no modifica afectaciones, numeradores, efectivo ni cierres y no requiere caja abierta o comprobante adicional. La acreditación es otro evento con su efecto bancario, sin duplicarlo.
 - Los cheques depositados salen de la cartera disponible para pagos. Las restricciones existentes impiden anular/revertir su cobro original mientras tengan eventos posteriores. Esta entrega no ofrece deshacer depósitos, devolver cheques ni reabrir deudas; esos circuitos deben definirse antes de habilitarlos.
 - Al guardar se actualiza el listado principal solamente si ya había sido consultado. La consulta detallada sigue siendo de solo lectura, y su historial muestra Depósito, fecha, cuenta de destino, usuario y observación.
 
@@ -65,6 +65,29 @@ Las pruebas de integración usan MySQL/MariaDB aislados y movimientos financiero
 
 La integración en MySQL y MariaDB verifica permisos/CSRF, contratos, cuentas y fechas, registro por lote, exclusión de cartera, historial, ausencia de efectos financieros, reintentos/concurrencia, competencia con endoso y rollback completo ante fallo de auditoría. Se conserva la suite previa de consultas sin escrituras.
 
+## Acreditación de cheques de terceros
+
+- ADMIN abre **Acreditar cheques** desde Valores. Reutiliza el panel configurable ChequeOperation, el OffCanvas grande y DataTable con selección múltiple, búsqueda, orden remoto, paginación y Propiedades. El listado empieza vacío y consulta únicamente terceros con estado DEPOSITADO al Buscar/Actualizar; no hereda el rango de emisión del listado principal.
+- Se seleccionan hasta 100 cheques completos y la fecha real de acreditación, hoy sugerido; observaciones son opcionales. La cuenta de destino aparece en cada fila y no se puede elegir ni cambiar. Puede haber cheques depositados en diferentes cuentas dentro del mismo lote: cada uno genera su propio ingreso en la cuenta de su depósito.
+- Confirmar significa registrar una acreditación **efectivamente realizada por el banco**, por el importe completo del instrumento. No ejecuta operaciones contra el banco, no acredita automáticamente al vencer ni descuenta comisiones. La fecha no puede anteceder al depósito o a los eventos comerciales anteriores. El vencimiento continúa siendo una fecha del instrumento, no una confirmación bancaria automática.
+- Bajo los bloqueos compartidos de CHEQUE se revalida que todos sigan DEPOSITADO, que su último evento sea DEPOSITO con cuenta propia y que el instrumento no tenga ya un movimiento bancario. La cuenta y su banco deben seguir activos; si se desactivaron, revisar/reactivar esa configuración antes de confirmar. El servidor obtiene cuenta e importe del registro persistido y rechaza cuenta, importe, estado o caja enviados por el cliente.
+- Una sola transacción crea por cheque el evento ACREDITACION y estado ACREDITADO, un BANCOMOVIMIENTO de INGRESO por su importe (Origen CHEQUE, FK ChequeEvento), la auditoría y la respuesta idempotente. No modifica CHEQUE.Banco/BancoCuenta, fechas, importe o identidad, ni el evento de depósito. Filtros y Propiedades muestran la cuenta de depósito incluso si hay otra referencia histórica en CHEQUE.BancoCuenta.
+- El bloqueo de estado evita duplicaciones entre solicitudes simultáneas; la clave de reintento devuelve la respuesta ya confirmada sin agregar otro ingreso. Si falla una validación o la auditoría, se revierten estado, eventos, asientos bancarios y solicitud de todo el lote. La huella canónica de los depósitos existentes conserva su orden anterior para admitir sus reintentos después de actualizar el código.
+- No requiere caja abierta ni comprobante/numerador adicional. No crea ni modifica CAJAMOVIMIENTO, CAJASALDO, CUENTACORRIENTE, TRANSFERENCIA o afectaciones. El cobro original ya tuvo su efecto comercial y no se vuelve a descontar al acreditar. No altera cierres ni ofrece saldos bancarios disponibles: aún falta definir saldo inicial, disponibilidad y conciliación.
+- Valores incorpora el estado Acreditado. El historial muestra Acreditación, fecha, cuenta, usuario y observación. Propiedades del evento permite ver el sentido e importe bancarios. La operación de origen y la historia de recepción/depósito se mantienen. Las correcciones de un cobro con eventos posteriores continúan bloqueadas; esta entrega no permite anular acreditaciones, reabrir deudas ni simular un rechazo.
+- No agrega tablas, columnas, migraciones, dependencias o variables. Se reutilizan las 21 tablas actuales.
+
+### Prueba de la acreditación
+
+1. Registrar y depositar cheques de terceros según la guía anterior; tener activos la cuenta de destino y su banco. Se puede cerrar la caja antes de acreditar.
+2. Entrar como ADMIN a Valores → Acreditar cheques. Actualizar/Buscar debe mostrar únicamente terceros depositados, con sus cuentas. Verificar Propiedades y selección entre páginas; no debe ofrecer cuenta o importe editables.
+3. Seleccionar cheques, ingresar fecha igual o posterior al depósito y observaciones; confirmar. Comprobar el mensaje, total y estado Acreditado, limpiando las fechas del filtro principal si los cheques fueron emitidos otro día.
+4. Consultar Historial → Acreditación → Propiedades: revisar fecha, usuario, cuenta, sentido Ingreso e importe bancario. El cobro, su Cuenta corriente, efectivo y afectaciones no deben cambiar. El cheque continúa fuera de cartera.
+5. Desde dos pestañas intentar acreditar los mismos cheques. Solo una solicitud nueva podrá confirmarse. Reintentar una petición idéntica conserva la misma clave y no duplica el ingreso.
+6. Probar Cancelar, fecha anterior, banco/cuenta inactivos, móvil y usuario de consulta. Ningún error debe dejar un lote parcialmente acreditado. Para verificar el asiento SQL en una base de pruebas, relacionar BANCOMOVIMIENTO.ChequeEvento con CHEQUEEVENTO.IDTabla y filtrar Tipo=ACREDITACION; habrá una entrada por cheque.
+
+La integración con MySQL y MariaDB cubre el circuito real recepción→depósito→acreditación, exactitud decimal, permisos, contratos sin destino/importe editables, fechas, cuentas activas, historial/filtros, ausencia de efectos en Caja/Cuenta corriente, prevención de duplicados, reintentos concurrentes, destinos distintos y rollback bancario ante fallo de auditoría. Se conservan las pruebas de consulta y depósito anteriores. La revisión Chromium con API simulada complementa esas pruebas, incluyendo el panel compartido, reintentos, propiedades y ancho móvil.
+
 ## Próximas entregas
 
-Definir e implementar acreditación y devolución/rechazo de terceros, incluyendo cómo recuperar la deuda del cliente cuando corresponda; después, débito y correcciones de cheques propios. Traspasos de fondos, aplicación posterior de anticipos, saldo inicial/disponibilidad bancaria y conciliación continúan separados.
+Definir devolución/rechazo de terceros: qué sucede antes/después de acreditar o endosar, cómo recuperar la deuda del cliente y cómo registrar eventuales devoluciones bancarias sin borrar la historia. Después, débito y correcciones de cheques propios. Traspasos de fondos, aplicación posterior de anticipos, saldo inicial/disponibilidad bancaria, conciliación e informes continúan separados.

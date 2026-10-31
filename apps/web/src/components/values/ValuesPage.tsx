@@ -23,7 +23,7 @@ import { cashServices, treasuryServices } from "../../services/cash-movement";
 import { amount, message } from "../cash-movement/format";
 import { ValueProperties } from "./ValueProperties";
 import { ValueView } from "./ValueView";
-import { ChequeDeposit } from "./ChequeDeposit";
+import { ChequeOperation } from "./ChequeOperation";
 
 const defaults = {
   q: "",
@@ -94,7 +94,9 @@ export function ValuesPage({
   session: SessionResponse;
   onExpired: () => void;
 }) {
-  const [depositing, setDepositing] = useState(false),
+  const [chequeAction, setChequeAction] = useState<
+      "deposito" | "acreditacion" | null
+    >(null),
     [notice, setNotice] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>(() =>
       initialListFilters(defaults, ["Desde", "Hasta"]),
@@ -202,7 +204,17 @@ export function ValuesPage({
                         showLabel: true,
                         onClick: () => {
                           setNotice("");
-                          setDepositing(true);
+                          setChequeAction("deposito");
+                        },
+                      },
+                      {
+                        key: "accredit",
+                        label: "Acreditar cheques",
+                        icon: "check",
+                        showLabel: true,
+                        onClick: () => {
+                          setNotice("");
+                          setChequeAction("acreditacion");
                         },
                       },
                     ]
@@ -319,15 +331,17 @@ export function ValuesPage({
           }}
         />
       )}
-      {depositing && (
-        <ChequeDeposit
+      {chequeAction && (
+        <ChequeOperation
+          key={chequeAction}
+          mode={chequeAction}
           csrf={session.csrfToken}
           onExpired={expired}
-          onClose={() => setDepositing(false)}
+          onClose={() => setChequeAction(null)}
           onSaved={(result) => {
-            setDepositing(false);
+            setChequeAction(null);
             setNotice(
-              `Depósito registrado: ${result.Cheques.length} ${result.Cheques.length === 1 ? "cheque" : "cheques"} · ${amount(result.ImporteTotal)}. Pendiente de acreditación bancaria.`,
+              `${chequeAction === "acreditacion" ? "Acreditación registrada" : "Depósito registrado"}: ${result.Cheques.length} ${result.Cheques.length === 1 ? "cheque" : "cheques"} · ${amount(result.ImporteTotal)}.${chequeAction === "deposito" ? " Pendiente de acreditación bancaria." : ""}`,
             );
             if (requested) setRevision((n) => n + 1);
           }}

@@ -4,10 +4,14 @@ import {
   moneyUnits,
   type ValueRecord,
   type ValueList,
-  type ChequeDepositInput,
-  type ChequeDepositResult,
+  type ChequeAccreditationInput,
+  type ChequeAccreditationResult,
 } from "@erp/shared";
-import { depositCheques, valueList } from "../../services/values";
+import {
+  depositCheques,
+  accreditCheques,
+  valueList,
+} from "../../services/values";
 import { referenceOptions } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 import {
@@ -29,22 +33,44 @@ import { amount, message } from "../cash-movement/format";
 import "../cash-movement/cash-movement.css";
 import "./values.css";
 
-export function ChequeDeposit({
+export function ChequeOperation({
+  mode,
   csrf,
   onClose,
   onSaved,
   onExpired,
 }: {
+  mode: "deposito" | "acreditacion";
   csrf: string;
   onClose: () => void;
-  onSaved: (result: ChequeDepositResult) => void;
+  onSaved: (result: ChequeAccreditationResult) => void;
   onExpired: () => void;
 }) {
+  const accreditation = mode === "acreditacion";
+  const config = accreditation
+    ? {
+        title: "Acreditar cheques de terceros",
+        date: "Fecha de acreditación",
+        confirm: "Confirmar acreditación",
+        caption: "Cheques depositados para acreditar",
+        heading: "Cheques depositados",
+        state: "DEPOSITADO",
+        hint: "Confirmá únicamente acreditaciones efectivamente realizadas por el banco. Cada cheque se acreditará por su importe completo en la cuenta de su depósito.",
+      }
+    : {
+        title: "Depositar cheques de terceros",
+        date: "Fecha de depósito",
+        confirm: "Confirmar depósito",
+        caption: "Cheques en cartera para depositar",
+        heading: "Cheques en cartera",
+        state: "CARTERA",
+        hint: "El depósito retira los cheques de cartera. Su acreditación bancaria se registrará por separado.",
+      };
   const [account, setAccount] = useState(""),
     [date, setDate] = useState(todayISO),
     [note, setNote] = useState("");
   const [accounts, setAccounts] = useState<DropDownOption[]>([]),
-    [optionsLoading, setOptionsLoading] = useState(true),
+    [optionsLoading, setOptionsLoading] = useState(!accreditation),
     [optionsError, setOptionsError] = useState(""),
     [optionsRevision, setOptionsRevision] = useState(0);
   const [q, setQ] = useState(""),
@@ -63,6 +89,7 @@ export function ChequeDeposit({
     retry = useRef({ fingerprint: "", key: "" });
   const sorting = useListSorting(setPage);
   useEffect(() => {
+    if (accreditation) return;
     const request = new AbortController();
     setOptionsLoading(true);
     setOptionsError("");
@@ -88,7 +115,7 @@ export function ChequeDeposit({
         if (!request.signal.aborted) setOptionsLoading(false);
       });
     return () => request.abort();
-  }, [optionsRevision, onExpired]);
+  }, [accreditation, optionsRevision, onExpired]);
   useEffect(() => {
     if (!requested) return;
     const request = new AbortController();
@@ -97,7 +124,7 @@ export function ChequeDeposit({
     void valueList(
       {
         Tipo: "TERCERO",
-        Estado: "CARTERA",
+        Estado: config.state,
         q: search,
         pagina: String(page),
         ...sorting.query,
@@ -122,7 +149,15 @@ export function ChequeDeposit({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [requested, search, page, revision, sorting.value, onExpired]);
+  }, [
+    requested,
+    search,
+    page,
+    revision,
+    sorting.value,
+    onExpired,
+    config.state,
+  ]);
   const refresh = () => {
     setRequested(true);
     setRevision((n) => n + 1);
@@ -130,7 +165,7 @@ export function ChequeDeposit({
   function choose(keys: string[]) {
     setError("");
     if (keys.length > 100) {
-      setError("Se permiten hasta 100 cheques por depósito.");
+      setError("Se permiten hasta 100 cheques por operación.");
       return;
     }
     setSelected((previous) => {
@@ -152,27 +187,41 @@ export function ChequeDeposit({
     if (saving.current) return;
     setError("");
     setErrors({});
-    if (!account || !date || !Object.keys(selected).length) {
+    if (
+      (!accreditation && !account) ||
+      !date ||
+      !Object.keys(selected).length
+    ) {
       setError(
-        "Seleccioná una cuenta de destino, una fecha válida y al menos un cheque.",
+        accreditation
+          ? "Seleccioná una fecha válida y al menos un cheque depositado."
+          : "Seleccioná una cuenta de destino, una fecha válida y al menos un cheque.",
       );
       return;
     }
-    const input: ChequeDepositInput = {
-      BancoCuenta: account,
+    const common: ChequeAccreditationInput = {
       Fecha: date,
       Observacion: note.trim() || null,
       Cheques: Object.values(selected)
         .map((r) => r.IDTabla)
         .sort((a, b) => (BigInt(a) < BigInt(b) ? -1 : 1)),
     };
+    const input = accreditation ? common : { ...common, BancoCuenta: account };
     const fingerprint = JSON.stringify(input);
     if (retry.current.fingerprint !== fingerprint)
       retry.current = { fingerprint, key: crypto.randomUUID() };
     saving.current = true;
     setBusy(true);
     try {
-      onSaved(await depositCheques(input, csrf, retry.current.key));
+      onSaved(
+        await (accreditation
+          ? accreditCheques(common, csrf, retry.current.key)
+          : depositCheques(
+              { ...common, BancoCuenta: account },
+              csrf,
+              retry.current.key,
+            )),
+      );
     } catch (e) {
       if (e instanceof ApiRequestError && e.status === 401) onExpired();
       else {
@@ -188,7 +237,7 @@ export function ChequeDeposit({
     <OffCanvas
       open
       size="lg"
-      title="Depositar cheques de terceros"
+      title={config.title}
       busy={busy}
       onClose={onClose}
       footer={
@@ -207,24 +256,20 @@ export function ChequeDeposit({
             className="button primary"
             disabled={
               busy ||
-              optionsLoading ||
-              Boolean(optionsError) ||
-              !account ||
+              (!accreditation &&
+                (optionsLoading || Boolean(optionsError) || !account)) ||
               !date ||
               !Object.keys(selected).length
             }
             onClick={() => void confirm()}
           >
-            {busy ? "Registrando…" : "Confirmar depósito"}
+            {busy ? "Registrando…" : config.confirm}
           </button>
         </FormToolbarActions>
       }
     >
-      <p className="muted small">
-        El depósito retira los cheques de cartera. Su acreditación bancaria se
-        registrará por separado.
-      </p>
-      {optionsError && (
+      <p className="muted small">{config.hint}</p>
+      {!accreditation && optionsError && (
         <div>
           <p className="notice error" role="alert">
             {optionsError}
@@ -238,25 +283,30 @@ export function ChequeDeposit({
           </button>
         </div>
       )}
-      {!optionsLoading && !optionsError && !accounts.length && (
-        <p className="notice">
-          No hay cuentas bancarias propias activas disponibles.
-        </p>
-      )}
-      <div className="cash-value-fields value-deposit">
+      {!accreditation &&
+        !optionsLoading &&
+        !optionsError &&
+        !accounts.length && (
+          <p className="notice">
+            No hay cuentas bancarias propias activas disponibles.
+          </p>
+        )}
+      <div className="cash-value-fields value-cheque-operation">
         <div className="form-grid">
-          <DropDown
-            label="Cuenta de destino"
-            value={account}
-            onValueChange={setAccount}
-            options={accounts}
-            required
-            disabled={busy || Boolean(optionsError)}
-            loading={optionsLoading}
-            error={errors.BancoCuenta}
-          />
+          {!accreditation && (
+            <DropDown
+              label="Cuenta de destino"
+              value={account}
+              onValueChange={setAccount}
+              options={accounts}
+              required
+              disabled={busy || Boolean(optionsError)}
+              loading={optionsLoading}
+              error={errors.BancoCuenta}
+            />
+          )}
           <DatePicker
-            label="Fecha de depósito"
+            label={config.date}
             value={date}
             onValueChange={setDate}
             required
@@ -302,7 +352,7 @@ export function ChequeDeposit({
             </p>
           )}
           <DataTable<ValueRecord>
-            caption="Cheques en cartera para depositar"
+            caption={config.caption}
             rows={data?.registros ?? []}
             loading={loading}
             rowKey={(r) => r.Clave}
@@ -316,7 +366,7 @@ export function ChequeDeposit({
             sortingDisabled={!requested}
             toolbar={(actions) => (
               <div className="cash-section-toolbar">
-                <h3>Cheques en cartera</h3>
+                <h3>{config.heading}</h3>
                 <ActionToolbar
                   labels={{}}
                   selected={actions.selected}
@@ -350,6 +400,17 @@ export function ChequeDeposit({
                 render: (r) => r.BancoNombre,
                 sort: "Banco",
               },
+              ...(accreditation
+                ? [
+                    {
+                      key: "account",
+                      label: "Cuenta de destino",
+                      render: (r: ValueRecord) =>
+                        r.CuentaNombre || "Sin cuenta de destino",
+                      sort: "BancoCuenta",
+                    },
+                  ]
+                : []),
               {
                 key: "client",
                 label: "Cliente de origen",

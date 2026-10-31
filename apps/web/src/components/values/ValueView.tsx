@@ -16,7 +16,7 @@ import { DataTable } from "../ui/DataTable";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { displayDate, displayDateTime } from "../controls/date-value";
 import { useInitialFieldFocus } from "../ui/useInitialFieldFocus";
-import { message } from "../cash-movement/format";
+import { amount, message } from "../cash-movement/format";
 import { valueFields } from "./ValueProperties";
 import "../cash-movement/cash-movement.css";
 import "./values.css";
@@ -189,6 +189,24 @@ export function ValueView({
                           key: "note",
                           label: "Observaciones",
                           render: (e) => e.Observacion,
+                        },
+                        {
+                          key: "bankSense",
+                          label: "Movimiento bancario",
+                          visible: (e) => Boolean(e.SentidoBancario),
+                          render: (e) =>
+                            e.SentidoBancario === "INGRESO"
+                              ? "Ingreso"
+                              : "Egreso",
+                        },
+                        {
+                          key: "bankAmount",
+                          label: "Importe bancario",
+                          visible: (e) => Boolean(e.ImporteBancario),
+                          render: (e) =>
+                            e.ImporteBancario
+                              ? amount(e.ImporteBancario)
+                              : null,
                         },
                       ],
                     }}
