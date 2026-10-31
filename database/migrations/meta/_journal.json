@@ -57,6 +57,13 @@
       "when": 1793208260660,
       "tag": "0007_numeradores_sin_historial",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1793477457957,
+      "tag": "0008_rechazo_cheques",
+      "breakpoints": true
     }
   ]
 }

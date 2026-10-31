@@ -8,6 +8,7 @@ import { MasterRequestError } from "../masters/validation.js";
 import {
   chequeDeposit,
   chequeAccreditation,
+  chequeRejection,
   valueIdentity,
   valueQuery,
 } from "./validation.js";
@@ -48,6 +49,51 @@ function chequeAction<T>(
 export function valuesRouter(auth: AuthService, store: ValuesStore) {
   const r = Router();
   r.use(requireSession(auth));
+  r.get("/CHEQUE/:id/rechazo", async (req, res) => {
+    const identity = valueIdentity.safeParse({
+      family: "CHEQUE",
+      id: req.params.id,
+    });
+    if (!identity.success)
+      throw new MasterRequestError(400, "Seleccioná un cheque válido.");
+    res.json(await store.rejectionPreview(identity.data.id));
+  });
+  r.post("/CHEQUE/:id/rechazar", ...requireMasterWrite, async (req, res) => {
+    const identity = valueIdentity.safeParse({
+      family: "CHEQUE",
+      id: req.params.id,
+    });
+    const input = chequeRejection.safeParse(req.body);
+    if (!identity.success || !input.success)
+      throw new MasterRequestError(
+        400,
+        "Revisá los datos del rechazo.",
+        !input.success
+          ? Object.fromEntries(
+              input.error.issues.map((i) => [
+                String(i.path[0] ?? "formulario"),
+                i.message,
+              ]),
+            )
+          : undefined,
+      );
+    const version = /^"([a-f0-9]{64})"$/.exec(req.get("If-Match") ?? "")?.[1];
+    const key = z.string().uuid().safeParse(req.get("Idempotency-Key"));
+    if (!version || !key.success)
+      throw new MasterRequestError(
+        400,
+        "Volvé a abrir el rechazo antes de confirmar.",
+      );
+    res.json(
+      await store.reject(
+        identity.data.id,
+        input.data,
+        version,
+        (res.locals.session as SessionResponse).usuario.id,
+        key.data,
+      ),
+    );
+  });
   r.post(
     "/depositos",
     ...requireMasterWrite,

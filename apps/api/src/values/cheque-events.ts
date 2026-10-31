@@ -62,8 +62,8 @@ export async function recordChequeEvent(
   account: string,
   user: string,
   now: Date,
-  type: "DEPOSITO" | "ACREDITACION",
-  state: "DEPOSITADO" | "ACREDITADO",
+  type: "DEPOSITO" | "ACREDITACION" | "RECHAZO",
+  state: "DEPOSITADO" | "ACREDITADO" | "RECHAZADO",
 ) {
   await c.execute(
     "INSERT INTO CHEQUEEVENTO (Cheque,Tipo,Fecha,BancoCuenta,Usuario,CreadoEn,Observacion) VALUES (?,?,?,?,?,?,?)",

@@ -43,7 +43,7 @@ export const modules: {
     icon: "values",
     description: "Consulta de cheques y transferencias desde un mismo lugar.",
     detail:
-      "Consultá cheques y transferencias, su historial y operaciones, y registrá depósitos y acreditaciones de cheques de terceros.",
+      "Consultá cheques y transferencias, su historial y operaciones, y registrá depósitos, acreditaciones y rechazos de cheques de terceros.",
   },
   {
     path: "/tipos-cliente",

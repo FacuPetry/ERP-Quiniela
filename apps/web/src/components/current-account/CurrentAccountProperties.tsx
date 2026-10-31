@@ -79,7 +79,17 @@ export const currentAccountPropertyFields: readonly PropertyField<CurrentAccount
       key: "OrigenRegistro",
       label: "Origen del registro",
       render: (r) =>
-        r.CajaMovimiento ? "Generado desde Caja" : "Carga manual",
+        r.ChequeEvento
+          ? "Rechazo de cheque"
+          : r.CajaMovimiento
+            ? "Generado desde Caja"
+            : "Carga manual",
+    },
+    {
+      key: "ChequeNumero",
+      label: "Cheque rechazado",
+      visible: (r) => Boolean(r.ChequeEvento),
+      render: (r) => r.ChequeNumero,
     },
     {
       key: "CreadoEn",

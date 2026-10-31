@@ -265,7 +265,8 @@ export function CurrentAccountPage({
             editIcon="eye"
             removeIcon="close"
             removeDisabled={
-              record?.Estado !== "CONFIRMADO" || Boolean(record.CajaMovimiento)
+              record?.Estado !== "CONFIRMADO" ||
+              Boolean(record.CajaMovimiento || record.ChequeEvento)
             }
             filtersActive={Object.entries(filters).some(
               ([key, value]) => value !== emptyFilters[key],

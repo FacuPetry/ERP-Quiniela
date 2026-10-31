@@ -12,7 +12,7 @@ Se conserva el diseño de 21 tablas, sin historial de consumos de numeradores. L
 | CAJA | Caja física |
 | CAJASALDO | Apertura y cierre de una Caja |
 | CAJAMOVIMIENTO | Operación completa; Comprobante, número completo propio, Cliente, CajaSaldo y Concepto |
-| CUENTACORRIENTE | Deuda o crédito; Cliente, Comprobante y CajaMovimiento cuando es generado |
+| CUENTACORRIENTE | Deuda o crédito; Cliente, Comprobante, CajaMovimiento o ChequeEvento según su origen |
 | CAJAMOVIMIENTOAFECTACION | CajaMovimiento, CuentaCorriente e Importe |
 | BANCO | Entidad financiera |
 | BANCOCUENTA | Cuenta financiera propia de un Banco, incluida una billetera |
@@ -47,6 +47,7 @@ erDiagram
     BANCOCUENTA ||--o{ BANCOMOVIMIENTO : registra
     TRANSFERENCIA |o--o| BANCOMOVIMIENTO : genera
     CHEQUEEVENTO |o--o| BANCOMOVIMIENTO : genera
+    CHEQUEEVENTO |o--o| CUENTACORRIENTE : genera_deuda_por_rechazo
 ```
 
 El diagrama resume el circuito; las FK de usuarios y demás referencias se encuentran en el esquema. Las FK de CAJAMOVIMIENTOAFECTACION llevan nombres cortos porque MySQL limita los identificadores a 64 caracteres; no cambian los nombres de tablas o campos.
@@ -62,7 +63,7 @@ No se implementan en esta etapa ni se resuelven agregando tablas por anticipado:
 - Aplicación de créditos independientes contra deudas.
 - Redistribución de afectaciones confirmadas conservando la historia.
 - Reversiones parciales, corrección de reversiones y operaciones bancarias conciliadas.
-- Tratamiento contable del rechazo de cheques.
+- Rechazo de cheques endosados y correcciones/devoluciones posteriores al rechazo.
 - Ajustes contables automáticos de diferencias de caja.
 - Circuito de aperturas y ajustes bancarios independientes.
 
@@ -75,7 +76,7 @@ NUMERACION.ProximoNumero y los campos NumeroComprobante de CUENTACORRIENTE y CAJ
 
 ## Ampliación de Caja movimiento (etapa 6)
 
-La migración 0003 incorpora ImporteACuenta inicial y CajaMovimientoOrigen en CAJAMOVIMIENTO, CuentaLibradora en CHEQUE, y fecha/usuario en CAJAMOVIMIENTOAFECTACION. No crea tablas. La reversión conserva la operación y el cierre originales, genera una contradeuda y mantiene el vínculo único. Ver [comportamiento y migración](etapa-6.md). Las aplicaciones posteriores de créditos y el tratamiento de rechazos permanecen pendientes.
+La migración 0003 incorpora ImporteACuenta inicial y CajaMovimientoOrigen en CAJAMOVIMIENTO, CuentaLibradora en CHEQUE, y fecha/usuario en CAJAMOVIMIENTOAFECTACION. No crea tablas. La reversión conserva la operación y el cierre originales, genera una contradeuda y mantiene el vínculo único. Ver [comportamiento y migración](etapa-6.md). Las aplicaciones posteriores de créditos y el rechazo de endosados permanecen pendientes.
 
 
 ## Tesorería de efectivo (etapa 7)
@@ -88,4 +89,4 @@ La migración 0006 traslada la asociación a COMPROBANTE.Numerador y conserva la
 
 ## Valores: consulta, depósito y acreditación (etapa 8)
 
-Consulta CHEQUE, CHEQUEEVENTO y TRANSFERENCIA junto con sus operaciones y reversiones existentes. El depósito de terceros reutiliza CHEQUEEVENTO (Tipo DEPOSITO, BancoCuenta de destino, CajaMovimiento NULL) y cambia CHEQUE.Estado a DEPOSITADO. No altera la cuenta libradora ni genera BANCOMOVIMIENTO al depositar. La acreditación crea otro CHEQUEEVENTO (Tipo ACREDITACION, CajaMovimiento NULL), cambia el estado a ACREDITADO y registra un único BANCOMOVIMIENTO de INGRESO vinculado por ChequeEvento en la cuenta del depósito. Cuenta corriente conserva su efecto comercial previo. No agrega ni modifica tablas o relaciones, y no calcula disponibilidad bancaria. Cada cheque conserva una identidad aunque tenga múltiples eventos; familia e ID distinguen instrumentos de tablas diferentes. Ver [alcance y prueba](etapa-8.md).
+Consulta CHEQUE, CHEQUEEVENTO y TRANSFERENCIA junto con sus operaciones y reversiones existentes. El depósito de terceros reutiliza CHEQUEEVENTO (Tipo DEPOSITO, BancoCuenta de destino, CajaMovimiento NULL) y cambia CHEQUE.Estado a DEPOSITADO. No altera la cuenta libradora ni genera BANCOMOVIMIENTO al depositar. La acreditación crea otro CHEQUEEVENTO (Tipo ACREDITACION, CajaMovimiento NULL), cambia el estado a ACREDITADO y registra un único BANCOMOVIMIENTO de INGRESO vinculado por ChequeEvento en la cuenta del depósito. Cuenta corriente conserva su efecto comercial previo. La migración 0008 agrega CUENTACORRIENTE.ChequeEvento nullable y único para vincular la deuda del rechazo; preserva los movimientos existentes y mantiene las 21 tablas. No calcula disponibilidad bancaria. Cada cheque conserva una identidad aunque tenga múltiples eventos; familia e ID distinguen instrumentos de tablas diferentes. Ver [alcance y prueba](etapa-8.md).
