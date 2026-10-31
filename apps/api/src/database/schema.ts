@@ -87,6 +87,7 @@ export const cajaMovimiento = mysqlTable('CAJAMOVIMIENTO', {
   index('IX_CAJAMOVIMIENTO_Cliente_Fecha').on(t.Cliente, t.FechaOrigen)]);
 export const cuentaCorriente = mysqlTable('CUENTACORRIENTE', {
   IDTabla: id(), Cliente: code('Cliente').notNull().references(() => cliente.Codigo),
+  ChequeEvento: fk('ChequeEvento').references((): AnyMySqlColumn => chequeEvento.IDTabla),
   Concepto: code('Concepto').references(() => concepto.Codigo),
   Comprobante: code('Comprobante').notNull().references(() => comprobante.Codigo),
   CajaMovimiento: fk('CajaMovimiento').references(() => cajaMovimiento.IDTabla),
@@ -98,7 +99,7 @@ export const cuentaCorriente = mysqlTable('CUENTACORRIENTE', {
   Usuario: fk('Usuario').notNull().references(() => usuario.IDTabla), CreadoEn: instant('CreadoEn').notNull(),
   UsuarioAnulacion: fk('UsuarioAnulacion').references(() => usuario.IDTabla),
   AnuladoEn: instant('AnuladoEn'), MotivoAnulacion: varchar('MotivoAnulacion', { length: 500 }),
-}, t => [uniqueIndex('UQ_CUENTACORRIENTE_CajaMovimiento').on(t.CajaMovimiento),
+}, t => [uniqueIndex('UQ_CUENTACORRIENTE_ChequeEvento').on(t.ChequeEvento), uniqueIndex('UQ_CUENTACORRIENTE_CajaMovimiento').on(t.CajaMovimiento),
   uniqueIndex('UQ_CUENTACORRIENTE_Numero').on(t.Comprobante, t.NumeroComprobante),
   check('CK_CUENTACORRIENTE_Numero', sql`${t.NumeroComprobante} IS NULL OR (${t.NumeroComprobante} BETWEEN 1 AND 999999999999 AND MOD(${t.NumeroComprobante}, 100000000) > 0)`),
   index('IX_CUENTACORRIENTE_Cliente_Cuenta_Fecha').on(t.Cliente, t.Cuenta, t.FechaOrigen)]);

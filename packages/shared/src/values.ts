@@ -7,6 +7,7 @@ export const valueStates = [
   { value: "CARTERA", label: "En cartera" },
   { value: "DEPOSITADO", label: "Depositado" },
   { value: "ACREDITADO", label: "Acreditado" },
+  { value: "RECHAZADO", label: "Rechazado" },
   { value: "EMITIDO", label: "Emitido" },
   { value: "ENDOSADO", label: "Endosado" },
   { value: "DEVUELTO", label: "Devuelto" },
@@ -67,6 +68,12 @@ export interface ValueEvent {
   EstadoOperacion: string | null;
   SentidoBancario?: string | null;
   ImporteBancario?: string | null;
+  FechaBancaria?: string | null;
+  CuentaCorriente?: string | null;
+  ComprobanteDeuda?: string | null;
+  NumeroDeuda?: string | null;
+  ImporteDeuda?: string | null;
+  CompensadoACuenta?: string | null;
 }
 export interface ValueRecordDetail {
   registro: ValueRecord;
@@ -104,6 +111,34 @@ export interface ChequeDepositResult {
   Fecha: string;
   ImporteTotal: string;
 }
+export interface ChequeRejectionPreview {
+  Cheque: string;
+  Numero: string;
+  Estado: string;
+  Cliente: string;
+  ClienteNombre: string;
+  Importe: string;
+  CuentaNombre: string;
+  CompensableACuenta: string;
+  version: string;
+}
+export interface ChequeRejectionInput {
+  Comprobante: string;
+  NumeroComprobante: string;
+  NumeroAutomatico?: boolean | undefined;
+  Fecha: string;
+  Motivo: string;
+  ConfirmarDebitoBancario: boolean;
+  FechaDebito: string | null;
+}
+export interface ChequeRejectionResult {
+  Cheque: string;
+  CuentaCorriente: string;
+  NumeroDeuda: string;
+  Importe: string;
+  CompensadoACuenta: string;
+  Pendiente: string;
+}
 export const valueTypeLabel = (value: string) =>
   valueTypes.find((v) => v.value === value)?.label ?? value;
 export const valueStateLabel = (value: string) =>
@@ -115,6 +150,7 @@ export function valueEventLabel(value: string) {
     ENDOSO: "Endoso",
     DEPOSITO: "Depósito",
     ACREDITACION: "Acreditación",
+    RECHAZO: "Rechazo",
     DEVOLUCION: "Devolución",
     ANULACION: "Anulación",
     RECUPERACION: "Recuperación",

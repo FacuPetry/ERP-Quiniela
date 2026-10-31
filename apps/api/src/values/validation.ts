@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { valueStates } from "@erp/shared";
+import { valueStates, voucherNumberError } from "@erp/shared";
 import { code, date, id } from "../cash-movement/validation.js";
 import { listOrderFields } from "../database/list-order-validation.js";
 
@@ -67,3 +67,28 @@ export const chequeDeposit = z
     Observacion: chequeAccreditation.shape.Observacion,
   })
   .strict();
+export const chequeRejection = z
+  .object({
+    Comprobante: code,
+    NumeroComprobante: z
+      .string()
+      .regex(/^\d{1,12}$/)
+      .transform((v) => BigInt(v).toString()),
+    NumeroAutomatico: z.boolean().optional(),
+    Fecha: date,
+    Motivo: z.string().trim().min(1, "Ingresá el motivo.").max(500),
+    ConfirmarDebitoBancario: z.boolean(),
+    FechaDebito: date.nullable(),
+  })
+  .strict()
+  .superRefine((v, ctx) => {
+    if (!v.NumeroAutomatico) {
+      const error = voucherNumberError(v.NumeroComprobante);
+      if (error)
+        ctx.addIssue({
+          code: "custom",
+          path: ["NumeroComprobante"],
+          message: error,
+        });
+    }
+  });

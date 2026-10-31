@@ -23,6 +23,8 @@ import { cashServices, treasuryServices } from "../../services/cash-movement";
 import { amount, message } from "../cash-movement/format";
 import { ValueProperties } from "./ValueProperties";
 import { ValueView } from "./ValueView";
+import { ChequeRejection } from "./ChequeRejection";
+import { CurrentAccountProperties } from "../current-account/CurrentAccountProperties";
 import { ChequeOperation } from "./ChequeOperation";
 
 const defaults = {
@@ -94,6 +96,8 @@ export function ValuesPage({
   session: SessionResponse;
   onExpired: () => void;
 }) {
+  const [rejecting, setRejecting] = useState<string | null>(null),
+    [account, setAccount] = useState<string | null>(null);
   const [chequeAction, setChequeAction] = useState<
       "deposito" | "acreditacion" | null
     >(null),
@@ -166,6 +170,7 @@ export function ValuesPage({
           onClose={() => setView(null)}
           onExpired={expired}
           onOperation={setOperation}
+          onAccount={setAccount}
         />
       ) : (
         <section className="panel master-panel" aria-label="Valores">
@@ -215,6 +220,23 @@ export function ValuesPage({
                         onClick: () => {
                           setNotice("");
                           setChequeAction("acreditacion");
+                        },
+                      },
+                      {
+                        key: "reject",
+                        label: "Rechazar cheque",
+                        icon: "close",
+                        showLabel: true,
+                        disabled:
+                          !row ||
+                          row.Familia !== "CHEQUE" ||
+                          row.Tipo !== "TERCERO" ||
+                          !["DEPOSITADO", "ACREDITADO"].includes(row.Estado),
+                        onClick: () => {
+                          if (row) {
+                            setNotice("");
+                            setRejecting(row.IDTabla);
+                          }
                         },
                       },
                     ]
@@ -345,6 +367,29 @@ export function ValuesPage({
             );
             if (requested) setRevision((n) => n + 1);
           }}
+        />
+      )}
+      {rejecting && (
+        <ChequeRejection
+          id={rejecting}
+          csrf={session.csrfToken}
+          onExpired={expired}
+          onClose={() => setRejecting(null)}
+          onSaved={(r) => {
+            setRejecting(null);
+            setNotice(
+              `Rechazo registrado. Deuda ${r.NumeroDeuda}: ${amount(r.Importe)}. Compensado a cuenta: ${amount(r.CompensadoACuenta)}. Pendiente: ${amount(r.Pendiente)}.`,
+            );
+            if (requested) setRevision((n) => n + 1);
+            setAccount(r.CuentaCorriente);
+          }}
+        />
+      )}
+      {account && (
+        <CurrentAccountProperties
+          recordKey={account}
+          onClose={() => setAccount(null)}
+          onExpired={expired}
         />
       )}
       {property && (

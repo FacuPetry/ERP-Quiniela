@@ -214,7 +214,9 @@ export function CurrentAccountForm({
             ? {
                 annulAction: {
                   onClick: onAnnul,
-                  disabled: busy || Boolean(previous.CajaMovimiento),
+                  disabled:
+                    busy ||
+                    Boolean(previous.CajaMovimiento || previous.ChequeEvento),
                 },
               }
             : {})}

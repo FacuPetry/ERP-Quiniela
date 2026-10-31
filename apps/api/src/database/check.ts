@@ -25,6 +25,10 @@ try {
     }
     const [columns] = await connection.query<RowDataPacket[]>("SELECT TABLE_NAME AS tabla, COLUMN_NAME AS campo FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('CUENTACORRIENTE','CAJAMOVIMIENTO','NUMERACION','COMPROBANTE')");
     const has = (table: string, field: string) => columns.some(row => row.tabla === table && row.campo === field);
+    if (!has('CUENTACORRIENTE', 'ChequeEvento')) {
+      console.error('Falta aplicar la migración 0008 de rechazos de cheques. Ejecutar db:migrate:prod con la aplicación detenida.');
+      process.exitCode = 1;
+    }
     if (!has('CUENTACORRIENTE','NumeroComprobante') || !has('CAJAMOVIMIENTO','NumeroComprobante') || has('NUMERACION','Serie') || !has('NUMERACION','Codigo') || has('NUMERACION','Comprobante') || !has('COMPROBANTE','Numerador')) {
       console.error('Falta completar la migración de numeradores compartidos. Ejecutar primero db:numbering:check:prod y aplicar las migraciones con la aplicación detenida.');
       process.exitCode = 1;

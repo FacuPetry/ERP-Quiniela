@@ -26,11 +26,13 @@ export function ValueView({
   onClose,
   onExpired,
   onOperation,
+  onAccount,
 }: {
   row: ValueRecord;
   onClose: () => void;
   onExpired: () => void;
   onOperation: (operation: ValueOperation) => void;
+  onAccount: (id: string) => void;
 }) {
   const [detail, setDetail] = useState<ValueRecordDetail | null>(null),
     [loading, setLoading] = useState(true),
@@ -67,6 +69,10 @@ export function ValueView({
   const operation = (id: string | null | undefined) =>
     detail?.operaciones.find((m) => m.IDTabla === id);
   const openEvent = (e: ValueEvent) => {
+    if (e.CuentaCorriente) {
+      onAccount(e.CuentaCorriente);
+      return;
+    }
     const op = operation(e.CajaMovimiento);
     if (op) onOperation(op);
   };
@@ -191,6 +197,36 @@ export function ValueView({
                           render: (e) => e.Observacion,
                         },
                         {
+                          key: "debt",
+                          label: "Deuda generada",
+                          visible: (e) => Boolean(e.CuentaCorriente),
+                          render: (e) => (
+                            <button
+                              type="button"
+                              className="button secondary"
+                              onClick={() =>
+                                e.CuentaCorriente &&
+                                onAccount(e.CuentaCorriente)
+                              }
+                            >
+                              {e.ComprobanteDeuda} · {e.NumeroDeuda}
+                            </button>
+                          ),
+                        },
+                        {
+                          key: "debtAmount",
+                          label: "Importe de la deuda",
+                          visible: (e) => Boolean(e.ImporteDeuda),
+                          render: (e) =>
+                            e.ImporteDeuda ? amount(e.ImporteDeuda) : null,
+                        },
+                        {
+                          key: "compensated",
+                          label: "Compensado a cuenta",
+                          visible: (e) => Boolean(e.CuentaCorriente),
+                          render: (e) => amount(e.CompensadoACuenta ?? "0.00"),
+                        },
+                        {
                           key: "bankSense",
                           label: "Movimiento bancario",
                           visible: (e) => Boolean(e.SentidoBancario),
@@ -208,6 +244,12 @@ export function ValueView({
                               ? amount(e.ImporteBancario)
                               : null,
                         },
+                        {
+                          key: "bankDate",
+                          label: "Fecha del movimiento bancario",
+                          visible: (e) => Boolean(e.FechaBancaria),
+                          render: (e) => displayDate(e.FechaBancaria),
+                        },
                       ],
                     }}
                     toolbar={(actions) => (
@@ -220,6 +262,9 @@ export function ValueView({
                           busy={false}
                           filtersActive={false}
                           editDisabled={
+                            !detail.historial.find(
+                              (e) => e.Clave === historyKey,
+                            )?.CuentaCorriente &&
                             !operation(
                               detail.historial.find(
                                 (e) => e.Clave === historyKey,

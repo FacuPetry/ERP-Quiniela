@@ -15,6 +15,7 @@ import { MasterRequestError } from "../masters/validation.js";
 import type { ValueQuery } from "./validation.js";
 import { chequeDeposits } from "./deposits.js";
 import { chequeAccreditations } from "./accreditations.js";
+import { chequeRejections } from "./rejections.js";
 
 const state = (alias: string) =>
   `CASE WHEN ${alias}.Estado='ANULADO' THEN 'ANULADO' WHEN EXISTS(SELECT 1 FROM CAJAMOVIMIENTO reverse_m WHERE reverse_m.CajaMovimientoOrigen=${alias}.IDTabla AND reverse_m.Estado='CONFIRMADO') THEN 'REVERTIDO' ELSE ${alias}.Estado END`;
@@ -79,9 +80,12 @@ const roots = (family: ValueFamily) =>
     : "SELECT t.CajaMovimiento FROM TRANSFERENCIA t WHERE t.IDTabla=?";
 
 export function createValuesStore(pool: Pool) {
+  const rejections = chequeRejections(pool);
   return {
     deposit: chequeDeposits(pool),
     accredit: chequeAccreditations(pool),
+    rejectionPreview: rejections.preview,
+    reject: rejections.reject,
     async list(q: ValueQuery): Promise<ValueList> {
       const order =
         listOrder(
@@ -231,15 +235,22 @@ export function createValuesStore(pool: Pool) {
             Observacion: null,
           } as ValueRecordDetail["datos"];
           const [events] = await c.execute<RowDataPacket[]>(
-            `SELECT e.IDTabla,e.Tipo,DATE_FORMAT(e.Fecha,'%Y-%m-%d') AS Fecha,e.CreadoEn AS RegistradoEn,u.Nombre AS UsuarioNombre,bc.Nombre AS CuentaNombre,e.Observacion,e.CajaMovimiento,bm.Sentido AS SentidoBancario,bm.Importe AS ImporteBancario
+            `SELECT e.IDTabla,e.Tipo,DATE_FORMAT(e.Fecha,'%Y-%m-%d') AS Fecha,e.CreadoEn AS RegistradoEn,u.Nombre AS UsuarioNombre,bc.Nombre AS CuentaNombre,e.Observacion,e.CajaMovimiento,bm.Sentido AS SentidoBancario,bm.Importe AS ImporteBancario,DATE_FORMAT(bm.Fecha,'%Y-%m-%d') AS FechaBancaria,
+              cc.IDTabla AS CuentaCorriente,vc.Descripcion AS ComprobanteDeuda,cc.NumeroComprobante AS NumeroDeuda,cc.Importe AS ImporteDeuda,
+              (SELECT COALESCE(SUM(a.Importe),0) FROM CAJAMOVIMIENTOAFECTACION a WHERE a.CuentaCorriente=cc.IDTabla AND a.CajaMovimiento=(SELECT r.CajaMovimiento FROM CHEQUEEVENTO r WHERE r.Cheque=e.Cheque AND r.Tipo='RECEPCION' ORDER BY r.IDTabla LIMIT 1)) AS CompensadoACuenta
             FROM CHEQUEEVENTO e JOIN USUARIO u ON u.IDTabla=e.Usuario LEFT JOIN BANCOCUENTA bc ON bc.Codigo=e.BancoCuenta
             LEFT JOIN BANCOMOVIMIENTO bm ON bm.ChequeEvento=e.IDTabla
+            LEFT JOIN CUENTACORRIENTE cc ON cc.ChequeEvento=e.IDTabla LEFT JOIN COMPROBANTE vc ON vc.Codigo=cc.Comprobante
             WHERE e.Cheque=? ORDER BY e.IDTabla`,
             [id],
           );
           historial = events.map((e) => ({
             ...stringify(e),
             Clave: String(e.IDTabla),
+            NumeroDeuda:
+              e.NumeroDeuda == null
+                ? null
+                : formatVoucher(String(e.NumeroDeuda)),
             Operacion: opLabel(
               e.CajaMovimiento == null ? null : String(e.CajaMovimiento),
             ),

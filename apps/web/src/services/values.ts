@@ -54,3 +54,29 @@ export const accreditCheques = (
     csrf,
     key,
   );
+export const rejectionPreview = (id: string, signal: AbortSignal) =>
+  apiRequest<import("@erp/shared").ChequeRejectionPreview>(
+    `/valores/CHEQUE/${encodeURIComponent(id)}/rechazo`,
+    { signal },
+  );
+export const rejectCheque = (
+  id: string,
+  input: import("@erp/shared").ChequeRejectionInput,
+  version: string,
+  csrf: string,
+  key: string,
+) =>
+  apiRequest<import("@erp/shared").ChequeRejectionResult>(
+    `/valores/CHEQUE/${encodeURIComponent(id)}/rechazar`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-ERP-Request": "1",
+        "X-CSRF-Token": csrf,
+        "Idempotency-Key": key,
+        "If-Match": `"${version}"`,
+      },
+      body: JSON.stringify(input),
+    },
+  );

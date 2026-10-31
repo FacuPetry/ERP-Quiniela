@@ -189,6 +189,7 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
         ["100000025", "100000020", "7", null, "100000024"],
       );
       assert.ok(after.every((row) => row.Concepto === null));
+      assert.ok(after.every((row) => row.ChequeEvento === null));
       const [vouchers] = await connection.query<RowDataPacket[]>(
         "SELECT Codigo,Descripcion,EsReversion,ComprobanteReversion FROM COMPROBANTE",
       );
@@ -310,7 +311,13 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
         const [after] = await connection.query<RowDataPacket[]>(
           `SELECT * FROM ${table} ORDER BY ${table === "COMPROBANTE" ? "Codigo" : "IDTabla"}`,
         );
-        assert.deepEqual(after, before[index], table);
+        assert.deepEqual(
+          after,
+          table === "CUENTACORRIENTE"
+            ? before[index]!.map((row) => ({ ...row, ChequeEvento: null }))
+            : before[index],
+          table,
+        );
       }
       await connection.query("DELETE FROM NUMERACION WHERE Codigo='ING'");
       assert.equal(

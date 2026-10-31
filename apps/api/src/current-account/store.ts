@@ -17,11 +17,11 @@ import type { AccountQuery } from "./validation.js";
 
 const eligible =
   "c.Activo = 1 AND c.ModuloOrigen = 'CUENTACORRIENTE' AND c.Cuenta IN ('COBRAR','PAGAR') AND c.Naturaleza IN ('DEUDA','CREDITO') AND c.SentidoFondos = 'NOAPLICA'";
-const projection = `a.*, cl.Nombre AS ClienteNombre, c.Descripcion AS ComprobanteDescripcion, co.Descripcion AS ConceptoDescripcion,
+const projection = `a.*, ch.Numero AS ChequeNumero, cl.Nombre AS ClienteNombre, c.Descripcion AS ComprobanteDescripcion, co.Descripcion AS ConceptoDescripcion,
   DATE_FORMAT(a.FechaOrigen, '%Y-%m-%d') AS FechaOrigen,
   DATE_FORMAT(a.Vencimiento, '%Y-%m-%d') AS Vencimiento`;
 const joins =
-  " FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo = a.Cliente JOIN COMPROBANTE c ON c.Codigo = a.Comprobante LEFT JOIN CONCEPTO co ON co.Codigo = a.Concepto";
+  " FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo = a.Cliente JOIN COMPROBANTE c ON c.Codigo = a.Comprobante LEFT JOIN CONCEPTO co ON co.Codigo = a.Concepto LEFT JOIN CHEQUEEVENTO ce ON ce.IDTabla=a.ChequeEvento LEFT JOIN CHEQUE ch ON ch.IDTabla=ce.Cheque";
 function detail(row: RowDataPacket): CurrentAccountDetail {
   const data = Object.fromEntries(
     Object.entries(row).map(([key, value]) => [
@@ -44,6 +44,7 @@ function detail(row: RowDataPacket): CurrentAccountDetail {
           ClienteNombre: undefined,
           ComprobanteDescripcion: undefined,
           ConceptoDescripcion: undefined,
+          ChequeNumero: undefined,
         }),
       )
       .digest("hex"),
@@ -308,6 +309,7 @@ export function createCurrentAccountStore(pool: Pool) {
           if (
             before.registro.Estado !== "CONFIRMADO" ||
             before.registro.CajaMovimiento ||
+            before.registro.ChequeEvento ||
             applications.length
           )
             throw new MasterRequestError(

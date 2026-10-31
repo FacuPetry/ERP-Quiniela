@@ -8,6 +8,8 @@ export interface CurrentAccountRecord {
   Comprobante: string;
   ComprobanteDescripcion: string;
   CajaMovimiento: string | null;
+  ChequeEvento?: string | null;
+  ChequeNumero?: string | null;
   NumeroComprobante: string | null;
   NumeroComprobanteTexto: string;
   FechaOrigen: string;

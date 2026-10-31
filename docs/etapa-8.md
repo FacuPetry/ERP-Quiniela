@@ -1,6 +1,6 @@
-# Etapa 8 — Valores: consulta, depósito y acreditación de cheques de terceros
+# Etapa 8 — Valores: consulta, depósito, acreditación y rechazo de terceros
 
-Centraliza la consulta de cheques propios, cheques de terceros y transferencias ya registrados desde Cobros y pagos. Permite depositar cheques de terceros en cartera y confirmar su acreditación bancaria. No incorpora todavía rechazos, devoluciones ni débitos de cheques propios. No requiere caja abierta, nuevas tablas, migraciones, variables o dependencias.
+Centraliza la consulta de cheques propios, cheques de terceros y transferencias ya registrados desde Cobros y pagos. Permite depositar cheques de terceros en cartera y confirmar su acreditación bancaria. Incluye el rechazo de terceros depositados o acreditados, con deuda vinculada al evento y contrapartida bancaria cuando corresponda. No incorpora aún el rechazo de endosados, devoluciones posteriores o débitos de cheques propios. No requiere caja abierta, nuevas tablas, variables o dependencias; el rechazo requiere la migración 0008.
 
 ## Listado
 
@@ -14,7 +14,7 @@ Centraliza la consulta de cheques propios, cheques de terceros y transferencias 
 
 ## Consulta y Propiedades
 
-Toolbar estándar: Consultar (ojo), Propiedades, Filtrar y Actualizar. No hay Agregar/Modificar/Eliminar. ADMIN dispone además de Depositar cheques y Acreditar cheques; ambas acciones utilizan el mismo panel configurable dentro del OffCanvas grande. Doble clic abre la misma consulta que el ojo. Propiedades permanece deshabilitado sin fila seleccionada y abre el OffCanvas pequeño existente.
+Toolbar estándar: Consultar (ojo), Propiedades, Filtrar y Actualizar. No hay Agregar/Modificar/Eliminar. ADMIN dispone además de Depositar cheques y Acreditar cheques; ambas acciones utilizan el mismo panel configurable dentro del OffCanvas grande. Rechazar cheque se habilita para una fila de terceros depositada o acreditada y abre un OffCanvas mediano con los controles base. Doble clic abre la misma consulta que el ojo. Propiedades permanece deshabilitado sin fila seleccionada y abre el OffCanvas pequeño existente.
 
 Consultar valor usa FormSections: Datos generales, Historial y Operaciones relacionadas. Mantiene navegación lateral, scroll, sticky y presentación responsive. Los datos son de solo lectura.
 
@@ -25,13 +25,13 @@ Consultar valor usa FormSections: Datos generales, Historial y Operaciones relac
 
 ## Backend y seguridad
 
-Rutas autenticadas `GET /api/valores` y `GET /api/valores/:family/:id`, con familia CHEQUE o TRANSFERENCIA e identificador BIGINT válido. Los usuarios de consulta y ADMIN acceden al mismo contenido de lectura, sin CSRF. `POST /api/valores/depositos` y `POST /api/valores/acreditaciones` requieren ADMIN, petición de aplicación, CSRF y una clave UUID de idempotencia. Las otras escrituras no están implementadas y responden 405; sin sesión, 401.
+Rutas autenticadas `GET /api/valores` y `GET /api/valores/:family/:id`, con familia CHEQUE o TRANSFERENCIA e identificador BIGINT válido. Los usuarios de consulta y ADMIN acceden al mismo contenido de lectura, sin CSRF. `POST /api/valores/depositos` y `POST /api/valores/acreditaciones` requieren ADMIN, petición de aplicación, CSRF y una clave UUID de idempotencia. `GET /api/valores/CHEQUE/:id/rechazo` consulta la vista previa con sesión; `POST /api/valores/CHEQUE/:id/rechazar` requiere ADMIN, CSRF, idempotencia y versión If-Match. Las otras escrituras no están implementadas y responden 405; sin sesión, 401.
 
 El repositorio ejecuta las lecturas dentro de transacciones READ ONLY con snapshot coherente para datos/conteo y detalle/eventos/operaciones. Las consultas no cambian CHEQUE, CHEQUEEVENTO, TRANSFERENCIA, BANCOMOVIMIENTO, saldos, aplicaciones, numeración, auditoría o cierres. No ofrece saldos bancarios disponibles: su definición y el saldo inicial bancario siguen pendientes.
 
 ## Publicación y prueba
 
-Desplegar el código con la compilación habitual. No hay una migración nueva para esta entrega; se conservan las 21 tablas y las migraciones anteriores deben estar aplicadas.
+Desplegar el código con la compilación habitual. Para el rechazo aplicar la migración **0008_rechazo_cheques** antes de habilitar el nuevo código; se conservan las 21 tablas. Ver el procedimiento específico más abajo.
 
 1. Ingresar a Valores con instrumentos ya registrados: el listado debe comenzar vacío. Actualizar o aplicar filtros debe mostrar los del rango elegido. Limpiar fechas para consultar instrumentos anteriores.
 2. Probar cheques propios/terceros y transferencias, estados, banco/cuenta, emisión/vencimiento, búsqueda, orden descendente/ascendente/restablecer y paginación.
@@ -74,7 +74,7 @@ La integración en MySQL y MariaDB verifica permisos/CSRF, contratos, cuentas y 
 - Una sola transacción crea por cheque el evento ACREDITACION y estado ACREDITADO, un BANCOMOVIMIENTO de INGRESO por su importe (Origen CHEQUE, FK ChequeEvento), la auditoría y la respuesta idempotente. No modifica CHEQUE.Banco/BancoCuenta, fechas, importe o identidad, ni el evento de depósito. Filtros y Propiedades muestran la cuenta de depósito incluso si hay otra referencia histórica en CHEQUE.BancoCuenta.
 - El bloqueo de estado evita duplicaciones entre solicitudes simultáneas; la clave de reintento devuelve la respuesta ya confirmada sin agregar otro ingreso. Si falla una validación o la auditoría, se revierten estado, eventos, asientos bancarios y solicitud de todo el lote. La huella canónica de los depósitos existentes conserva su orden anterior para admitir sus reintentos después de actualizar el código.
 - No requiere caja abierta ni comprobante/numerador adicional. No crea ni modifica CAJAMOVIMIENTO, CAJASALDO, CUENTACORRIENTE, TRANSFERENCIA o afectaciones. El cobro original ya tuvo su efecto comercial y no se vuelve a descontar al acreditar. No altera cierres ni ofrece saldos bancarios disponibles: aún falta definir saldo inicial, disponibilidad y conciliación.
-- Valores incorpora el estado Acreditado. El historial muestra Acreditación, fecha, cuenta, usuario y observación. Propiedades del evento permite ver el sentido e importe bancarios. La operación de origen y la historia de recepción/depósito se mantienen. Las correcciones de un cobro con eventos posteriores continúan bloqueadas; esta entrega no permite anular acreditaciones, reabrir deudas ni simular un rechazo.
+- Valores incorpora el estado Acreditado. El historial muestra Acreditación, fecha, cuenta, usuario y observación. Propiedades del evento permite ver el sentido e importe bancarios. La operación de origen y la historia de recepción/depósito se mantienen. Las correcciones de un cobro con eventos posteriores continúan bloqueadas; la acreditación no permite anularse desde esta pantalla. El rechazo real utiliza una acción separada, con su contrapartida y deuda nuevas.
 - No agrega tablas, columnas, migraciones, dependencias o variables. Se reutilizan las 21 tablas actuales.
 
 ### Prueba de la acreditación
@@ -88,6 +88,45 @@ La integración en MySQL y MariaDB verifica permisos/CSRF, contratos, cuentas y 
 
 La integración con MySQL y MariaDB cubre el circuito real recepción→depósito→acreditación, exactitud decimal, permisos, contratos sin destino/importe editables, fechas, cuentas activas, historial/filtros, ausencia de efectos en Caja/Cuenta corriente, prevención de duplicados, reintentos concurrentes, destinos distintos y rollback bancario ante fallo de auditoría. Se conservan las pruebas de consulta y depósito anteriores. La revisión Chromium con API simulada complementa esas pruebas, incluyendo el panel compartido, reintentos, propiedades y ancho móvil.
 
+## Rechazo de cheques depositados o acreditados
+
+- ADMIN selecciona un tercero DEPOSITADO o ACREDITADO en Valores y presiona **Rechazar cheque**. La operación es individual para identificar claramente cheque, cliente, comprobante y número de la deuda. CARTERA, ENDOSADO, propios y transferencias quedan fuera de este alcance.
+- Comprobante se elige entre los activos de **Cuenta corriente / Cobrar / Deuda / No aplica**, por ejemplo `RCH` — Rechazo de cheque. No debe configurarse como comprobante de reversión. Se utiliza el mismo servicio de numeración y componente de dos inputs: sugerencia editable con Numerador, carga manual sin Numerador; un numerador asociado a caja se comporta como en Cuenta corriente, sin exigir una caja seleccionada. Configurar el maestro no genera operaciones.
+- Cliente, número del cheque, importe y cuenta de destino se obtienen de las relaciones persistidas y son de solo lectura. La deuda se asigna al cliente que entregó el cheque en el Recibo original, conservando su cuenta histórica de Cobrar; no se selecciona otro cliente. La operación admite corregir un instrumento recibido de un cliente luego desactivado, conservando su relación histórica.
+- Fecha de rechazo y Motivo son obligatorios. La fecha no puede ser anterior a la emisión ni al último evento. El nuevo vencimiento de la deuda se establece en la fecha del rechazo. No hay modificación de importes ni rechazos parciales.
+- **Depositado:** se registra RECHAZO/RECHAZADO y una nueva deuda por el importe completo del cheque. No se genera movimiento bancario porque nunca se acreditó.
+- **Acreditado:** además exige confirmar explícitamente que el banco ya debitó realmente el importe completo e indicar la fecha efectiva del débito. Se conserva el ingreso de la acreditación y se agrega un EGRESO en esa misma cuenta, vinculado al evento RECHAZO. La fecha bancaria puede diferir de la del rechazo pero no anteceder a la acreditación. No se ejecuta una orden bancaria ni se descuenta efectivo; comisiones y rechazos sin débito confirmado quedan fuera de esta entrega.
+- Cuenta y banco deben estar activos al registrar la operación. Se validan estado, último evento, existencia/coherencia del ingreso bancario previo, cobro/crédito original vigentes y ausencia de reversión. Si hay una inconsistencia se rechaza el registro y se conserva todo el historial.
+- El Recibo y las afectaciones anteriores permanecen. Ejemplo: deuda de 100.000 cancelada con efectivo 40.000 + cheque 60.000; rechazar ese cheque crea una nueva deuda de 60.000, sin reabrir además la deuda original ni revertir el efectivo.
+- Si el Recibo conserva un importe a cuenta disponible, se compensa automáticamente hasta el menor entre ese remanente y el cheque. Se agrega una afectación nueva desde el Recibo a la deuda del rechazo, con usuario e instante actuales; las anteriores no se editan. Ejemplo: cobro con cheque 100.000, deuda cancelada 80.000 y anticipo 20.000: el rechazo crea deuda bruta 100.000, compensa 20.000 y deja pendiente 80.000. Importes originales del Recibo permanecen; su disponible baja por la nueva aplicación. Dos rechazos del mismo Recibo comparten y bloquean ese remanente para no consumirlo dos veces.
+- La deuda aparece en Cuenta corriente y se ofrece como pendiente para un nuevo Cobro. Se identifica como Rechazo de cheque en Propiedades; no se puede anular desde la acción de movimientos manuales, porque depende del evento financiero. No se incorpora una corrección de rechazos en esta entrega.
+- El evento de rechazo enlaza la deuda; Historial → Consultar operación relacionada/Propiedades permite abrir su consulta, ver comprobante/número, importe bruto y compensación. Para acreditados muestra también el egreso y su fecha bancaria, que puede diferir de la fecha del rechazo. El cheque queda RECHAZADO y no vuelve automáticamente a cartera ni se vuelve a depositar/acreditar.
+- La transacción bloquea comprobante/numerador, Recibo, crédito original y cheque; luego revalida una versión de los datos y del remanente a cuenta. Numeración, evento, banco, deuda, compensación, auditoría y clave de reintento se confirman juntos. Un error o solicitud concurrente no debe dejar efectos parciales ni consumir otro número. No altera movimientos/saldos físicos de cajas abiertas o cerradas; se puede rechazar sin caja abierta.
+
+### Migración y publicación
+
+`0008_rechazo_cheques.sql` agrega únicamente `CUENTACORRIENTE.ChequeEvento`, nullable, con FK a CHEQUEEVENTO y unicidad por evento. Las filas existentes quedan con NULL; no se crean tablas ni se cambian importes, números, estados o relaciones anteriores. Las tres definiciones se aplican en un único ALTER TABLE. No hay cuentas/comprobantes/operaciones de ejemplo precargados.
+
+Publicar en una ventana de mantenimiento, con la aplicación detenida mientras se actualiza el esquema. Desde la raíz de la versión desplegada (volver a ingresar al directorio `hbuilds/current/nodejs` después del despliegue), con las variables de conexión disponibles:
+
+```sh
+npm run db:migrate:prod
+npm run db:check:prod
+```
+
+Reiniciar/habilitar la aplicación después de aplicar la migración. db:check mantiene 21/21 y comprueba la columna nueva. Si una ejecución interrumpida no registró la migración, revisar esquema/historial antes de reintentar; no eliminar columnas para forzar el proceso. La integración comprueba conservación de datos previos, FKs, unicidad y repetición de migraciones ya registradas.
+
+### Prueba del rechazo
+
+1. Crear un comprobante `RCH` con Cuenta corriente / Cobrar / Deuda / No aplica; opcionalmente asociar un Numerador. Preparar una deuda y un Recibo mixto con efectivo y cheque de terceros, y depositarlo.
+2. Valores → Actualizar/Filtrar → seleccionar el cheque depositado → Rechazar cheque. Elegir RCH, comprobar número, cliente e importe; ingresar fecha/motivo y confirmar. No debe pedir débito bancario ni caja abierta.
+3. Revisar RECHAZADO y el Historial completo. Consultar la deuda enlazada y su disponibilidad en Afectar de un nuevo Cobro. Verificar que el Recibo siga confirmado y que efectivo/cierres y las afectaciones anteriores permanezcan iguales.
+4. Repetir con un cheque acreditado: sin confirmar débito real no debe permitir guardar. Al confirmarlo se agrega un egreso por el mismo importe en la cuenta de acreditación, conservando el ingreso anterior. Verificar fechas, motivo y vínculo a la deuda desde Propiedades.
+5. Probar un cheque cuyo Recibo tiene anticipo disponible; comparar importe bruto, compensado y pendiente. Probar dos cheques del mismo Recibo y actualización de datos si cambia el remanente.
+6. Probar sin Numerador con número manual, motivo vacío, fecha anterior, comprobante incompatible, usuario de consulta, estado Endosado, reintentos y dos pestañas. No deben duplicarse deuda, evento, movimiento bancario o numeración. Probar móvil y cancelar sin guardar.
+
+La integración financiera verifica cobro mixto, débito confirmado, compensación total/parcial de anticipos, solicitudes simultáneas con claves iguales/diferentes, versión obsoleta, rollback incluso del asiento bancario y de la aplicación ante fallo tardío, numeración manual/automática, permisos, relaciones y bloqueo de anulación manual de la deuda generada. También incluye endoso→anulación→recuperación→depósito→rechazo manteniendo la historia.
+
 ## Próximas entregas
 
-Definir devolución/rechazo de terceros: qué sucede antes/después de acreditar o endosar, cómo recuperar la deuda del cliente y cómo registrar eventuales devoluciones bancarias sin borrar la historia. Después, débito y correcciones de cheques propios. Traspasos de fondos, aplicación posterior de anticipos, saldo inicial/disponibilidad bancaria, conciliación e informes continúan separados.
+Rechazo de cheques endosados y su relación con el destinatario del Pago; corrección de rechazos y eventual devolución/reingreso del instrumento; débito y correcciones de cheques propios. Traspasos, aplicación posterior de anticipos, saldo inicial/disponibilidad bancaria, conciliación e informes siguen separados.
