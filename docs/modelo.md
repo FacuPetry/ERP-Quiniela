@@ -20,8 +20,8 @@ Se conserva el diseño de 21 tablas, sin historial de consumos de numeradores. L
 | CHEQUEEVENTO | Historia y participación en CajaMovimiento |
 | TRANSFERENCIA | Transferencia concreta con FK directa a CajaMovimiento |
 | BANCOMOVIMIENTO | Efecto bancario de Transferencia o ChequeEvento |
-| ROL | Perfil de acceso |
-| USUARIO | Usuario con un Rol |
+| ROL | Referencia técnica de autenticación; sin ABM de perfiles |
+| USUARIO | Usuario, referencia técnica a Rol y permisos individuales por menú |
 | SESION | Sesión de un Usuario |
 | AUDITORIA | Acciones y responsables |
 | SOLICITUD | Claves para controlar reintentos |
@@ -90,3 +90,8 @@ La migración 0006 traslada la asociación a COMPROBANTE.Numerador y conserva la
 ## Valores: consulta, depósito y acreditación (etapa 8)
 
 Consulta CHEQUE, CHEQUEEVENTO y TRANSFERENCIA junto con sus operaciones y reversiones existentes. El depósito de terceros reutiliza CHEQUEEVENTO (Tipo DEPOSITO, BancoCuenta de destino, CajaMovimiento NULL) y cambia CHEQUE.Estado a DEPOSITADO. No altera la cuenta libradora ni genera BANCOMOVIMIENTO al depositar. La acreditación crea otro CHEQUEEVENTO (Tipo ACREDITACION, CajaMovimiento NULL), cambia el estado a ACREDITADO y registra un único BANCOMOVIMIENTO de INGRESO vinculado por ChequeEvento en la cuenta del depósito. Cuenta corriente conserva su efecto comercial previo. La migración 0008 agrega CUENTACORRIENTE.ChequeEvento nullable y único para vincular la deuda del rechazo; preserva los movimientos existentes y mantiene las 21 tablas. No calcula disponibilidad bancaria. Cada cheque conserva una identidad aunque tenga múltiples eventos; familia e ID distinguen instrumentos de tablas diferentes. Ver [alcance y prueba](etapa-8.md).
+
+
+## Permisos individuales de usuarios
+
+La migración **0009_permisos_usuarios** incorpora únicamente USUARIO.Permisos (JSON nullable), sin nuevas tablas ni relaciones financieras. Los permisos se configuran por usuario y opción del menú; no hay perfiles de negocio seleccionables. ADMIN mantiene acceso completo y gestión de usuarios. Las altas normales guardan su lista explícita y usan la referencia técnica USUARIO; se conservan ROL y las cuentas anteriores por compatibilidad. Ver [reglas, sesiones, contraseñas y publicación](usuarios-permisos-resumen.md).

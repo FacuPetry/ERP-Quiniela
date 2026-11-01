@@ -64,13 +64,6 @@
   .cash-amounts {
     grid-template-columns: minmax(0, 1fr);
   }
-  .cash-form .form-heading {
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .cash-form .form-toolbar-actions {
-    width: 100%;
-  }
 }
 .cash-fields {
   min-width: 0;

@@ -1,3 +1,4 @@
+import { canWriteMenu } from "@erp/shared";
 import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -130,7 +131,7 @@ export function CurrentAccountPage({
     }
     requestAnimationFrame(() => heading.current?.focus());
   }
-  const canWrite = session.usuario.rol.codigo === "ADMIN";
+  const canWrite = canWriteMenu(session.usuario, "cuenta-corriente");
   const record =
     !loading && !error
       ? data?.registros.find((row) => row.IDTabla === selected)

@@ -4,7 +4,7 @@ import {
   type MasterDefinition,
   type MasterRecord,
 } from "@erp/shared";
-import { getMaster } from "../../services/masters";
+import { getReference as getMaster } from "../../services/masters";
 import type { PropertyField } from "../ui/RecordProperties";
 
 export interface MasterPropertiesData {

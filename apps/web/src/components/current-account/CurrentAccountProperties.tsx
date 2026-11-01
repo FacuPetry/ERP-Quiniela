@@ -4,7 +4,8 @@ import {
   naturalezasComprobante,
   type CurrentAccountRecord,
 } from "@erp/shared";
-import { accountDetail } from "../../services/current-account";
+import { apiRequest } from "../../services/http";
+import type { CurrentAccountDetail } from "@erp/shared";
 import { RecordProperties, type PropertyField } from "../ui/RecordProperties";
 import { formatDateValue, displayDateTime } from "../controls/date-value";
 import { amountFormat, formatAmount } from "../controls/amount-value";
@@ -121,7 +122,12 @@ export function CurrentAccountProperties({
 }) {
   const load = useCallback(
     async (signal: AbortSignal) =>
-      (await accountDetail(recordKey, signal)).registro,
+      (
+        await apiRequest<CurrentAccountDetail>(
+          "/referencias/cuenta-corriente/" + encodeURIComponent(recordKey),
+          { signal },
+        )
+      ).registro,
     [recordKey],
   );
   return (

@@ -1,0 +1,79 @@
+.account-report {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+.report-introduction {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.report-introduction > .badge {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.report-filters {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.report-filters > p {
+  flex-basis: 100%;
+}
+.report-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.report-total {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.report-total > svg {
+  color: #6c8b55;
+}
+.report-number {
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.account-report .report-total-net {
+  background: #eaf2e3;
+  border-color: #d6e4cc;
+}
+.report-notes {
+  display: grid;
+  gap: 8px;
+}
+@media (max-width: 700px) {
+  .report-totals {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report-total {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 8px 12px;
+  }
+  .report-total > svg {
+    grid-row: 1 / span 3;
+  }
+  .report-number,
+  .report-total > p {
+    grid-column: 2;
+  }
+  .report-introduction {
+    flex-wrap: wrap;
+  }
+  .report-introduction > div {
+    flex: 1 1 180px;
+  }
+  .report-introduction > .badge {
+    margin-left: 0;
+  }
+  .report-filters > .base-field {
+    flex: 1 1 100%;
+  }
+}

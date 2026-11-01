@@ -23,12 +23,14 @@ export function createAuthService(store: AuthStore, now = () => new Date()) {
       const token = newSessionToken();
       const created = now();
       const expires = new Date(created.getTime() + sessionLifetimeMs);
-      await store.createSession(
+      const createdSession = await store.createSession(
         account.usuario.id,
         tokenHash(token),
         created,
         expires,
+        account.claveHash,
       );
+      if (createdSession === false) return null;
       return {
         token,
         session: {

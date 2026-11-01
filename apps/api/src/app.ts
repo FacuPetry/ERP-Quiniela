@@ -1,17 +1,22 @@
-import { existsSync } from 'node:fs';
-import { extname, resolve } from 'node:path';
-import express, { type ErrorRequestHandler } from 'express';
-import type { HealthResponse, ReadinessResponse, ApiError } from '@erp/shared';
-import { authRouter } from './auth/routes.js';
-import type { AuthService } from './auth/service.js';
-import { masterRouter } from './masters/routes.js';
-import { currentAccountRouter } from './current-account/routes.js';
-import type { CurrentAccountStore } from './current-account/store.js';
-import { cashMovementRouter } from './cash-movement/routes.js';
-import type { CashMovementStore } from './cash-movement/store.js';
-import type { MasterStore } from './masters/store.js';
-import { valuesRouter } from './values/routes.js';
-import type { ValuesStore } from './values/store.js';
+import { existsSync } from "node:fs";
+import { extname, resolve } from "node:path";
+import express, { type ErrorRequestHandler } from "express";
+import type { HealthResponse, ReadinessResponse, ApiError } from "@erp/shared";
+import { authRouter } from "./auth/routes.js";
+import type { AuthService } from "./auth/service.js";
+import { masterRouter } from "./masters/routes.js";
+import { currentAccountRouter } from "./current-account/routes.js";
+import type { CurrentAccountStore } from "./current-account/store.js";
+import { cashMovementRouter } from "./cash-movement/routes.js";
+import type { CashMovementStore } from "./cash-movement/store.js";
+import type { MasterStore } from "./masters/store.js";
+import { valuesRouter } from "./values/routes.js";
+import type { ValuesStore } from "./values/store.js";
+import { reportsRouter } from "./reports/routes.js";
+import type { ReportStore } from "./reports/store.js";
+import { usersRouter } from "./users/routes.js";
+import type { UserStore } from "./users/store.js";
+import { referencesRouter } from "./references/routes.js";
 
 interface AppOptions {
   checkDatabase: () => Promise<void>;
@@ -23,67 +28,130 @@ interface AppOptions {
   cashMovement?: CashMovementStore;
   treasury?: CashMovementStore;
   values?: ValuesStore;
+  reports?: ReportStore;
+  users?: UserStore;
 }
 
-export function createApp({ checkDatabase, webDist, auth, secureCookie = false, masters, currentAccount, cashMovement, treasury, values }: AppOptions) {
+export function createApp({
+  checkDatabase,
+  webDist,
+  auth,
+  secureCookie = false,
+  masters,
+  currentAccount,
+  cashMovement,
+  treasury,
+  values,
+  reports,
+  users,
+}: AppOptions) {
   const app = express();
-  app.disable('x-powered-by');
-  app.use(express.json({ limit: '64kb' }));
+  app.disable("x-powered-by");
+  app.use(express.json({ limit: "64kb" }));
 
-  app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'erp-quiniela-api' } satisfies HealthResponse);
+  app.get("/api/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      service: "erp-quiniela-api",
+    } satisfies HealthResponse);
   });
-  app.get('/api/ready', async (_req, res) => {
+  app.get("/api/ready", async (_req, res) => {
     try {
       await checkDatabase();
-      res.json({ status: 'ok', database: 'connected' } satisfies ReadinessResponse);
+      res.json({
+        status: "ok",
+        database: "connected",
+      } satisfies ReadinessResponse);
     } catch {
-      res.status(503).json({ status: 'error', database: 'unavailable' } satisfies ReadinessResponse);
+      res.status(503).json({
+        status: "error",
+        database: "unavailable",
+      } satisfies ReadinessResponse);
     }
   });
-  if (auth) app.use('/api/auth', authRouter(auth, secureCookie));
+  if (auth) app.use("/api/auth", authRouter(auth, secureCookie));
   if (masters) {
-    if (!auth) throw new Error('Los maestros requieren autenticación.');
-    app.use('/api/maestros', masterRouter(auth, masters));
+    if (!auth) throw new Error("Los maestros requieren autenticación.");
+    app.use("/api/maestros", masterRouter(auth, masters));
   }
   if (currentAccount) {
-    if (!auth) throw new Error('Cuenta corriente requiere autenticación.');
-    app.use('/api/cuenta-corriente', currentAccountRouter(auth, currentAccount));
+    if (!auth) throw new Error("Cuenta corriente requiere autenticación.");
+    app.use(
+      "/api/cuenta-corriente",
+      currentAccountRouter(auth, currentAccount),
+    );
   }
   if (cashMovement) {
-    if (!auth) throw new Error('Cobros y pagos requiere autenticación.');
-    app.use('/api/caja-movimiento', cashMovementRouter(auth, cashMovement));
+    if (!auth) throw new Error("Cobros y pagos requiere autenticación.");
+    app.use("/api/caja-movimiento", cashMovementRouter(auth, cashMovement));
   }
   if (treasury) {
-    if (!auth) throw new Error('Tesorería requiere autenticación.');
-    app.use('/api/tesoreria', cashMovementRouter(auth, treasury, 'TESORERIA'));
+    if (!auth) throw new Error("Tesorería requiere autenticación.");
+    app.use("/api/tesoreria", cashMovementRouter(auth, treasury, "TESORERIA"));
   }
   if (values) {
-    if (!auth) throw new Error('Valores requiere autenticación.');
-    app.use('/api/valores', valuesRouter(auth, values));
+    if (!auth) throw new Error("Valores requiere autenticación.");
+    app.use("/api/valores", valuesRouter(auth, values));
   }
-  app.use('/api', (_req, res) => {
-    res.status(404).json({ error: 'Recurso no encontrado.' } satisfies ApiError);
+  if (auth)
+    app.use(
+      "/api/referencias",
+      referencesRouter(auth, masters, currentAccount, cashMovement),
+    );
+  if (users) {
+    if (!auth) throw new Error("Usuarios requiere autenticación.");
+    app.use("/api/usuarios", usersRouter(auth, users));
+  }
+  if (reports) {
+    if (!auth) throw new Error("Los informes requieren autenticación.");
+    app.use("/api/informes", reportsRouter(auth, reports));
+  }
+  app.use("/api", (_req, res) => {
+    res
+      .status(404)
+      .json({ error: "Recurso no encontrado." } satisfies ApiError);
   });
 
   if (webDist) {
-    const index = resolve(webDist, 'index.html');
-    if (!existsSync(index)) throw new Error('Falta compilar el frontend. Ejecutar npm run build.');
-    app.use(express.static(webDist, { index: false, dotfiles: 'ignore' }));
+    const index = resolve(webDist, "index.html");
+    if (!existsSync(index))
+      throw new Error("Falta compilar el frontend. Ejecutar npm run build.");
+    app.use(express.static(webDist, { index: false, dotfiles: "ignore" }));
     app.use((req, res, next) => {
       const path = decodeURIComponent(req.path);
-      const hiddenPath = path.split('/').some(part => part.startsWith('.'));
-      if (req.method === 'GET' && !hiddenPath && !extname(path) && req.accepts('html')) {
-        res.setHeader('Cache-Control', 'no-cache');
+      const hiddenPath = path.split("/").some((part) => part.startsWith("."));
+      if (
+        req.method === "GET" &&
+        !hiddenPath &&
+        !extname(path) &&
+        req.accepts("html")
+      ) {
+        res.setHeader("Cache-Control", "no-cache");
         res.sendFile(index);
       } else next();
     });
   }
-  app.use((_req, res) => res.status(404).json({ error: 'Recurso no encontrado.' } satisfies ApiError));
+  app.use((_req, res) =>
+    res
+      .status(404)
+      .json({ error: "Recurso no encontrado." } satisfies ApiError),
+  );
   const onError: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
-    const status = typeof error === 'object' && error !== null && 'status' in error &&
-      typeof error.status === 'number' && error.status >= 400 && error.status < 500 ? error.status : 500;
-    res.status(status).json({ error: status < 500 ? 'Solicitud inválida.' : 'No se pudo completar la solicitud.' } satisfies ApiError);
+    const status =
+      typeof error === "object" &&
+      error !== null &&
+      "status" in error &&
+      typeof error.status === "number" &&
+      error.status >= 400 &&
+      error.status < 500
+        ? error.status
+        : 500;
+    res.status(status).json({
+      error:
+        status < 500
+          ? "Solicitud inválida."
+          : "No se pudo completar la solicitud.",
+    } satisfies ApiError);
   };
   app.use(onError);
   return app;

@@ -23,7 +23,7 @@ export async function referenceOptions(
 ) {
   const options = new Map<string, MasterRecord>();
   for (let page = 1; ; page++) {
-    const result = await listMasters(
+    const result = await listReferences(
       key,
       { ...query, estado: "activo", pagina: String(page), limite: "100" },
       signal,
@@ -100,5 +100,27 @@ export function deleteMaster(
       },
       body: "{}",
     },
+  );
+}
+
+/** Consulta auxiliar: nunca permite modificar un maestro ni sustituye su permiso. */
+export function listReferences(
+  key: MasterKey,
+  query: Record<string, string>,
+  signal?: AbortSignal,
+) {
+  return apiRequest<MasterList>(
+    `/referencias/${key}?${new URLSearchParams(query)}`,
+    signal ? { signal } : undefined,
+  );
+}
+export function getReference(
+  key: MasterKey,
+  code: string,
+  signal?: AbortSignal,
+) {
+  return apiRequest<MasterDetail>(
+    `/referencias/${key}/${encodeURIComponent(code)}`,
+    signal ? { signal } : undefined,
   );
 }

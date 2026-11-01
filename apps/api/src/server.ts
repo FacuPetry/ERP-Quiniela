@@ -8,6 +8,8 @@ import { createCurrentAccountStore } from './current-account/store.js';
 import { createCashMovementStore } from './cash-movement/store.js';
 import { createMasterStore } from './masters/store.js';
 import { createValuesStore } from './values/store.js';
+import { createReportStore } from './reports/store.js';
+import { createUserStore } from './users/store.js';
 
 const config = readConfig();
 const { pool } = createDatabase(config);
@@ -18,6 +20,8 @@ const app = createApp({
   cashMovement: createCashMovementStore(pool),
   treasury: createCashMovementStore(pool, "TESORERIA"),
   values: createValuesStore(pool),
+  reports: createReportStore(pool),
+  users: createUserStore(pool),
   secureCookie: config.NODE_ENV === 'production',
   checkDatabase: async () => { await pool.query('SELECT 1'); },
   ...(config.NODE_ENV === 'production' ? { webDist: resolve(projectRoot, 'apps/web/dist') } : {}),

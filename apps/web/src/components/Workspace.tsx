@@ -5,7 +5,11 @@ import {
   type MouseEvent,
   type ReactNode,
 } from "react";
-import { masterDefinitions, type SessionResponse } from "@erp/shared";
+import {
+  canAccessMenu,
+  masterDefinitions,
+  type SessionResponse,
+} from "@erp/shared";
 import { modules, navigate, usePath } from "../navigation";
 import { logout } from "../services/auth";
 import {
@@ -20,6 +24,8 @@ import { ActiveCashProvider } from "./cash-movement/ActiveCash";
 import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
+import { UsersPage } from "./users/UsersPage";
+import { AccountSummaryPage } from "./reports/AccountSummaryPage";
 import { ValuesPage } from "./values/ValuesPage";
 
 function AppLink({
@@ -84,13 +90,20 @@ function WorkspaceContent({
   const isHome = path === "/" || path === "/inicio";
   const isStatus = path === "/sistema";
   const isAccount = path === "/mi-cuenta";
+  const isUsers = path === "/usuarios";
+  const allowed =
+    (!module || canAccessMenu(session.usuario, module.path.slice(1))) &&
+    (!isUsers || session.usuario.rol.codigo === "ADMIN") &&
+    (!isStatus || canAccessMenu(session.usuario, "sistema"));
   const title = isHome
     ? "Inicio"
     : isStatus
       ? "Estado del sistema"
       : isAccount
         ? "Mi cuenta"
-        : (master?.title ?? module?.title ?? "Página no encontrada");
+        : isUsers
+          ? "Usuarios"
+          : (master?.title ?? module?.title ?? "Página no encontrada");
   const group = module?.group ?? (isHome ? "General" : "Sistema");
 
   useEffect(() => {
@@ -212,25 +225,45 @@ function WorkspaceContent({
             <p className="nav-group-label">Espacio de trabajo</p>
             {navLink("/inicio", "Inicio", "home", isHome)}
           </div>
-          {["Operaciones", "Maestros"].map((section) => (
-            <div className="nav-group" key={section}>
-              <p className="nav-group-label">{section}</p>
-              {modules
-                .filter((item) => item.group === section)
-                .map((item) =>
-                  navLink(item.path, item.title, item.icon, path === item.path),
-                )}
-            </div>
-          ))}
+          {["Operaciones", "Maestros", "Informes"]
+            .filter((section) =>
+              modules.some(
+                (item) =>
+                  item.group === section &&
+                  canAccessMenu(session.usuario, item.path.slice(1)),
+              ),
+            )
+            .map((section) => (
+              <div className="nav-group" key={section}>
+                <p className="nav-group-label">{section}</p>
+                {modules
+                  .filter(
+                    (item) =>
+                      item.group === section &&
+                      canAccessMenu(session.usuario, item.path.slice(1)),
+                  )
+                  .map((item) =>
+                    navLink(
+                      item.path,
+                      item.title,
+                      item.icon,
+                      path === item.path,
+                    ),
+                  )}
+              </div>
+            ))}
           <div className="nav-group">
             <p className="nav-group-label">Sistema</p>
+            {session.usuario.rol.codigo === "ADMIN" &&
+              navLink("/usuarios", "Usuarios", "users", isUsers)}
             {navLink("/mi-cuenta", "Mi cuenta", "shield", isAccount)}
-            {navLink("/sistema", "Estado del sistema", "activity", isStatus)}
+            {canAccessMenu(session.usuario, "sistema") &&
+              navLink("/sistema", "Estado del sistema", "activity", isStatus)}
           </div>
         </nav>
         <div className="sidebar-footer">
           <span className="status-dot online" />
-          <span className="nav-label">Etapa 7 · Tesorería</span>
+          <span className="nav-label">Administración y tesorería</span>
         </div>
       </aside>
       <div className="workspace-body" inert={mobileOpen}>
@@ -272,7 +305,7 @@ function WorkspaceContent({
             </span>
             <div className="account-summary">
               <strong>{session.usuario.nombre}</strong>
-              <span>{session.usuario.rol.nombre}</span>
+              <span>{session.usuario.rol.codigo === "ADMIN" ? "Administrador" : "Acceso personalizado"}</span>
             </div>
             <button
               className="icon-button"
@@ -315,14 +348,25 @@ function WorkspaceContent({
               {error}
             </p>
           )}
-          {isHome ? (
+          {!allowed ? (
+            <section className="panel module-empty">
+              <Icon name="shield" size={36} />
+              <h2>No tenés acceso a esta opción</h2>
+              <p>Consultá al administrador para revisar tus permisos.</p>
+              <AppLink path="/inicio" className="button secondary">
+                Volver al inicio
+              </AppLink>
+            </section>
+          ) : isUsers ? (
+            <UsersPage session={session} onExpired={onLogout} />
+          ) : isHome ? (
             <>
               <section className="welcome-panel">
                 <div>
                   <span className="badge light">
                     <Icon name="check" size={14} /> Acceso habilitado
                   </span>
-                  <h2>Todo empieza con una buena base.</h2>
+                  <h2>Tu negocio, organizado.</h2>
                   <p>
                     Consultá la cuenta corriente y administrá los datos de tus
                     clientes, comprobantes, cajas y bancos.
@@ -347,13 +391,17 @@ function WorkspaceContent({
                 <div className="section-heading">
                   <h2 id="shortcuts-title">Módulos del sistema</h2>
                   <span className="muted small">
-                    Cuenta corriente, Cobros y pagos, Tesorería y Valores
-                    disponibles
+                    Accesos habilitados para tu usuario
                   </span>
                 </div>
                 <div className="module-grid">
                   {modules
-                    .filter((item) => item.group === "Operaciones")
+                    .filter(
+                      (item) =>
+                        (item.group === "Operaciones" ||
+                          item.group === "Informes") &&
+                        canAccessMenu(session.usuario, item.path.slice(1)),
+                    )
                     .map((item) => (
                       <AppLink
                         key={item.path}
@@ -380,25 +428,33 @@ function WorkspaceContent({
                     ))}
                 </div>
               </section>
-              <section
-                className="master-shortcuts"
-                aria-label="Tablas maestras disponibles"
-              >
-                <h2>Datos del negocio</h2>
-                <div>
-                  {Object.values(masterDefinitions).map((item) => (
-                    <AppLink
-                      key={item.key}
-                      path={"/" + item.key}
-                      className="button secondary"
-                    >
-                      {item.title}
-                      <Icon name="arrow" size={15} />
-                    </AppLink>
-                  ))}
-                </div>
-              </section>
-              <ServiceStatus />
+              {Object.values(masterDefinitions).some((item) =>
+                canAccessMenu(session.usuario, item.key),
+              ) && (
+                <section
+                  className="master-shortcuts"
+                  aria-label="Tablas maestras disponibles"
+                >
+                  <h2>Datos del negocio</h2>
+                  <div>
+                    {Object.values(masterDefinitions)
+                      .filter((item) =>
+                        canAccessMenu(session.usuario, item.key),
+                      )
+                      .map((item) => (
+                        <AppLink
+                          key={item.key}
+                          path={"/" + item.key}
+                          className="button secondary"
+                        >
+                          {item.title}
+                          <Icon name="arrow" size={15} />
+                        </AppLink>
+                      ))}
+                  </div>
+                </section>
+              )}
+              {canAccessMenu(session.usuario, "sistema") && <ServiceStatus />}
             </>
           ) : isStatus ? (
             <ServiceStatus />
@@ -425,8 +481,12 @@ function WorkspaceContent({
                   <dd>{session.usuario.email}</dd>
                 </div>
                 <div>
-                  <dt>Rol</dt>
-                  <dd>{session.usuario.rol.nombre}</dd>
+                  <dt>Acceso</dt>
+                  <dd>
+                    {session.usuario.rol.codigo === "ADMIN"
+                      ? "Administrador"
+                      : "Permisos por menú"}
+                  </dd>
                 </div>
                 <div>
                   <dt>Vencimiento de la sesión</dt>
@@ -461,6 +521,8 @@ function WorkspaceContent({
             />
           ) : path === "/valores" ? (
             <ValuesPage key={path} session={session} onExpired={onLogout} />
+          ) : path === "/informes-cuenta-corriente" ? (
+            <AccountSummaryPage onExpired={onLogout} />
           ) : master ? (
             <MasterPage
               key={master.key}
@@ -473,16 +535,14 @@ function WorkspaceContent({
               <span className="empty-icon">
                 <Icon name={module.icon} size={36} />
               </span>
-              <span className="badge">Próxima etapa</span>
+              <span className="badge">No disponible</span>
               <h2>
                 El espacio de {module.title.toLocaleLowerCase("es-AR")} ya está
                 preparado
               </h2>
               <p>{module.detail}</p>
               <p className="muted small">
-                Las consultas, filtros y formularios se incorporarán en las
-                siguientes entregas. Este módulo todavía no permite cargar ni
-                modificar registros.
+                Este módulo todavía no está disponible para operar.
               </p>
               <AppLink path="/inicio" className="button secondary">
                 Volver al inicio <Icon name="arrow" size={17} />
@@ -499,7 +559,7 @@ function WorkspaceContent({
           )}
           <footer className="main-footer">
             <span>ERP Quiniela</span>
-            <span>Etapa 8 · Valores</span>
+            <span>Espacio de trabajo</span>
           </footer>
         </main>
       </div>

@@ -665,3 +665,18 @@
 .table-sort-button:focus-visible { outline: 2px solid rgb(54 94 62 / 45%); outline-offset: 3px; }
 .table-sort-button:disabled { cursor: default; }
 .table-sort-arrow { display: inline-block; width: 0.7em; color: #365e3e; }
+
+/* Misma distribución de acciones en todos los ABM, también al cambiar de fila. */
+@media (max-width: 700px) {
+  .record-form .form-heading {
+    flex-wrap: wrap;
+  }
+  .record-form .form-heading h2 {
+    flex: 1 0 12rem;
+  }
+  .record-form .form-toolbar-actions {
+    margin-left: auto;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+}

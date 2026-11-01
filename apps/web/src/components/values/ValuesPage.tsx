@@ -1,3 +1,4 @@
+import { canWriteMenu } from "@erp/shared";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   valueStates,
@@ -200,7 +201,7 @@ export function ValuesPage({
               onRefresh={refresh}
               refreshing={loading}
               startActions={
-                session.usuario.rol.codigo === "ADMIN"
+                canWriteMenu(session.usuario, "valores")
                   ? [
                       {
                         key: "deposit",

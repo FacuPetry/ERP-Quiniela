@@ -89,3 +89,12 @@ El módulo `values` ofrece lecturas autenticadas: `/api/valores` (filtros/orden/
 ## Rechazo de terceros (etapa 8)
 
 Values/rejections.ts registra un rechazo individual DEPOSITADO/ACREDITADO. Resuelve cliente/cuenta/importe desde el cheque y su recepción, comparte emisión de números y utiliza financialTransactions. Bloquea el Recibo, su crédito y el cheque; comprueba versión y remanente antes de generar evento, deuda, eventual egreso bancario, compensación del anticipo y auditoría. La FK nullable única CUENTACORRIENTE.ChequeEvento conserva el vínculo sin inventar un movimiento de caja. La deuda queda visible como pendiente y su anulación manual se bloquea tanto en API como en formularios. ChequeRejection compone el OffCanvas y los controles existentes; ValueView enlaza CurrentAccountProperties desde el evento. No modifica los componentes base ni saldos físicos/cierres. Ver migración y pruebas en [etapa 8](etapa-8.md).
+
+
+## Usuarios e informe de saldos actuales
+
+El catálogo compartido de opciones de menú y permisos individuales vive en `packages/shared/src/permissions.ts`. USUARIO.Permisos conserva la configuración; la sesión la devuelve junto con los datos de usuario. La API vuelve a leer la cuenta en cada solicitud y `requireMenu` controla tanto lectura como escritura. El carácter ADMIN queda reservado a la administración global; las cuentas normales no seleccionan perfiles. Las restricciones por módulo también se reflejan en navegación y acciones del frontend.
+
+`/api/usuarios` es exclusivo del administrador. Conserva scrypt, CSRF, versiones y auditoría; las ediciones y los restablecimientos revocan sesiones transaccionalmente. `/api/referencias` ofrece únicamente las lecturas auxiliares autorizadas para los módulos habilitados, sin conceder sus ABM.
+
+`/api/informes/cuenta-corriente` agrega saldos actuales con DECIMAL y snapshot de solo lectura. El crédito interno de cada cobro/pago ya afecta el saldo comercial; las afectaciones solo se utilizan para el pendiente documental. No se ofrece corte histórico ni se modifica ninguna operación financiera. Ver [alcance, pruebas y migración 0009](usuarios-permisos-resumen.md).

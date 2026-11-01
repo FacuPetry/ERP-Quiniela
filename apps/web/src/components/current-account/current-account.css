@@ -46,15 +46,6 @@
   .account-amounts {
     width: 100%;
   }
-  .account-form .form-heading {
-    flex-wrap: wrap;
-  }
-  .account-form .form-heading h2 {
-    flex: 1 0 12rem;
-  }
-  .account-form .form-toolbar-actions {
-    margin-left: auto;
-  }
 }
 
 .account-general-grid > .base-field {
