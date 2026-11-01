@@ -224,6 +224,7 @@ h1:focus {
 }
 .login-story {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -233,6 +234,7 @@ h1:focus {
 }
 .login-story::after {
   content: "";
+  z-index: -1;
   position: absolute;
   width: 430px;
   height: 430px;
@@ -356,12 +358,7 @@ h1:focus {
   line-height: 1.8;
   margin-top: 25px;
 }
-.login-version {
-  position: absolute;
-  bottom: 25px;
-  color: #9aa698;
-  font-size: 10px;
-}
+
 .loading-page {
   min-height: 100dvh;
   display: flex;
@@ -988,6 +985,9 @@ h1:focus {
     background: #eaf0e5;
     min-height: auto;
   }
+  .login-story::after {
+    display: none;
+  }
   .login-story-content,
   .login-caption {
     display: none;
@@ -998,9 +998,6 @@ h1:focus {
   }
   .login-form-wrap {
     max-width: 390px;
-  }
-  .login-version {
-    bottom: 22px;
   }
   .topbar {
     padding: 0 15px;

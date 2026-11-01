@@ -121,7 +121,6 @@ export function Login({
             ¿Todavía no tenés acceso? Contactá al administrador del sistema.
           </p>
         </div>
-        <span className="login-version">Etapa 3 · Tablas maestras</span>
       </section>
     </main>
   );
