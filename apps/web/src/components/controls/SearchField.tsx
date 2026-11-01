@@ -16,6 +16,7 @@ export interface SearchResult<T> {
 export function SearchField<T>({
   value,
   onValueChange,
+  onSearchTextChange,
   search,
   getCode,
   getDescription,
@@ -27,6 +28,8 @@ export function SearchField<T>({
 }: FieldProps & {
   value: T | null;
   onValueChange: (record: T | null) => void;
+  /** Informa ediciones/limpieza sin convertir texto en una selección válida. */
+  onSearchTextChange?: ((text: string) => void) | undefined;
   search: (
     query: string,
     page: number,
@@ -76,6 +79,7 @@ export function SearchField<T>({
     request.current?.abort();
     editing.current = true;
     setQuery(text);
+    onSearchTextChange?.(text);
     setBusy(false);
     setResult(null);
     setSelected(null);
@@ -85,6 +89,7 @@ export function SearchField<T>({
   function choose(row: T) {
     onValueChange(row);
     setQuery(getCode(row));
+    onSearchTextChange?.(getCode(row));
     setOpen(false);
     setMessage("");
     setNotFound(false);
@@ -94,6 +99,7 @@ export function SearchField<T>({
     request.current?.abort();
     editing.current = false;
     setQuery("");
+    onSearchTextChange?.("");
     setResult(null);
     setSelected(null);
     setOpen(false);

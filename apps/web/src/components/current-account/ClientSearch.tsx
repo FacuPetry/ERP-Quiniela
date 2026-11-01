@@ -28,6 +28,7 @@ export function ClientSearch({
   historical?: boolean;
   disabled?: boolean;
   placeholder?: string;
+  onSearchTextChange?: ((text: string) => void) | undefined;
 }) {
   const search = useCallback(
     async (

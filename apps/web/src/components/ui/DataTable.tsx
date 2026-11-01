@@ -27,6 +27,7 @@ export interface TableColumn<T> {
   key: string;
   label: string;
   render: (row: T) => ReactNode;
+  align?: "left" | "center" | "right";
   /** Cadena: clave remota de API (requiere onSortChange). Objeto: orden local sobre la colección completa. */
   sort?: string | { value: (row: T) => SortValue; type?: SortType };
   /** Valor de consulta cuando la celda contiene un editor. */
@@ -240,6 +241,7 @@ export function DataTable<T>({
               )}
               {columns.map((column) => (
                 <th
+                  data-align={column.align}
                   key={column.key}
                   scope="col"
                   aria-sort={
@@ -329,7 +331,7 @@ export function DataTable<T>({
                     </td>
                   )}
                   {columns.map((column, index) => (
-                    <td key={column.key}>
+                    <td key={column.key} data-align={column.align}>
                       {selectable && !multiple && index === 0 && (
                         <input
                           className="row-selector sr-only"

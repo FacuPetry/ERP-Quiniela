@@ -680,3 +680,7 @@
     flex-wrap: wrap;
   }
 }
+
+.data-table :is(th, td)[data-align="right"] { text-align: right; }
+.data-table :is(th, td)[data-align="center"] { text-align: center; }
+.data-table :is(th, td)[data-align="left"] { text-align: left; }
