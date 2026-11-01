@@ -10,7 +10,7 @@ Entrega incremental posterior al circuito de Valores. Incluye ajustes de present
 
 ## Usuarios y acceso individual
 
-Solo el administrador accede a **Sistema → Usuarios**. El listado empieza vacío, permite búsqueda por nombre/correo, estado, actualización, orden remoto, paginación, Modificar, Observar y Propiedades. No existe Eliminar: desactivar conserva las relaciones históricas.
+Solo el administrador accede a **Sistema → Usuarios**. El listado empieza vacío, permite búsqueda por nombre/correo y estado desde el modal estándar Filtrar, actualización, orden remoto, paginación, Modificar, Observar y Propiedades. No existe Eliminar: desactivar conserva las relaciones históricas.
 
 El alta incluye nombre, correo único, estado, contraseña y opciones del menú. El correo se normaliza en minúsculas. En cada opción se configura directamente:
 
@@ -44,7 +44,7 @@ La administración de aperturas/cierres se comparte entre Cobros y pagos y Tesor
 
 ## Resumen de Cuenta corriente
 
-Disponible en **Informes → Resumen de Cuenta corriente**. Tiene un criterio por código o nombre de cliente; vacío consulta todos los clientes con movimientos confirmados, incluidos los actualmente inactivos. No carga datos al entrar: se utiliza Consultar o Actualizar listado. Limpiar vacía el criterio de edición; se aplica al volver a Consultar.
+Disponible en **Informes → Resumen de Cuenta corriente**. Utiliza Cliente mediante SF con selección por lupa; vacío consulta todos los clientes con movimientos confirmados, incluidos los actualmente inactivos. La base de Informes abre los filtros al ingresar y no consulta hasta Aceptar. Cancelar la primera vez deja el informe vacío; cancelar una edición posterior conserva la consulta aceptada. Ver [base de Informes y navegación por categorías](filtros-informes-menu.md).
 
 Presentación: tarjetas con totales, listado por cliente, orden remoto, paginación y Propiedades. En móvil las tarjetas se apilan y la grilla conserva su desplazamiento horizontal. Totales y cantidad abarcan todo el resultado filtrado, no solo la página visible. El instante de consulta se presenta en la zona horaria del negocio.
 

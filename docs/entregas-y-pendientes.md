@@ -1,6 +1,6 @@
 # Entregas incrementales y mejoras pendientes
 
-Revisión: **01/11/2026**. Base funcional revisada: implementación integrada hasta el PR #27 (rechazo de cheques de terceros). La entrega posterior incorpora [Usuarios, permisos e informe actual de Cuenta corriente](usuarios-permisos-resumen.md), pendiente de aceptación del cliente. Este documento reúne el alcance vigente y los pendientes; las referencias a «próximas etapas» de documentos anteriores describen el estado que tenían en ese momento.
+Revisión: **01/11/2026**. Base funcional revisada: implementación integrada hasta el PR #27 (rechazo de cheques de terceros). La entrega posterior incorpora [Usuarios, permisos e informe actual de Cuenta corriente](usuarios-permisos-resumen.md), validada por el cliente. La entrega siguiente unifica [filtros, base de Informes y navegación por categorías](filtros-informes-menu.md). Este documento reúne el alcance vigente y los pendientes; las referencias a «próximas etapas» de documentos anteriores describen el estado que tenían en ese momento.
 
 ## Primera versión funcional
 
@@ -49,7 +49,7 @@ No requiere desarrollar otro módulo. Realizarla en el entorno que utilizará el
 
 ## Registro de pendientes
 
-Estados: **Pendiente de definición**, **Pendiente de implementación**, **Candidato a evaluar** e **Implementado, en revisión**. Ningún ítem de esta lista autoriza por sí mismo una modificación. Cada entrega debe acordar su alcance, actualizar este documento y enlazar su implementación.
+Estados: **Pendiente de definición**, **Pendiente de implementación**, **Candidato a evaluar** e **Implementado**. Ningún ítem de esta lista autoriza por sí mismo una modificación. Cada entrega debe acordar su alcance, actualizar este documento y enlazar su implementación.
 
 ### Funcionalidades adicionales
 
@@ -85,11 +85,11 @@ No quedaron defectos visuales concretos confirmados en esta revisión. Los compo
 
 ### Reportes e informes
 
-INF-01 cuenta con una primera versión en revisión. El resto y las ampliaciones siguen pendientes de definición; no deben incorporarse todos en una sola entrega.
+INF-01 cuenta con una primera versión funcional y una base visual reutilizable. El resto y las ampliaciones siguen pendientes de definición; no deben incorporarse todos en una sola entrega.
 
 | ID | Informe candidato | Alcance a acordar |
 |---|---|---|
-| INF-01 | Saldos y pendientes por cliente | **Implementado, en revisión:** resumen de saldos actuales, búsqueda por código/nombre, totales, paginación y Propiedades con pendiente documental/créditos sin aplicar. Pendientes: detalle de aplicaciones/documentos dentro del informe y corte histórico, si se requieren. |
+| INF-01 | Saldos y pendientes por cliente | **Implementado:** resumen de saldos actuales, filtro de cliente mediante SF, totales, paginación y Propiedades con pendiente documental/créditos sin aplicar. Pendientes: detalle de aplicaciones/documentos dentro del informe y corte histórico, si se requieren. |
 | INF-02 | Resumen diario de caja | Apertura, cobros/pagos por medio, ingresos/retiros de Tesorería, efectivo teórico, contado y diferencia. Identificar la apertura real, no agrupar solo por fecha o caja física. |
 | INF-03 | Cobros, pagos y afectaciones | Consulta por cliente, fecha, comprobante y medio; trazabilidad de anulación y reversión. |
 | INF-04 | Cartera y vencimientos de cheques de terceros | Disponibilidad, depositados, acreditados, rechazados e historial; evitar confundir cartera con fondos bancarios disponibles. |
@@ -103,7 +103,7 @@ Los informes deben respetar las reglas financieras existentes: las afectaciones 
 | ID | Mejora | Estado y criterio para retomarla |
 |---|---|---|
 | OTR-01 | Ayuda operativa y ejemplos de configuración | Candidato a evaluar. Convertir los circuitos aceptados en instrucciones breves para el usuario, sin introducir nuevas reglas. |
-| OTR-02 | Administración de usuarios y recuperación de acceso | **Implementado, en revisión:** altas/modificaciones, activación, permisos por menú y restablecimiento por el administrador. Por decisión funcional, el usuario no cambia su contraseña y no se incorpora autoservicio ni envío por correo. |
+| OTR-02 | Administración de usuarios y recuperación de acceso | **Implementado:** altas/modificaciones, activación, permisos por menú y restablecimiento por el administrador. Por decisión funcional, el usuario no cambia su contraseña y no se incorpora autoservicio ni envío por correo. |
 
 ## Orden propuesto de próximas entregas
 
@@ -119,3 +119,6 @@ Los informes deben respetar las reglas financieras existentes: las afectaciones 
 - Tesorería: servicio compartido de movimientos, `apps/web/src/components/treasury/TreasuryForm.tsx` y `tests/integration/treasury.test.ts`.
 - Valores: `apps/api/src/values/`, `apps/web/src/components/values/`, `tests/integration/values.test.ts`, `tests/integration/cheque-deposits.test.ts` y `tests/integration/cheque-rejections.test.ts`.
 - Reglas detalladas: [Cobros y pagos](etapa-6.md), [anulación y reversión](caja-anulacion-reversion.md), [Tesorería](etapa-7.md), [Valores](etapa-8.md) y [numeración vigente](numeracion-comprobantes.md).
+
+
+Ajustes de interfaz posteriores: Usuarios adopta FilterDialog; Informes compone ReportView con filtros iniciales y SF; el sidebar incorpora categorías y recorte dinámico. No modifican los pendientes financieros ni habilitan corte histórico o exportaciones. Ver [detalle y aceptación](filtros-informes-menu.md).

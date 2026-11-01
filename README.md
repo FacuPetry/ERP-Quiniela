@@ -4,7 +4,11 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Usuarios e informe de Cuenta corriente
+## Entrega en revisión — Filtros, Informes y menú por categorías
+
+Usuarios utiliza el modal estándar de filtros. El Resumen de Cuenta corriente compone una nueva base reutilizable de Informes, con filtros iniciales, Cliente mediante SF y tabla sin líneas divisorias. El menú agrupa las opciones por categorías desplegables y ajusta los nombres largos al espacio disponible. No requiere nuevas migraciones. Ver [comportamiento y pruebas](docs/filtros-informes-menu.md).
+
+## Usuarios e informe de Cuenta corriente
 
 Incluye permisos individuales por menú (sin perfiles predefinidos en la interfaz), administración de contraseñas exclusivamente por el administrador y el primer informe de saldos actuales por cliente. Los permisos se aplican también en la API. Corrige el login móvil, elimina referencias a etapas de las pantallas y unifica los toolbars de los ABM. Requiere la migración **0009_permisos_usuarios**. Ver [alcance, publicación y prueba completa](docs/usuarios-permisos-resumen.md).
 

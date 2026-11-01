@@ -20,6 +20,7 @@ import {
 import { Brand } from "./Brand";
 import { Icon, type IconName } from "./Icon";
 import { ServiceStatus } from "./ServiceStatus";
+import { SidebarNavigation, type SidebarCategory } from "./SidebarNavigation";
 import { ActiveCashProvider } from "./cash-movement/ActiveCash";
 import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
@@ -177,7 +178,7 @@ function WorkspaceContent({
         path={target}
         onNavigate={() => setMobileOpen(false)}
         className={`nav-link ${active ? "active" : ""}`}
-        {...(collapsed ? { title: label } : {})}
+        title={label}
         {...(active ? { "aria-current": "page" as const } : {})}
       >
         <Icon name={icon} />
@@ -186,6 +187,50 @@ function WorkspaceContent({
       </AppLink>
     );
   }
+  const sidebarCategories: SidebarCategory[] = [
+    ...(
+      [
+        ["Operaciones", "exchange"],
+        ["Maestros", "box"],
+        ["Informes", "file"],
+      ] as const
+    ).map(([label, icon]) => ({
+      key: label,
+      label,
+      icon,
+      items: modules
+        .filter(
+          (item) =>
+            item.group === label &&
+            canAccessMenu(session.usuario, item.path.slice(1)),
+        )
+        .map((item) => ({
+          path: item.path,
+          label: item.title,
+          icon: item.icon,
+        })),
+    })),
+    {
+      key: "Sistema",
+      label: "Sistema",
+      icon: "shield",
+      items: [
+        ...(session.usuario.rol.codigo === "ADMIN"
+          ? [{ path: "/usuarios", label: "Usuarios", icon: "users" as const }]
+          : []),
+        { path: "/mi-cuenta", label: "Mi cuenta", icon: "shield" },
+        ...(canAccessMenu(session.usuario, "sistema")
+          ? [
+              {
+                path: "/sistema",
+                label: "Estado del sistema",
+                icon: "activity" as const,
+              },
+            ]
+          : []),
+      ],
+    },
+  ];
   return (
     <div className={`workspace ${collapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">
@@ -220,47 +265,14 @@ function WorkspaceContent({
             <Icon name="close" />
           </button>
         </div>
-        <nav aria-label="Navegación principal">
-          <div className="nav-group">
-            <p className="nav-group-label">Espacio de trabajo</p>
-            {navLink("/inicio", "Inicio", "home", isHome)}
-          </div>
-          {["Operaciones", "Maestros", "Informes"]
-            .filter((section) =>
-              modules.some(
-                (item) =>
-                  item.group === section &&
-                  canAccessMenu(session.usuario, item.path.slice(1)),
-              ),
-            )
-            .map((section) => (
-              <div className="nav-group" key={section}>
-                <p className="nav-group-label">{section}</p>
-                {modules
-                  .filter(
-                    (item) =>
-                      item.group === section &&
-                      canAccessMenu(session.usuario, item.path.slice(1)),
-                  )
-                  .map((item) =>
-                    navLink(
-                      item.path,
-                      item.title,
-                      item.icon,
-                      path === item.path,
-                    ),
-                  )}
-              </div>
-            ))}
-          <div className="nav-group">
-            <p className="nav-group-label">Sistema</p>
-            {session.usuario.rol.codigo === "ADMIN" &&
-              navLink("/usuarios", "Usuarios", "users", isUsers)}
-            {navLink("/mi-cuenta", "Mi cuenta", "shield", isAccount)}
-            {canAccessMenu(session.usuario, "sistema") &&
-              navLink("/sistema", "Estado del sistema", "activity", isStatus)}
-          </div>
-        </nav>
+        <SidebarNavigation
+          categories={sidebarCategories}
+          currentPath={path}
+          home={navLink("/inicio", "Inicio", "home", isHome)}
+          renderLink={(item) =>
+            navLink(item.path, item.label, item.icon, path === item.path)
+          }
+        />
         <div className="sidebar-footer">
           <span className="status-dot online" />
           <span className="nav-label">Administración y tesorería</span>
@@ -305,7 +317,11 @@ function WorkspaceContent({
             </span>
             <div className="account-summary">
               <strong>{session.usuario.nombre}</strong>
-              <span>{session.usuario.rol.codigo === "ADMIN" ? "Administrador" : "Acceso personalizado"}</span>
+              <span>
+                {session.usuario.rol.codigo === "ADMIN"
+                  ? "Administrador"
+                  : "Acceso personalizado"}
+              </span>
             </div>
             <button
               className="icon-button"
