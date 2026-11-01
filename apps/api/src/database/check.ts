@@ -23,8 +23,12 @@ try {
       console.error('Falta aplicar la migración que elimina el historial de numeradores. Ejecutar db:migrate:prod con la aplicación detenida.');
       process.exitCode = 1;
     }
-    const [columns] = await connection.query<RowDataPacket[]>("SELECT TABLE_NAME AS tabla, COLUMN_NAME AS campo FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('CUENTACORRIENTE','CAJAMOVIMIENTO','NUMERACION','COMPROBANTE')");
+    const [columns] = await connection.query<RowDataPacket[]>("SELECT TABLE_NAME AS tabla, COLUMN_NAME AS campo FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN ('CUENTACORRIENTE','CAJAMOVIMIENTO','NUMERACION','COMPROBANTE','USUARIO')");
     const has = (table: string, field: string) => columns.some(row => row.tabla === table && row.campo === field);
+    if (!has('USUARIO', 'Permisos')) {
+      console.error('Falta aplicar la migración 0009 de permisos de usuarios. Ejecutar db:migrate:prod con la aplicación detenida.');
+      process.exitCode = 1;
+    }
     if (!has('CUENTACORRIENTE', 'ChequeEvento')) {
       console.error('Falta aplicar la migración 0008 de rechazos de cheques. Ejecutar db:migrate:prod con la aplicación detenida.');
       process.exitCode = 1;

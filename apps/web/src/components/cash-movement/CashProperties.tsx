@@ -1,3 +1,4 @@
+import { apiRequest } from "../../services/http";
 import { useCallback, useState } from "react";
 import {
   cashStateLabel,
@@ -120,8 +121,14 @@ export function CashProperties({
   const [path, setPath] = useState([id]);
   const current = path.at(-1)!;
   const load = useCallback(
-    (signal: AbortSignal) => services.detail(current, signal),
-    [current, services],
+    (signal: AbortSignal) =>
+      treasury
+        ? services.detail(current, signal)
+        : apiRequest<CashDetail>(
+            "/referencias/caja-movimiento/" + encodeURIComponent(current),
+            { signal },
+          ),
+    [current, services, treasury],
   );
   function navigate(target: string) {
     setPath((previous) => {

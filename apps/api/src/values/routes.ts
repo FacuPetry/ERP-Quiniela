@@ -3,7 +3,11 @@ import { Router, type ErrorRequestHandler, type RequestHandler } from "express";
 import { z } from "zod";
 import type { SessionResponse } from "@erp/shared";
 import type { AuthService } from "../auth/service.js";
-import { requireSession, requireMasterWrite } from "../auth/middleware.js";
+import {
+  requireSession,
+  requireMasterWrite,
+  requireMenu,
+} from "../auth/middleware.js";
 import { MasterRequestError } from "../masters/validation.js";
 import {
   chequeDeposit,
@@ -48,7 +52,7 @@ function chequeAction<T>(
 }
 export function valuesRouter(auth: AuthService, store: ValuesStore) {
   const r = Router();
-  r.use(requireSession(auth));
+  r.use(requireSession(auth), requireMenu("valores"));
   r.get("/CHEQUE/:id/rechazo", async (req, res) => {
     const identity = valueIdentity.safeParse({
       family: "CHEQUE",

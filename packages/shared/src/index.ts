@@ -24,6 +24,7 @@ export interface CurrentUser {
   nombre: string;
   email: string;
   rol: { codigo: string; nombre: string };
+  permisos?: import("./permissions.js").MenuPermission[];
 }
 
 export interface SessionResponse {
@@ -38,3 +39,6 @@ export * from './cash-movement.js';
 
 export * from "./list-sort.js";
 export * from './values.js';
+export * from './reports.js';
+export * from './permissions.js';
+export * from './users.js';

@@ -49,7 +49,7 @@ try {
   if (!ready) throw new Error('MySQL de prueba no estuvo disponible dentro del tiempo previsto.');
   // Node ordena alfabéticamente los archivos incluso con concurrencia 1.
   // La preparación inicial debe verificarse antes de insertar fixtures de negocio.
-  for (const testFile of ['tests/integration/numbering-migration.test.ts', 'tests/integration/database.test.ts', 'tests/integration/masters.test.ts', 'tests/integration/current-account.test.ts', 'tests/integration/cash-movement.test.ts', 'tests/integration/list-order.test.ts', 'tests/integration/cash-corrections.test.ts', 'tests/integration/treasury.test.ts', 'tests/integration/shared-numbering.test.ts', 'tests/integration/values.test.ts', 'tests/integration/cheque-deposits.test.ts', 'tests/integration/cheque-rejections.test.ts']) {
+  for (const testFile of ['tests/integration/numbering-migration.test.ts', 'tests/integration/database.test.ts', 'tests/integration/masters.test.ts', 'tests/integration/current-account.test.ts', 'tests/integration/cash-movement.test.ts', 'tests/integration/list-order.test.ts', 'tests/integration/cash-corrections.test.ts', 'tests/integration/treasury.test.ts', 'tests/integration/shared-numbering.test.ts', 'tests/integration/values.test.ts', 'tests/integration/cheque-deposits.test.ts', 'tests/integration/cheque-rejections.test.ts', 'tests/integration/administration-reports.test.ts']) {
     const child = spawn(process.execPath, ['--import', 'tsx', '--test', testFile], {
       cwd: root,
       stdio: 'inherit',

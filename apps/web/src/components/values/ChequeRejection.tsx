@@ -5,7 +5,7 @@ import type {
   ChequeRejectionInput,
   ChequeRejectionResult,
 } from "@erp/shared";
-import { accountOptions } from "../../services/current-account";
+import { apiRequest } from "../../services/http";
 import { rejectionPreview, rejectCheque } from "../../services/values";
 import { ApiRequestError } from "../../services/http";
 import { OffCanvas } from "../ui/OffCanvas";
@@ -21,6 +21,12 @@ import {
   todayISO,
 } from "../controls";
 import { amount, message } from "../cash-movement/format";
+
+const accountOptions = (signal?: AbortSignal) =>
+  apiRequest<CurrentAccountOptions>(
+    "/referencias/cuenta-corriente/opciones",
+    signal ? { signal } : undefined,
+  );
 
 export function ChequeRejection({
   id,

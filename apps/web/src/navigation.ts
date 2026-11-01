@@ -16,7 +16,7 @@ export const modules: {
     icon: "account",
     description: "Deudas, créditos y movimientos pendientes de cada cliente.",
     detail:
-      "Los premios se registrarán como una obligación de pago y se cancelarán desde Cobros y pagos.",
+      "Los premios se registran como una obligación de pago y se cancelarán desde Cobros y pagos.",
   },
   {
     path: "/cobros-pagos",
@@ -25,7 +25,7 @@ export const modules: {
     icon: "exchange",
     description: "Cobros y pagos con sus aplicaciones a cuenta corriente.",
     detail:
-      "Cada operación podrá combinar efectivo, cheques y transferencias, registrando el movimiento de tesorería correspondiente.",
+      "Cada operación permite combinar efectivo, cheques y transferencias, registrando el movimiento de tesorería correspondiente.",
   },
   {
     path: "/tesoreria",
@@ -46,6 +46,14 @@ export const modules: {
       "Consultá cheques y transferencias, su historial y operaciones, y registrá depósitos, acreditaciones y rechazos de cheques de terceros.",
   },
   {
+    path: "/informes-cuenta-corriente",
+    title: "Resumen de Cuenta corriente",
+    group: "Informes",
+    icon: "account",
+    description: "Saldos actuales por cliente de apuestas y premios.",
+    detail: "",
+  },
+  {
     path: "/tipos-cliente",
     title: "Tipos de cliente",
     group: "Maestros",
@@ -59,8 +67,7 @@ export const modules: {
     group: "Maestros",
     icon: "users",
     description: "Datos de clientes y su clasificación comercial.",
-    detail:
-      "El próximo ABM permitirá consultar, filtrar y mantener los registros de CLIENTE y CLIENTETIPO.",
+    detail: "Consultá, filtrá y administrá los datos de tus clientes.",
   },
   {
     path: "/comprobantes",
@@ -68,8 +75,7 @@ export const modules: {
     group: "Maestros",
     icon: "file",
     description: "Configuración central de los comprobantes del sistema.",
-    detail:
-      "Una sola tabla COMPROBANTE definirá el comportamiento de los movimientos en los distintos módulos.",
+    detail: "Configurá el comportamiento y la numeración de los movimientos.",
   },
   {
     path: "/numeraciones",
@@ -95,7 +101,7 @@ export const modules: {
     icon: "bank",
     description: "Bancos, cuentas bancarias y billeteras propias.",
     detail:
-      "Estos maestros serán la referencia para las transferencias y los movimientos bancarios.",
+      "Administrá los bancos relacionados con tus valores y movimientos bancarios.",
   },
   {
     path: "/cuentas-bancarias",
@@ -111,8 +117,7 @@ export const modules: {
     group: "Maestros",
     icon: "tag",
     description: "Motivos de ingresos, egresos y ajustes.",
-    detail:
-      "Los conceptos se reutilizarán en los módulos que requieran clasificar movimientos.",
+    detail: "Clasificá los movimientos mediante conceptos compartidos.",
   },
 ];
 export function navigate(path: string) {

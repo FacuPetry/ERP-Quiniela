@@ -8,7 +8,11 @@ import type { z } from "zod";
 import { randomUUID } from "node:crypto";
 import type { SessionResponse, CurrentAccountDetail } from "@erp/shared";
 import type { AuthService } from "../auth/service.js";
-import { requireSession, requireMasterWrite } from "../auth/middleware.js";
+import {
+  requireSession,
+  requireMasterWrite,
+  requireMenu,
+} from "../auth/middleware.js";
 import { MasterRequestError } from "../masters/validation.js";
 import { creation, cancellation, querySchema } from "./validation.js";
 import type { CurrentAccountStore } from "./store.js";
@@ -47,7 +51,7 @@ export function currentAccountRouter(
   store: CurrentAccountStore,
 ) {
   const router = Router();
-  router.use(requireSession(auth));
+  router.use(requireSession(auth), requireMenu("cuenta-corriente"));
   router.get("/opciones", async (_req, res) => {
     res.json(await store.options());
   });

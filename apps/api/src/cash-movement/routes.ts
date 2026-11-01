@@ -7,7 +7,11 @@ import {
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { SessionResponse, CashModule } from "@erp/shared";
-import { requireSession, requireMasterWrite } from "../auth/middleware.js";
+import {
+  requireSession,
+  requireMasterWrite,
+  requireMenu,
+} from "../auth/middleware.js";
 import type { AuthService } from "../auth/service.js";
 import { MasterRequestError } from "../masters/validation.js";
 import type { CashMovementStore } from "./store.js";
@@ -56,6 +60,16 @@ export function cashMovementRouter(
 ) {
   const r = Router();
   r.use(requireSession(auth));
+  r.use((req, res, next) => {
+    const shared =
+      module === "COBROSPAGOS" &&
+      (req.path === "/opciones" || /^\/cajas(?:\/|$)/.test(req.path));
+    requireMenu(
+      ...(shared
+        ? (["cobros-pagos", "tesoreria"] as const)
+        : ([module === "TESORERIA" ? "tesoreria" : "cobros-pagos"] as const)),
+    )(req, res, next);
+  });
   r.get("/opciones", async (_req, res) => {
     res.json(await store.options());
   });

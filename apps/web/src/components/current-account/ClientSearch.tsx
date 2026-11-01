@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { listSortQuery, type ListSort, type MasterRecord } from "@erp/shared";
 import { SearchField, type FieldProps } from "../controls";
-import { listMasters } from "../../services/masters";
+import { listReferences } from "../../services/masters";
 import { ApiRequestError } from "../../services/http";
 const code = (row: MasterRecord) => String(row.Codigo);
 const description = (row: MasterRecord) => String(row.Nombre);
@@ -37,7 +37,7 @@ export function ClientSearch({
       sort?: ListSort | null,
     ) => {
       try {
-        return await listMasters(
+        return await listReferences(
           "clientes",
           {
             q,

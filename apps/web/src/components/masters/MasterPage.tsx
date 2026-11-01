@@ -1,3 +1,4 @@
+import { canWriteMenu } from "@erp/shared";
 import { useListSorting } from "../ui/useListSorting";
 import {
   useCallback,
@@ -72,7 +73,7 @@ export function MasterPage({
       mounted.current = false;
     };
   }, []);
-  const canWrite = session.usuario.rol.codigo === "ADMIN";
+  const canWrite = canWriteMenu(session.usuario, master.key);
   const relation =
     master.key === "comprobantes"
       ? undefined

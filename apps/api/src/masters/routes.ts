@@ -11,7 +11,11 @@ import {
   type SessionResponse,
 } from "@erp/shared";
 import type { AuthService } from "../auth/service.js";
-import { requireMasterWrite, requireSession } from "../auth/middleware.js";
+import {
+  requireMasterWrite,
+  requireSession,
+  requireMenu,
+} from "../auth/middleware.js";
 import {
   definition,
   listQuery,
@@ -23,6 +27,10 @@ import type { MasterStore } from "./store.js";
 export function masterRouter(auth: AuthService, store: MasterStore) {
   const router = Router();
   router.use(requireSession(auth));
+  router.use((req, res, next) => {
+    const master = definition(req.path.split("/")[1] ?? "");
+    requireMenu(master.key)(req, res, next);
+  });
   router.get("/clientes/meta/siguiente-codigo", async (_req, res) => {
     res.json(await store.suggestClientCode());
   });

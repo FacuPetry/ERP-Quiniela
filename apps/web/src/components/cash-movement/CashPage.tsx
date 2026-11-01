@@ -1,3 +1,4 @@
+import { canWriteMenu } from "@erp/shared";
 import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -74,7 +75,10 @@ export function CashPage({
     opening = useRef(false);
   handler.current = onExpired;
   const expired = useCallback(() => handler.current(), []);
-  const canWrite = session.usuario.rol.codigo === "ADMIN";
+  const canWrite = canWriteMenu(
+    session.usuario,
+    treasury ? "tesoreria" : "cobros-pagos",
+  );
   const { selected: activeBox } = useActiveCash();
   useEffect(() => {
     mounted.current = true;

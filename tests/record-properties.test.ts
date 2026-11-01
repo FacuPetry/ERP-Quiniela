@@ -59,7 +59,7 @@ test("Propiedades carga solo el detalle y la referencia específica, también in
     const url = String(input);
     requests.push(url);
     assert.ok(init?.signal);
-    if (url === "/api/maestros/clientes/00001")
+    if (url === "/api/referencias/clientes/00001")
       return Response.json({
         registro: {
           Codigo: "00001",
@@ -69,7 +69,7 @@ test("Propiedades carga solo el detalle y la referencia específica, también in
         },
         version: "1",
       });
-    assert.equal(url, "/api/maestros/tipos-cliente/TC");
+    assert.equal(url, "/api/referencias/tipos-cliente/TC");
     return Response.json({
       registro: { Codigo: "TC", Descripcion: "Tipo histórico", Activo: false },
       version: "2",
@@ -89,7 +89,7 @@ test("Propiedades carga solo el detalle y la referencia específica, también in
       propertyFields: ["Nombre"],
     };
     await loadMasterProperties(master, "00001", new AbortController().signal);
-    assert.deepEqual(requests, ["/api/maestros/clientes/00001"]);
+    assert.deepEqual(requests, ["/api/referencias/clientes/00001"]);
   } finally {
     globalThis.fetch = original;
   }
