@@ -1,0 +1,29 @@
+# Criterios comunes de Informes
+
+Estos criterios se aplican a los informes actuales y a los que se incorporen después. Los ABM operativos y la auditoría conservan sus consultas e historial completos.
+
+## Vigencia de movimientos
+
+**Los movimientos ANULADOS se excluyen de las filas, saldos, agrupaciones y relaciones informativas de todos los informes.** No se borran ni se modifica su estado. Las consultas de informes reutilizan `reportMovement(alias)` de `apps/api/src/reports/policy.ts`; el alias es una constante interna, nunca texto recibido del usuario.
+
+Un original revertido no es un anulado: conserva su incidencia y se considera junto con la contrapartida confirmada. No filtrar por el estado visual Revertido ni descontar el original una segunda vez. Un estado distinto de Anulado no exime al informe de aplicar las demás reglas de vigencia de su dominio.
+
+Cada importe financiero debe agregarse una sola vez desde su asiento real. Las relaciones 1:N —afectaciones, medios de pago, eventos— se consultan separadamente para información o se agrupan antes de unirlas; no multiplicar el asiento por cada relación.
+
+## Consulta y presentación
+
+- Usar `ReportView`, `Modal`, `ActionToolbar` y `DataTable`. No crear una tabla particular por informe.
+- Abrir filtros al ingresar; no consultar hasta Aceptar. Cancelar conserva los últimos resultados aceptados. Actualizar repite esos criterios.
+- El título principal lo presenta Workspace. No agregar tarjetas descriptivas ni otro encabezado visible redundante.
+- Mantener tabla limpia, sin divisorias de grilla, con encabezados y totales en el mismo verde suave. Fechas `dd/MM/yyyy`, importes a la derecha y scroll horizontal interno en móvil.
+- **Sin paginación visible:** la función `load` del informe recibe `ReportQuery.parameters` y debe enviarlo a la API (`continuo=1`). El servicio devuelve la colección completa y coherente con sus totales en un snapshot de solo lectura. No recorrer páginas de distintas consultas para armar un saldo.
+- ReportView presenta 200 registros inicialmente y agrega bloques de 200 al acercarse al final del scroll. No realiza nuevas consultas al avanzar ni oculta registros por un límite fijo. El pie aparece al alcanzar el final. Esta es presentación progresiva, no virtualización: las filas ya mostradas permanecen en el DOM y la respuesta completa permanece en memoria.
+- Para volúmenes extraordinarios se debe evaluar exportación o un snapshot paginado estable/virtualización. No introducir un recorte silencioso para aliviar la carga. En el Resumen, las fechas permiten acotar el detalle.
+- Las APIs mantienen opcionalmente el contrato paginado anterior para compatibilidad; los informes de la aplicación siempre usan el modo continuo. Los ABM mantienen su paginación habitual.
+- Totales y saldos se calculan como DECIMAL; viajar como texto, sin sumas monetarias mediante Number. Mantener orden estable y validar filtros/fechas y permisos en servidor.
+
+## Filas informativas
+
+DataTable admite un saldo inicial (`openingBalance`) y un pie de una o varias filas (`totals`). `labelKey` coloca el nombre en una columna concreta; las otras celdas quedan vacías salvo los valores configurados. Son filas informativas, sin selección ni Propiedades de una operación ficticia.
+
+En el mayor de Cuenta corriente, «Saldo anterior» y «Saldo a vencer» llevan su nombre únicamente en **Comprobante**, y valores únicamente en **Débito, Crédito y Saldo acumulado**. Consultar el [alcance y fórmulas del mayor](listado-resumen-cuenta-corriente.md).

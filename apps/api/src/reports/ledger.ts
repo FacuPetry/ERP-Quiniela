@@ -8,6 +8,7 @@ import {
 } from "@erp/shared";
 import { MasterRequestError } from "../masters/validation.js";
 import type { LedgerQuery } from "./validation.js";
+import { reportMovement } from "./policy.js";
 const operation = (description: unknown, number: unknown) =>
   description
     ? `${String(description)} · ${formatVoucher(number == null ? null : String(number))}`
@@ -24,10 +25,10 @@ const base = `SELECT a.IDTabla AS Clave,a.FechaOrigen AS FechaOrden,
  a.Cuenta,a.Naturaleza,a.Importe AS ImporteOriginal,a.CajaMovimiento,
  CASE WHEN a.Estado='ANULADO' THEN 'ANULADO' WHEN rev.IDTabla IS NOT NULL THEN 'REVERTIDO' ELSE a.Estado END AS Estado,
  (cm.CajaMovimientoOrigen IS NOT NULL) AS EsReverso,
- CASE WHEN a.Estado='CONFIRMADO' AND ${isDebit} THEN a.Importe ELSE 0 END AS Debito,
- CASE WHEN a.Estado='CONFIRMADO' AND NOT ${isDebit} THEN a.Importe ELSE 0 END AS Credito,
- CASE WHEN a.Estado='CONFIRMADO' AND a.Cuenta='COBRAR' THEN CASE WHEN a.Naturaleza='DEUDA' THEN a.Importe ELSE -a.Importe END ELSE 0 END AS DeltaCobrar,
- CASE WHEN a.Estado='CONFIRMADO' AND a.Cuenta='PAGAR' THEN CASE WHEN a.Naturaleza='DEUDA' THEN a.Importe ELSE -a.Importe END ELSE 0 END AS DeltaPagar,
+ CASE WHEN ${isDebit} THEN a.Importe ELSE 0 END AS Debito,
+ CASE WHEN NOT ${isDebit} THEN a.Importe ELSE 0 END AS Credito,
+ CASE WHEN a.Cuenta='COBRAR' THEN CASE WHEN a.Naturaleza='DEUDA' THEN a.Importe ELSE -a.Importe END ELSE 0 END AS DeltaCobrar,
+ CASE WHEN a.Cuenta='PAGAR' THEN CASE WHEN a.Naturaleza='DEUDA' THEN a.Importe ELSE -a.Importe END ELSE 0 END AS DeltaPagar,
  cm.NumeroComprobante AS OperacionNumero,cv.Descripcion AS OperacionDescripcion,
  src.NumeroComprobante AS OriginalNumero,sv.Descripcion AS OriginalDescripcion,
  rev.NumeroComprobante AS ReversionNumero,rv.Descripcion AS ReversionDescripcion,
@@ -43,7 +44,7 @@ const base = `SELECT a.IDTabla AS Clave,a.FechaOrigen AS FechaOrden,
  LEFT JOIN COMPROBANTE rv ON rv.Codigo=rev.Comprobante
  LEFT JOIN CHEQUEEVENTO ce ON ce.IDTabla=a.ChequeEvento
  LEFT JOIN CHEQUE ch ON ch.IDTabla=ce.Cheque
- WHERE a.Cliente=? AND a.Cuenta IN ('COBRAR','PAGAR') AND a.Naturaleza IN ('DEUDA','CREDITO') AND a.Estado IN ('CONFIRMADO','ANULADO')`;
+ WHERE a.Cliente=? AND a.Cuenta IN ('COBRAR','PAGAR') AND a.Naturaleza IN ('DEUDA','CREDITO') AND ${reportMovement("a")}`;
 async function associations(c: PoolConnection, rows: RowDataPacket[]) {
   const ids = rows.map((r) => String(r.Clave)),
     cashIds = [
@@ -70,7 +71,7 @@ async function associations(c: PoolConnection, rows: RowDataPacket[]) {
   JOIN COMPROBANTE dc ON dc.Codigo=d.Comprobante JOIN CAJAMOVIMIENTO m ON m.IDTabla=f.CajaMovimiento
   JOIN COMPROBANTE mc ON mc.Codigo=m.Comprobante
   LEFT JOIN CAJAMOVIMIENTO rev ON rev.CajaMovimientoOrigen=m.IDTabla AND rev.Estado='CONFIRMADO'
-  WHERE f.CuentaCorriente IN (${placeholders(ids)})${cashIds.length ? ` OR f.CajaMovimiento IN (${placeholders(cashIds)})` : ""} ORDER BY f.IDTabla`,
+  WHERE ${reportMovement("m")} AND ${reportMovement("d")} AND (f.CuentaCorriente IN (${placeholders(ids)})${cashIds.length ? ` OR f.CajaMovimiento IN (${placeholders(cashIds)})` : ""}) ORDER BY f.IDTabla`,
     [...ids, ...cashIds],
   );
   const allocations: AccountLedgerAllocation[] = links.map((r) => ({
@@ -98,14 +99,14 @@ async function associations(c: PoolConnection, rows: RowDataPacket[]) {
   m.Estado,m.NumeroComprobante,vc.Descripcion
   FROM TRANSFERENCIA t JOIN CAJAMOVIMIENTO m ON m.IDTabla=t.CajaMovimiento JOIN COMPROBANTE vc ON vc.Codigo=m.Comprobante
   JOIN BANCOCUENTA bc ON bc.Codigo=t.BancoCuenta JOIN BANCO b ON b.Codigo=bc.Banco
-  WHERE t.CajaMovimiento IN (${placeholders(operations)}) ORDER BY t.IDTabla`,
+  WHERE ${reportMovement("m")} AND t.CajaMovimiento IN (${placeholders(operations)}) ORDER BY t.IDTabla`,
     operations,
   );
   const [cheques] = await c.execute<RowDataPacket[]>(
     `SELECT DISTINCT e.CajaMovimiento,ch.IDTabla,ch.Tipo,ch.Numero,ch.Importe,ch.Estado,b.Nombre AS BancoNombre,bc.Nombre AS CuentaNombre,m.NumeroComprobante,vc.Descripcion
   FROM CHEQUEEVENTO e JOIN CHEQUE ch ON ch.IDTabla=e.Cheque JOIN BANCO b ON b.Codigo=ch.Banco
   LEFT JOIN BANCOCUENTA bc ON bc.Codigo=ch.BancoCuenta JOIN CAJAMOVIMIENTO m ON m.IDTabla=e.CajaMovimiento
-  JOIN COMPROBANTE vc ON vc.Codigo=m.Comprobante WHERE e.CajaMovimiento IN (${placeholders(operations)}) ORDER BY e.CajaMovimiento,ch.IDTabla`,
+  JOIN COMPROBANTE vc ON vc.Codigo=m.Comprobante WHERE ${reportMovement("m")} AND e.CajaMovimiento IN (${placeholders(operations)}) ORDER BY e.CajaMovimiento,ch.IDTabla`,
     operations,
   );
   const value = (r: RowDataPacket, tipo: string): AccountLedgerValue => ({
@@ -139,82 +140,128 @@ export async function accountLedger(
       [q.Cliente],
     );
     if (!clients[0]) throw new MasterRequestError(404, "El cliente no existe.");
+    // Clasificar sin recortar la ventana: los anteriores alimentan el saldo;
+    // los posteriores se resumen una sola vez en la fila «Saldo a vencer».
+    const scoped = `SELECT b.*,${q.Desde ? "(b.FechaOrden < ?)" : "0"} AS Anterior,${q.Hasta ? "(b.FechaOrden > ?)" : "0"} AS Posterior FROM (${base}) b`;
+    const params = [
+      ...(q.Desde ? [q.Desde] : []),
+      ...(q.Hasta ? [q.Hasta] : []),
+      q.Cliente,
+    ];
     const [totals] = await c.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total,COALESCE(SUM(b.Debito),0) AS Debito,COALESCE(SUM(b.Credito),0) AS Credito,
-    COALESCE(SUM(b.Debito-b.Credito),0) AS SaldoFinal,COALESCE(SUM(b.DeltaCobrar),0) AS SaldoCobrar,COALESCE(SUM(b.DeltaPagar),0) AS SaldoPagar FROM (${base}) b`,
-      [q.Cliente],
+      `SELECT COALESCE(SUM(b.Anterior=0 AND b.Posterior=0),0) AS total,
+    COALESCE(SUM(CASE WHEN b.Anterior=0 AND b.Posterior=0 THEN b.Debito ELSE 0 END),0) AS Debito,
+    COALESCE(SUM(CASE WHEN b.Anterior=0 AND b.Posterior=0 THEN b.Credito ELSE 0 END),0) AS Credito,
+    COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoFinal,
+    COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.DeltaCobrar ELSE 0 END),0) AS SaldoCobrar,
+    COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.DeltaPagar ELSE 0 END),0) AS SaldoPagar,
+    COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Debito ELSE 0 END),0) AS PosteriorDebito,
+    COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Credito ELSE 0 END),0) AS PosteriorCredito,
+    COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoPosterior,
+    COALESCE(SUM(b.Debito-b.Credito),0) AS SaldoCompleto,
+    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoAnterior,
+    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Debito ELSE 0 END),0) AS AnteriorDebito,
+    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Credito ELSE 0 END),0) AS AnteriorCredito,
+    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.DeltaCobrar ELSE 0 END),0) AS AnteriorCobrar,
+    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.DeltaPagar ELSE 0 END),0) AS AnteriorPagar
+    FROM (${scoped}) b`,
+      params,
     );
-    // La ventana abarca TODA la cuenta del cliente antes de LIMIT/OFFSET.
     const [rows] = await c.execute<RowDataPacket[]>(
-      `SELECT b.*,
+      `SELECT w.* FROM (SELECT b.*,
     SUM(b.Debito-b.Credito) OVER (ORDER BY b.FechaOrden,b.Clave ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS SaldoAcumulado,
     SUM(b.DeltaCobrar) OVER (ORDER BY b.FechaOrden,b.Clave ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS SaldoCobrar,
     SUM(b.DeltaPagar) OVER (ORDER BY b.FechaOrden,b.Clave ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS SaldoPagar
-    FROM (${base}) b ORDER BY b.FechaOrden,b.Clave LIMIT ? OFFSET ?`,
-      [q.Cliente, q.limite, (q.pagina - 1) * q.limite],
+    FROM (${scoped}) b) w WHERE w.Anterior=0 AND w.Posterior=0 ORDER BY w.FechaOrden,w.Clave${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
+      [...params, ...(q.continuo ? [] : [q.limite, (q.pagina - 1) * q.limite])],
     );
-    const related = await associations(c, rows);
-    const records: AccountLedgerRow[] = rows.map((r) => {
-      const linked = related.allocations.filter(
-        (a) =>
-          a.CuentaCorriente === String(r.Clave) ||
-          a.CajaMovimiento === String(r.CajaMovimiento),
+    const records: AccountLedgerRow[] = [];
+    // Resolver metadatos por lotes dentro del mismo snapshot evita listas IN
+    // ilimitadas y conserva una sola incidencia por asiento en informes extensos.
+    for (let start = 0; start < rows.length; start += 100) {
+      const batch = rows.slice(start, start + 100);
+      const related = await associations(c, batch);
+      records.push(
+        ...batch.map((r) => {
+          const linked = related.allocations.filter(
+            (a) =>
+              a.CuentaCorriente === String(r.Clave) ||
+              a.CajaMovimiento === String(r.CajaMovimiento),
+          );
+          const operationIds = new Set([
+            ...[r.CajaMovimiento, r.ChequeOrigen]
+              .filter((v) => v != null)
+              .map(String),
+            ...linked.map((a) => a.CajaMovimiento),
+          ]);
+          const text = [
+            r.Concepto,
+            r.Observacion,
+            r.ChequeNumero
+              ? `Rechazo de cheque ${String(r.ChequeNumero)}`
+              : null,
+          ]
+            .filter(Boolean)
+            .map(String);
+          return {
+            Clave: String(r.Clave),
+            FechaOrigen: String(r.FechaOrigen),
+            ComprobanteDescripcion: String(r.ComprobanteDescripcion),
+            NumeroComprobanteTexto: formatVoucher(
+              r.NumeroComprobante == null ? null : String(r.NumeroComprobante),
+            ),
+            Detalle: text.join(" · ") || "Movimiento de Cuenta corriente",
+            Cuenta: String(r.Cuenta),
+            Naturaleza: String(r.Naturaleza),
+            Estado: String(r.Estado),
+            EsReverso: Boolean(r.EsReverso),
+            Debito: String(r.Debito),
+            Credito: String(r.Credito),
+            SaldoAcumulado: String(r.SaldoAcumulado),
+            SaldoCobrar: String(r.SaldoCobrar),
+            SaldoPagar: String(r.SaldoPagar),
+            ImporteOriginal: String(r.ImporteOriginal),
+            Operacion:
+              operation(r.OperacionDescripcion, r.OperacionNumero) ??
+              related.values.find(
+                (v) => v.CajaMovimiento === String(r.ChequeOrigen),
+              )?.Operacion ??
+              null,
+            Original: operation(r.OriginalDescripcion, r.OriginalNumero),
+            Reversion: operation(r.ReversionDescripcion, r.ReversionNumero),
+            MotivoAnulacion:
+              r.MotivoAnulacion == null ? null : String(r.MotivoAnulacion),
+            AnuladoEn: r.AnuladoEn == null ? null : String(r.AnuladoEn),
+            Afectaciones: linked,
+            Valores: related.values.filter((v) =>
+              operationIds.has(v.CajaMovimiento),
+            ),
+          };
+        }),
       );
-      const operationIds = new Set([
-        ...[r.CajaMovimiento, r.ChequeOrigen]
-          .filter((v) => v != null)
-          .map(String),
-        ...linked.map((a) => a.CajaMovimiento),
-      ]);
-      const text = [
-        r.Concepto,
-        r.Observacion,
-        r.ChequeNumero ? `Rechazo de cheque ${String(r.ChequeNumero)}` : null,
-      ]
-        .filter(Boolean)
-        .map(String);
-      return {
-        Clave: String(r.Clave),
-        FechaOrigen: String(r.FechaOrigen),
-        ComprobanteDescripcion: String(r.ComprobanteDescripcion),
-        NumeroComprobanteTexto: formatVoucher(
-          r.NumeroComprobante == null ? null : String(r.NumeroComprobante),
-        ),
-        Detalle: text.join(" · ") || "Movimiento de Cuenta corriente",
-        Cuenta: String(r.Cuenta),
-        Naturaleza: String(r.Naturaleza),
-        Estado: String(r.Estado),
-        EsReverso: Boolean(r.EsReverso),
-        Debito: String(r.Debito),
-        Credito: String(r.Credito),
-        SaldoAcumulado: String(r.SaldoAcumulado),
-        SaldoCobrar: String(r.SaldoCobrar),
-        SaldoPagar: String(r.SaldoPagar),
-        ImporteOriginal: String(r.ImporteOriginal),
-        Operacion:
-          operation(r.OperacionDescripcion, r.OperacionNumero) ??
-          related.values.find(
-            (v) => v.CajaMovimiento === String(r.ChequeOrigen),
-          )?.Operacion ??
-          null,
-        Original: operation(r.OriginalDescripcion, r.OriginalNumero),
-        Reversion: operation(r.ReversionDescripcion, r.ReversionNumero),
-        MotivoAnulacion:
-          r.MotivoAnulacion == null ? null : String(r.MotivoAnulacion),
-        AnuladoEn: r.AnuladoEn == null ? null : String(r.AnuladoEn),
-        Afectaciones: linked,
-        Valores: related.values.filter((v) =>
-          operationIds.has(v.CajaMovimiento),
-        ),
-      };
-    });
+    }
     await c.commit();
     const total = totals[0]!;
     return {
       registros: records,
       total: Number(total.total),
-      pagina: q.pagina,
-      limite: q.limite,
+      pagina: q.continuo ? 1 : q.pagina,
+      limite: q.continuo ? Math.max(1, Number(total.total)) : q.limite,
+      Desde: q.Desde ?? null,
+      Hasta: q.Hasta ?? null,
+      saldoAnterior: {
+        Debito: String(total.AnteriorDebito),
+        Credito: String(total.AnteriorCredito),
+        Saldo: String(total.SaldoAnterior),
+        SaldoCobrar: String(total.AnteriorCobrar),
+        SaldoPagar: String(total.AnteriorPagar),
+      },
+      saldoAVencer: {
+        Debito: String(total.PosteriorDebito),
+        Credito: String(total.PosteriorCredito),
+        Saldo: String(total.SaldoPosterior),
+        SaldoAcumulado: String(total.SaldoCompleto),
+      },
       Cliente: String(clients[0].Codigo),
       ClienteNombre: String(clients[0].Nombre),
       consultadoEn: new Date().toISOString(),

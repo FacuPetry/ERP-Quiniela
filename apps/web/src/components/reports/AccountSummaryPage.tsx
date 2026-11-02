@@ -83,13 +83,13 @@ const initialFilters: SummaryFilters = {
 };
 async function loadSummary({
   filters,
-  page,
+  parameters,
   sort,
   signal,
 }: ReportQuery<SummaryFilters>) {
   const params = new URLSearchParams({
     ...listSortQuery(sort),
-    pagina: String(page),
+    ...parameters,
     ...(filters.clientType ? { ClienteTipo: filters.clientType } : {}),
     ...(filters.client ? { Cliente: String(filters.client.Codigo) } : {}),
   });
@@ -101,10 +101,7 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
   return (
     <ReportView<AccountSummaryRow, SummaryFilters, AccountSummary>
       title="Listado de Cuenta corriente"
-      description="Saldos actuales de apuestas y premios, con cobros, pagos y correcciones registrados."
       caption="Saldos por cliente"
-      icon="account"
-      badge="Saldo actual"
       initialFilters={initialFilters}
       load={loadSummary}
       onExpired={onExpired}

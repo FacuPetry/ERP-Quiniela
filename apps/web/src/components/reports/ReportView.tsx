@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useCallback,
   useState,
   type Dispatch,
   type ReactNode,
@@ -7,7 +8,6 @@ import {
 } from "react";
 import type { ListSort } from "@erp/shared";
 import { ApiRequestError } from "../../services/http";
-import { Icon, type IconName } from "../Icon";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import {
   DataTable,
@@ -16,18 +16,15 @@ import {
   type TableTotals,
 } from "../ui/DataTable";
 import { Modal } from "../ui/Modal";
-import { Pagination } from "../ui/Pagination";
-import { useListSorting } from "../ui/useListSorting";
 import "./reports.css";
 export interface ReportResult<T> {
   registros: T[];
   total: number;
-  pagina: number;
-  limite: number;
 }
 export interface ReportQuery<F> {
   filters: F;
-  page: number;
+  /** Todos los informes solicitan una colección coherente para scroll continuo. */
+  parameters: { continuo: "1" };
   sort: ListSort | null;
   signal: AbortSignal;
 }
@@ -39,10 +36,7 @@ export interface ReportFilterEditor<F> {
  * columnas y datos; la base no interpreta importes ni reglas financieras. */
 export function ReportView<T, F, R extends ReportResult<T>>({
   title,
-  description,
   caption,
-  icon = "file",
-  badge,
   initialFilters,
   renderFilters,
   validateFilters,
@@ -53,16 +47,13 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowKey,
   rowLabel,
   properties,
-  renderSummary,
   totals,
+  openingBalance,
   renderNotes,
   onExpired,
 }: {
   title: string;
-  description: string;
   caption: string;
-  icon?: IconName;
-  badge?: string;
   initialFilters: F;
   renderFilters: (editor: ReportFilterEditor<F>) => ReactNode;
   validateFilters?: (filters: F) => string | undefined;
@@ -74,35 +65,42 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowKey: (row: T) => string;
   rowLabel?: (row: T) => string;
   properties?: TableProperties<T>;
-  renderSummary?: (data: R) => ReactNode;
-  totals?: (data: R) => TableTotals;
+  totals?: (data: R) => TableTotals | readonly TableTotals[];
+  openingBalance?: (data: R) => TableTotals | undefined;
   renderNotes?: (data: R | null) => ReactNode;
   onExpired: () => void;
 }) {
   const [filters, setFilters] = useState(initialFilters),
     [filtering, setFiltering] = useState(true);
   const [requested, setRequested] = useState(false),
-    [page, setPage] = useState(1),
     [revision, setRevision] = useState(0);
   const [data, setData] = useState<R | null>(null),
     [loading, setLoading] = useState(false),
     [error, setError] = useState("");
+  const [visible, setVisible] = useState(200);
+  const showMore = useCallback(() => setVisible((n) => n + 200), []);
   const [selected, setSelected] = useState<string | null>(null);
-  const sorting = useListSorting(setPage);
+  const [sort, setSort] = useState<ListSort | null>(null);
   useEffect(() => {
     if (!requested) return;
     const c = new AbortController();
     setLoading(true);
     setError("");
     setData(null);
+    setVisible(200);
     setSelected(null);
-    void load({ filters, page, sort: sorting.value, signal: c.signal })
+    void load({
+      filters,
+      parameters: { continuo: "1" },
+      sort,
+      signal: c.signal,
+    })
       .then((result) => {
         if (c.signal.aborted) return;
-        if (page > 1 && !result.registros.length) {
-          setPage(Math.max(1, Math.ceil(result.total / result.limite)));
-          return;
-        }
+        if (result.registros.length !== result.total)
+          throw new Error(
+            "No se pudo obtener el informe completo. Volvé a consultar.",
+          );
         setData(result);
       })
       .catch((e) => {
@@ -117,10 +115,9 @@ export function ReportView<T, F, R extends ReportResult<T>>({
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [requested, filters, page, revision, sorting.value, load, onExpired]);
+  }, [requested, filters, revision, sort, load, onExpired]);
   function apply(value: F) {
     setFilters(value);
-    setPage(1);
     setRequested(true);
     setRevision((v) => v + 1);
     setFiltering(false);
@@ -134,36 +131,38 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   }
   return (
     <div className="report-layout">
-      <section className="panel report-introduction">
-        <span className="section-icon">
-          <Icon name={icon} />
-        </span>
-        <div>
-          <h2>{title}</h2>
-          <p className="muted small">{description}</p>
-        </div>
-        {badge && <span className="badge">{badge}</span>}
-      </section>
       {error && (
         <p className="notice error" role="alert">
           {error}
         </p>
       )}
-      {data && renderSummary?.(data)}
-      <section className="panel report-results">
+      <section
+        className="panel report-results"
+        key={`${revision}:${sort?.campo ?? ""}:${sort?.direccion ?? ""}`}
+      >
         <DataTable
-          caption={caption}
-          rows={data?.registros ?? []}
+          caption={title}
+          rows={data?.registros.slice(0, visible) ?? []}
           columns={columns}
           rowKey={rowKey}
           {...(rowLabel ? { rowLabel } : {})}
           loading={loading}
           selectedKey={selected}
           onSelectionChange={setSelected}
-          sort={sorting.value}
-          onSortChange={sorting.onChange}
+          sort={sort}
+          onSortChange={setSort}
+          onEndReached={
+            data && visible < data.registros.length ? showMore : undefined
+          }
           bordered={false}
-          totals={data && totals ? totals(data) : undefined}
+          totals={
+            data && visible >= data.registros.length && totals
+              ? totals(data)
+              : undefined
+          }
+          openingBalance={
+            data && openingBalance ? openingBalance(data) : undefined
+          }
           properties={{ ...properties, onExpired }}
           emptyMessage={
             error
@@ -175,7 +174,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
           toolbar={(actions) => (
             <div className="report-toolbar">
               <div>
-                <h2>{caption}</h2>
+                <span className="sr-only">{caption}</span>
                 <p className="muted small">
                   {requested
                     ? filterSummary(filters)
@@ -199,15 +198,6 @@ export function ReportView<T, F, R extends ReportResult<T>>({
             </div>
           )}
         />
-        {data && (
-          <Pagination
-            page={data.pagina}
-            total={data.total}
-            limit={data.limite}
-            loading={loading}
-            onChange={setPage}
-          />
-        )}
       </section>
       {renderNotes?.(data)}
       {filtering && (

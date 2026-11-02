@@ -6,7 +6,7 @@ Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendie
 
 ## Entrega en revisión — Listado y Resumen de Cuenta corriente
 
-El Listado de saldos incorpora Tipo de cliente y Cliente opcional, sin KPI. El nuevo Resumen es un mayor de un cliente obligatorio, con débitos, créditos, acumulados cronológicos, totales y trazabilidad de afectaciones/valores. El menú funciona como acordeón exclusivo con submenús indentados. El Listado conserva el permiso anterior; el Resumen tiene uno nuevo. No requiere migraciones. Ver [convención financiera, permisos y pruebas](docs/listado-resumen-cuenta-corriente.md).
+El Listado de saldos incorpora Tipo de cliente y Cliente opcional, sin KPI. El Resumen es un mayor de cliente obligatorio con fechas, Saldo anterior, movimientos del período y Saldo a vencer por fecha de origen, sin anulados. Ambos informes tienen scroll continuo sin páginas, encabezados/totales en verde suave y trazabilidad de afectaciones/valores. El menú funciona como acordeón exclusivo con submenús indentados. El Listado conserva el permiso anterior; el Resumen tiene uno nuevo. No requiere migraciones. Ver [convención financiera, permisos y pruebas](docs/listado-resumen-cuenta-corriente.md) y los [criterios generales para informes futuros](docs/criterios-informes.md).
 
 ## Filtros, Informes y menú por categorías
 

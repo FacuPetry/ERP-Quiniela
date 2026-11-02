@@ -16,36 +16,36 @@ El toolbar incorpora el ícono estándar Filtrar y abre **FilterDialog**, con B�
 
 `apps/web/src/components/reports/ReportView.tsx` centraliza presentación y ciclo de consulta. El módulo aporta filtros iniciales, editor de filtros, validación opcional, una función de carga estable, columnas, clave/etiqueta de fila, Propiedades y bloques opcionales de resumen/notas.
 
-La base compone **Modal, ActionToolbar, DataTable, Pagination y useListSorting**. No incorpora otro componente de listas ni interpreta reglas financieras.
+La base compone **Modal, ActionToolbar y DataTable**, con orden remoto y presentación continua por scroll. No incorpora otro componente de listas ni interpreta reglas financieras.
 
 ### Ciclo de consulta
 
 1. Al montar el informe, abre automáticamente **Filtros del informe**, sin consultar resultados.
-2. Aceptar valida los filtros, vuelve a la primera página y ejecuta la consulta.
+2. Aceptar valida los filtros, vuelve al comienzo de la tabla y ejecuta la consulta.
 3. Cancelar/Cerrar/Escape antes de la primera consulta deja el informe vacío, con el mensaje «Aplicá los filtros para consultar la información».
 4. Filtros del informe vuelve a abrir el editor con la última selección aceptada. Cancelar una edición posterior conserva los resultados y criterios de esa consulta, sin ejecutar otra.
 5. Actualizar informe repite la consulta aceptada. Si todavía no se aceptaron filtros, abre el modal; no consulta todos los registros automáticamente.
-6. Ordenar cambia el criterio remoto y vuelve a la primera página. La paginación conserva los filtros. Al salir del informe se cancela la petición pendiente; al entrar nuevamente comienza un ciclo vacío con filtros abiertos.
+6. Ordenar cambia el criterio remoto sobre todos los resultados y vuelve al comienzo. No existe paginación visible en Informes. Al salir del informe se cancela la petición pendiente; al entrar nuevamente comienza un ciclo vacío con filtros abiertos.
 
 Los errores de consulta no se presentan como saldos cero ni conservan resultados que parezcan pertenecer al filtro nuevo. Los totales y la cantidad siguen viniendo de la misma respuesta del servidor.
 
 ### Presentación
 
-La base define el estilo de informes en `reports.css`: tabla sin líneas divisorias entre filas/columnas, encabezados limpios, importes alineados a la derecha y tarjetas de resumen responsive. Se conservan selección, orden, scroll horizontal y Propiedades.
+La base define el estilo de informes en `reports.css`: tabla sin líneas divisorias entre filas/columnas, encabezados/totales en el mismo verde suave e importes alineados a la derecha, sin tarjetas descriptivas redundantes. Se conservan selección, orden, scroll horizontal y Propiedades.
 
 El estilo está limitado a `.report-results`; las listas de ABM y las búsquedas SF conservan su apariencia. DataTable incorpora `TableColumn.align` opcional para alinear también el encabezado; omitirlo conserva el comportamiento de las otras grillas.
 
 ### Cliente mediante SF
 
-Resumen de Cuenta corriente reutiliza **ClientSearch/SearchField**, con registros activos e históricos, búsqueda por lupa, selección automática cuando hay una coincidencia o modal cuando hay varias, y Limpiar. El filtro envía **Cliente = código seleccionado** a la API existente, sin convertir el texto escrito en un cliente válido.
+Listado de Cuenta corriente reutiliza **ClientSearch/SearchField**, con registros activos e históricos, búsqueda por lupa, selección automática cuando hay una coincidencia o modal cuando hay varias, y Limpiar. El filtro envía **Cliente = código seleccionado** a la API existente, sin convertir el texto escrito en un cliente válido.
 
-Sin cliente seleccionado y con el campo limpio se consultan todos los clientes con movimientos confirmados. Si hay texto sin una selección validada, Aceptar indica que debe utilizarse la lupa o limpiarse el campo. SearchField expone un callback opcional `onSearchTextChange` para esta validación; no cambia su funcionamiento en los demás módulos.
+En el Listado, sin cliente seleccionado y con el campo limpio se consultan todos los clientes con movimientos confirmados. Si hay texto sin una selección validada, Aceptar indica que debe utilizarse la lupa o limpiarse el campo. SearchField expone un callback opcional `onSearchTextChange` para esta validación; no cambia su funcionamiento en los demás módulos.
 
 Se mantienen los saldos actuales, las reglas de créditos/afectaciones/anulaciones/reversiones y el alcance sin corte histórico ni exportaciones.
 
 ### Reutilización
 
-Un próximo informe debe componer ReportView con sus propios tipos, columnas y filtros. La función `load` debe declararse fuera del render o mantenerse estable con useCallback para que un cambio de identidad no provoque otra consulta. Sus resultados cumplen `ReportResult<T>` (registros, total, pagina y limite); puede extenderlo con totales u otra información.
+Un próximo informe debe componer ReportView con sus propios tipos, columnas y filtros. La función `load` debe declararse fuera del render o mantenerse estable con useCallback para que un cambio de identidad no provoque otra consulta. La función debe enviar `ReportQuery.parameters` a la API (`continuo=1`). Se obtiene un snapshot completo y la base agrega bloques de 200 filas al desplazarse, sin consultar otras páginas. Ver [criterios comunes](criterios-informes.md). Sus resultados cumplen `ReportResult<T>` (registros y total); puede extenderlo con totales u otra información.
 
 El editor recibe `{ value, onChange }`, utilizando controles base. Para actualizar varias partes desde eventos del mismo control, utilizar actualizaciones funcionales de onChange. La validación y el envío de identificadores corresponden al módulo; la base administra cuándo consultar, sin definir cómo se calculan los datos.
 
@@ -74,7 +74,7 @@ Las rutas de componentes/estilos se encuentran dentro de `apps/web/src`. No se m
 1. Entrar a Usuarios: no debe consultar ni mostrar filtros debajo de la tabla. Abrir Filtrar, cambiar búsqueda/estado y Cancelar: sin consulta. Reabrir, aplicar y comprobar resultados; probar Limpiar/Cancelar y Limpiar/Aplicar, orden y paginación.
 2. Entrar al Resumen desde el menú: los filtros deben abrirse automáticamente y la red no debe registrar una petición al informe. Cancelar, cerrar con X o Escape: queda vacío. Actualizar antes de aceptar también debe abrir filtros sin consultar.
 3. Escribir un cliente y presionar Aceptar sin buscar: debe mantener el modal y pedir selección. Buscar una coincidencia única; después probar varias y seleccionar desde el SF. Hasta Aceptar no debe consultarse el informe.
-4. Aceptar un cliente y verificar que se consulta solo su código; probar Limpiar/Aceptar para todos. Revisar tarjetas, alineación, ausencia de divisorias, totales, orden, paginación y Propiedades.
+4. En el Listado aceptar un cliente y verificar su código; probar Limpiar/Aceptar para todos. En el Resumen el cliente es obligatorio. Revisar alineación, ausencia de divisorias, totales, orden, scroll continuo y Propiedades.
 5. Con resultados, abrir filtros, cambiar cliente y Cancelar: conserva la consulta anterior. Salir a Inicio y volver: inicia vacío con los filtros abiertos.
 6. En una sesión nueva, comprobar las cuatro categorías contraídas. Expandir/contraer con clic y teclado, navegar y revisar el seleccionado. Probar un usuario limitado: no deben mostrarse opciones ni categorías sin accesos.
 7. Revisar nombres largos, tooltip, sidebar compacto y drawer móvil. No debe crecer el ancho ni cortarse el fondo de selección. Las tablas deben seguir desplazándose dentro de su área, sin ensanchar la página.

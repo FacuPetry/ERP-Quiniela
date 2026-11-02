@@ -64,6 +64,23 @@ export interface AccountLedgerRow {
   Valores: AccountLedgerValue[];
 }
 export interface AccountLedger {
+  /** «A vencer» agrupa FechaOrigen > Hasta, no Vencimiento ni pendiente documental. */
+  saldoAVencer: {
+    Debito: string;
+    Credito: string;
+    Saldo: string;
+    SaldoAcumulado: string;
+  };
+  /** Fechas de origen inclusivas. Anulados excluidos; efectos vigentes al consultar. */
+  Desde: string | null;
+  Hasta: string | null;
+  saldoAnterior: {
+    Debito: string;
+    Credito: string;
+    Saldo: string;
+    SaldoCobrar: string;
+    SaldoPagar: string;
+  };
   registros: AccountLedgerRow[];
   total: number;
   pagina: number;

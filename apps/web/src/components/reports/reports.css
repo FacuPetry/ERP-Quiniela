@@ -3,69 +3,10 @@
   gap: 20px;
   min-width: 0;
 }
-.report-introduction {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-.report-introduction > .badge {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.report-totals {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-}
-.report-total {
-  min-width: 0;
-  display: grid;
-  gap: 12px;
-  align-content: start;
-}
-.report-total > svg {
-  color: #6c8b55;
-}
-.report-number {
-  font-size: clamp(20px, 2.4vw, 30px);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-.report-layout .report-total-net {
-  background: #eaf2e3;
-  border-color: #d6e4cc;
-}
 .report-notes {
   display: grid;
   gap: 8px;
 }
-@media (max-width: 700px) {
-  .report-totals {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .report-total {
-    grid-template-columns: 24px minmax(0, 1fr);
-    gap: 8px 12px;
-  }
-  .report-total > svg {
-    grid-row: 1 / span 3;
-  }
-  .report-number,
-  .report-total > p {
-    grid-column: 2;
-  }
-  .report-introduction {
-    flex-wrap: wrap;
-  }
-  .report-introduction > div {
-    flex: 1 1 180px;
-  }
-  .report-introduction > .badge {
-    margin-left: 0;
-  }
-}
-
 /* La base de Informes compone DataTable sin cambiar la presentación de los ABM. */
 .report-layout .report-results {
   min-width: 0;
@@ -86,7 +27,8 @@
   border: 0;
 }
 .report-results .data-table th {
-  background: transparent;
+  background: #f1f6ed;
+  color: #3d5035;
   padding-top: 18px;
   padding-bottom: 16px;
 }
@@ -100,10 +42,6 @@
 }
 .report-results th[data-align="right"] .table-sort-button {
   margin-left: auto;
-}
-.report-results .pagination {
-  border: 0;
-  margin-top: 12px;
 }
 .report-filter-fields {
   display: grid;
@@ -123,8 +61,10 @@
   }
 }
 
-.report-results .data-table tfoot :is(th, td) {
+.report-results .data-table :is(thead, tfoot) :is(th, td),
+.report-results .table-opening-balance :is(th, td) {
   background: #f1f6ed;
+  color: #3d5035;
   font-weight: 650;
   padding-top: 17px;
   padding-bottom: 17px;
@@ -134,4 +74,19 @@
   max-width: 28rem;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Scroll continuo dentro del informe, sin desplazar horizontalmente la página. */
+.report-results .table-scroll {
+  max-height: 70vh;
+  overflow: auto;
+}
+.report-results .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.report-results .table-continuation td {
+  color: #617258;
+  font-size: 13px;
 }

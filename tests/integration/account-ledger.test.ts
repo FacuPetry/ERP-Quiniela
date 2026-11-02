@@ -193,7 +193,10 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         "",
         "Cliente=",
         "Cliente=LG_A&orden=FechaOrigen&direccion=desc",
-        "Cliente=LG_A&Desde=2026-01-01",
+        "Cliente=LG_A&Desde=2026-02-30",
+        "Cliente=LG_A&Desde=2026-02-02&Hasta=2026-01-01",
+        "Cliente=LG_A&Hasta=texto",
+        "Cliente=LG_A&continuo=2",
       ])
         assert.equal(
           (await req("/informes/cuenta-corriente/resumen?" + query)).status,
@@ -349,7 +352,64 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
-    "anulación visible sin incidencia: conservar importe y aplicaciones sin contarlas",
+    "rango inclusivo: saldo anterior separado, movimientos del período y cierre sin sumar posteriores",
+    async () => {
+      const r = await ledger(
+        "Cliente=LG_A&Desde=2026-01-02&Hasta=2026-01-03&continuo=1",
+      );
+      assert.equal(r.registros.length, 3);
+      assert.equal(r.saldoAnterior.Saldo, "-80.00");
+      assert.equal(r.saldoAnterior.Debito, "0.00");
+      assert.equal(r.saldoAnterior.Credito, "80.00");
+      assert.deepEqual(
+        r.registros.map((v) => v.SaldoAcumulado),
+        ["20.00", "70.00", "-80.00"],
+      );
+      assert.equal(r.totales.Debito, "150.00");
+      assert.equal(r.totales.Credito, "150.00");
+      assert.equal(r.totales.SaldoFinal, "-80.00");
+      assert.equal(r.totales.SaldoPagar, "80.00");
+      assert.equal(r.totales.SaldoCobrar, "0.00");
+      assert.deepEqual(r.saldoAVencer, {
+        Debito: "30.00",
+        Credito: "0.00",
+        Saldo: "30.00",
+        SaldoAcumulado: "-50.00",
+      });
+      const justPayment = await ledger(
+        "Cliente=LG_A&Desde=2026-01-04&Hasta=2026-01-04",
+      );
+      assert.equal(justPayment.saldoAnterior.Saldo, "-80.00");
+      assert.equal(justPayment.registros.length, 1);
+      assert.equal(justPayment.totales.Debito, "30.00");
+      assert.equal(justPayment.totales.SaldoFinal, "-50.00");
+      const empty = await ledger(
+        "Cliente=LG_A&Desde=2026-01-05&Hasta=2026-01-06",
+      );
+      assert.equal(empty.total, 0);
+      assert.equal(empty.saldoAnterior.Saldo, "-50.00");
+      assert.equal(empty.totales.SaldoFinal, "-50.00");
+      assert.equal(empty.totales.Debito, "0.00");
+      assert.equal(empty.totales.Credito, "0.00");
+      const onlyUntil = await ledger("Cliente=LG_A&Hasta=2026-01-01");
+      assert.equal(onlyUntil.saldoAnterior.Saldo, "0.00");
+      assert.equal(onlyUntil.total, 1);
+      assert.equal(onlyUntil.totales.SaldoFinal, "-80.00");
+      const none = await ledger("Cliente=LG_A&Hasta=2025-12-31");
+      assert.equal(none.total, 0);
+      assert.equal(none.totales.SaldoFinal, "0.00");
+      assert.equal(none.saldoAVencer.SaldoAcumulado, "-50.00");
+      assert.equal(none.saldoAVencer.Debito, "180.00");
+      assert.equal(none.saldoAVencer.Credito, "230.00");
+      const page = await ledger(
+        "Cliente=LG_A&Desde=2026-01-02&Hasta=2026-01-03&limite=1&pagina=2",
+      );
+      assert.equal(page.registros[0]!.SaldoAcumulado, "70.00");
+      assert.deepEqual(page.totales, r.totales);
+    },
+  );
+  await t.test(
+    "anulados excluidos del detalle, saldos y relaciones informativas",
     async () => {
       await json(
         await req(
@@ -361,13 +421,21 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         ),
       );
       const r = await ledger();
-      const cancelled = r.registros.find((v) =>
-        v.Operacion?.startsWith("LG_P"),
-      )!;
-      assert.equal(cancelled.Estado, "ANULADO");
-      assert.equal(cancelled.ImporteOriginal, "30.00");
-      assert.equal(cancelled.Debito, "0.00");
-      assert.equal(cancelled.Afectaciones[0]!.Vigente, false);
+      assert.equal(r.total, 4);
+      assert.ok(r.registros.every((v) => v.Estado !== "ANULADO"));
+      assert.ok(r.registros.every((v) => !v.Operacion?.startsWith("LG_P")));
+      assert.ok(
+        r.registros.every((v) =>
+          v.Afectaciones.every(
+            (a) => a.CajaMovimiento !== payment.registro.IDTabla,
+          ),
+        ),
+      );
+      const originalPayment = await json<CashDetail>(
+        await req("/caja-movimiento/" + payment.registro.IDTabla),
+      );
+      assert.equal(originalPayment.registro.Estado, "ANULADO");
+      assert.equal(originalPayment.registro.ImporteTotal, "30.00");
       assert.equal(r.totales.SaldoFinal, "-80.00");
     },
   );
@@ -402,7 +470,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         ),
       );
       const r = await ledger();
-      assert.equal(r.total, 6);
+      assert.equal(r.total, 5);
       assert.equal(r.totales.SaldoFinal, "70.00");
       assert.equal(r.totales.SaldoFinal, (await list()).totales.SaldoNeto);
       const original = r.registros.find((v) =>
@@ -416,6 +484,25 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       assert.ok(reverse.Original);
       assert.equal(original.Valores.length, 2);
       assert.equal(reverse.Valores.length, 2);
+      const period = await ledger(
+        "Cliente=LG_A&Desde=2026-01-03&Hasta=2026-01-03&continuo=1",
+      );
+      assert.equal(period.saldoAnterior.Saldo, "70.00");
+      assert.equal(period.totales.SaldoFinal, "-80.00");
+      assert.equal(period.saldoAVencer.Debito, "150.00");
+      assert.equal(period.saldoAVencer.Credito, "0.00");
+      assert.equal(period.saldoAVencer.SaldoAcumulado, "70.00");
+      assert.equal(period.registros.length, 1);
+      const reversePeriod = await ledger(
+        "Cliente=LG_A&Desde=" +
+          reverse.FechaOrigen +
+          "&Hasta=" +
+          reverse.FechaOrigen,
+      );
+      assert.equal(reversePeriod.saldoAnterior.Saldo, "-80.00");
+      assert.equal(reversePeriod.totales.Debito, "150.00");
+      assert.equal(reversePeriod.totales.SaldoFinal, "70.00");
+      assert.equal(reversePeriod.saldoAVencer.Saldo, "0.00");
     },
   );
   await t.test(
@@ -469,6 +556,13 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       const b = await ledger("Cliente=LG_B");
       assert.equal(b.totales.SaldoFinal, "90071992547410.00");
       assert.equal(b.registros[1]!.SaldoAcumulado, "90071992547410.00");
+      const period = await ledger(
+        "Cliente=LG_B&Desde=2026-01-02&Hasta=2026-01-02",
+      );
+      assert.equal(period.saldoAnterior.Debito, "90071992547409.91");
+      assert.equal(period.totales.Debito, "0.09");
+      assert.equal(period.totales.SaldoFinal, "90071992547410.00");
+      assert.equal(period.saldoAVencer.SaldoAcumulado, "90071992547410.00");
       const listing = await list("ClienteTipo=LG_T2");
       assert.equal(listing.total, 1);
       assert.equal(listing.registros[0]!.Cliente, "LG_B");
@@ -549,6 +643,116 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
+    "saldo anterior y a vencer: agrupar por origen, excluir anulados y no duplicar en totales del período",
+    async () => {
+      await pool.query(
+        "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES ('LG_RANGE','Rango de fechas','LG_T')",
+      );
+      const before = await debt("LG_D", "100.00", "2026-01-01", "LG_RANGE");
+      await pool.execute(
+        "UPDATE CUENTACORRIENTE SET Vencimiento='2026-12-31' WHERE IDTabla=?",
+        [before.registro.IDTabla],
+      );
+      await debt("LG_D", "20.00", "2026-01-03", "LG_RANGE");
+      await debt("LG_CR", "5.00", "2026-01-04", "LG_RANGE");
+      await debt("LG_D", "40.00", "2026-01-05", "LG_RANGE");
+      await debt("LG_CR", "10.00", "2026-01-06", "LG_RANGE");
+      for (const date of ["2026-01-01", "2026-01-03", "2026-01-07"]) {
+        const cancelled = await debt("LG_D", "900.00", date, "LG_RANGE");
+        await json(
+          await req(
+            "/cuenta-corriente/" + cancelled.registro.IDTabla + "/anular",
+            "POST",
+            { Motivo: "Sin efecto para informes" },
+            admin,
+            cancelled.version,
+          ),
+        );
+      }
+      const r = await ledger(
+        "Cliente=LG_RANGE&Desde=2026-01-03&Hasta=2026-01-04&continuo=1",
+      );
+      assert.equal(r.total, 2);
+      assert.deepEqual(r.saldoAnterior, {
+        Debito: "100.00",
+        Credito: "0.00",
+        Saldo: "100.00",
+        SaldoCobrar: "100.00",
+        SaldoPagar: "0.00",
+      });
+      assert.deepEqual(
+        r.registros.map((v) => v.SaldoAcumulado),
+        ["120.00", "115.00"],
+      );
+      assert.equal(r.totales.Debito, "20.00");
+      assert.equal(r.totales.Credito, "5.00");
+      assert.equal(r.totales.SaldoFinal, "115.00");
+      assert.deepEqual(r.saldoAVencer, {
+        Debito: "40.00",
+        Credito: "10.00",
+        Saldo: "30.00",
+        SaldoAcumulado: "145.00",
+      });
+      assert.equal(
+        (await list("Cliente=LG_RANGE")).totales.SaldoNeto,
+        r.saldoAVencer.SaldoAcumulado,
+      );
+      const openFrom = await ledger("Cliente=LG_RANGE&Desde=2026-01-03");
+      assert.equal(openFrom.totales.SaldoFinal, "145.00");
+      assert.equal(openFrom.saldoAVencer.Saldo, "0.00");
+      const noMovements = await ledger(
+        "Cliente=LG_RANGE&Desde=2026-01-02&Hasta=2026-01-02",
+      );
+      assert.equal(noMovements.total, 0);
+      assert.equal(noMovements.saldoAnterior.Saldo, "100.00");
+      assert.equal(noMovements.totales.SaldoFinal, "100.00");
+      assert.equal(noMovements.saldoAVencer.SaldoAcumulado, "145.00");
+    },
+  );
+  await t.test(
+    "modo continuo sin truncar por limite/pagina y sin alterar orden ni precisión",
+    async () => {
+      await pool.query(
+        "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES ('LG_MANY','Muchos movimientos','LG_T')",
+      );
+      for (let start = 0; start < 225; start++)
+        await pool.execute(
+          "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES ('LG_MANY','LG_D','2026-02-01','COBRAR','DEUDA','0.01','CONFIRMADO',?,?)",
+          [admin.session.usuario.id, new Date()],
+        );
+      const r = await ledger("Cliente=LG_MANY&continuo=1&limite=1&pagina=2");
+      assert.equal(r.total, 225);
+      assert.equal(r.registros.length, 225);
+      assert.equal(r.registros[0]!.SaldoAcumulado, "0.01");
+      assert.equal(r.registros.at(-1)!.SaldoAcumulado, "2.25");
+      assert.equal(r.totales.SaldoFinal, "2.25");
+      assert.equal(new Set(r.registros.map((v) => v.Clave)).size, 225);
+      for (let n = 0; n < 105; n++) {
+        const code = "LG_BATCH" + n.toString().padStart(3, "0");
+        await pool.execute(
+          "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES (?,?,'LG_T')",
+          [code, "Cliente " + n],
+        );
+        await pool.execute(
+          "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) VALUES (?,'LG_D','2026-02-01','COBRAR','DEUDA','0.01','CONFIRMADO',?,?)",
+          [code, admin.session.usuario.id, new Date()],
+        );
+      }
+      const all = await list("ClienteTipo=LG_T&continuo=1&limite=1&pagina=2");
+      assert.equal(all.registros.length, all.total);
+      assert.ok(all.total > 100);
+      const sorted = await list(
+        "ClienteTipo=LG_T&continuo=1&orden=SaldoNeto&direccion=desc",
+      );
+      assert.equal(sorted.registros.length, all.total);
+      assert.equal(sorted.registros[0]!.Cliente, "LG_RANGE");
+      assert.equal(
+        (await list("ClienteTipo=LG_T&limite=1")).registros.length,
+        1,
+      );
+    },
+  );
+  await t.test(
     "consultas sin escrituras sobre importes, estados, eventos, cierres, numeración ni auditoría",
     async () => {
       const tables = [
@@ -582,6 +786,8 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       const before = await snapshot();
       await ledger();
       await ledger("Cliente=LG_B&limite=2&pagina=2");
+      await ledger("Cliente=LG_A&Desde=2026-01-02&Hasta=2026-01-03&continuo=1");
+      await ledger("Cliente=LG_MANY&continuo=1");
       await list("ClienteTipo=LG_T");
       assert.deepEqual(await snapshot(), before);
     },

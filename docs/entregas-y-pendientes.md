@@ -89,7 +89,7 @@ INF-01 cuenta con una primera versión funcional y una base visual reutilizable.
 
 | ID | Informe candidato | Alcance a acordar |
 |---|---|---|
-| INF-01 | Saldos y pendientes por cliente | **Implementado:** resumen de saldos actuales, filtro de cliente mediante SF, totales, paginación y Propiedades con pendiente documental/créditos sin aplicar. El nuevo Resumen agrega mayor con aplicaciones/valores informativos y totales; el corte histórico sigue pendiente, si se requiere. |
+| INF-01 | Saldos y pendientes por cliente | **Implementado:** listado de saldos actuales, filtro de cliente mediante SF, totales, scroll continuo y Propiedades con pendiente documental/créditos sin aplicar. El Resumen agrega mayor por período, saldos anterior/posterior por origen, aplicaciones/valores informativos y totales; la reconstrucción histórica de estados sigue pendiente, si se requiere. |
 | INF-02 | Resumen diario de caja | Apertura, cobros/pagos por medio, ingresos/retiros de Tesorería, efectivo teórico, contado y diferencia. Identificar la apertura real, no agrupar solo por fecha o caja física. |
 | INF-03 | Cobros, pagos y afectaciones | Consulta por cliente, fecha, comprobante y medio; trazabilidad de anulación y reversión. |
 | INF-04 | Cartera y vencimientos de cheques de terceros | Disponibilidad, depositados, acreditados, rechazados e historial; evitar confundir cartera con fondos bancarios disponibles. |
@@ -125,3 +125,5 @@ Ajustes de interfaz posteriores: Usuarios adopta FilterDialog; Informes compone 
 
 
 Entrega de Listado y Resumen: Listado por Tipo/Cliente sin KPI; mayor cronológico de cliente obligatorio con totales y vínculos informativos, sin multiplicar importes. Acordeón exclusivo y sangría en submenús. Ver [reglas y aceptación](listado-resumen-cuenta-corriente.md). No se habilita corte histórico ni exportación.
+
+Ajuste de Informes: scroll continuo sin paginación visible, exclusión de anulados en consultas/relaciones, filtros de fechas con Saldo anterior y Saldo a vencer por fecha de origen, sin tarjetas descriptivas. Ver [criterios obligatorios de informes actuales/futuros](criterios-informes.md). No se modifica la registración financiera ni el esquema.

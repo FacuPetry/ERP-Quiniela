@@ -7,7 +7,9 @@ import {
 } from "@erp/shared";
 import {
   useCallback,
+  useEffect,
   useId,
+  useRef,
   useState,
   type ReactNode,
   type MouseEvent,
@@ -26,6 +28,8 @@ function interactiveTarget(event: MouseEvent<HTMLTableRowElement>) {
 export interface TableTotals {
   label: string;
   labelSpan?: number;
+  /** Permite ubicar el nombre en su columna, dejando vacías las demás. */
+  labelKey?: string;
   values: Readonly<Record<string, ReactNode>>;
 }
 export interface TableColumn<T> {
@@ -45,6 +49,53 @@ export interface TableProperties<T> {
   onExpired?: () => void;
 }
 const noSessionHandler = () => {};
+function BalanceRow({
+  balance,
+  columns,
+  multiple,
+  actions,
+  className,
+}: {
+  balance: TableTotals;
+  columns: readonly { key: string; align?: "left" | "center" | "right" }[];
+  multiple: boolean;
+  actions: boolean;
+  className?: string;
+}) {
+  const span = Math.max(1, Math.min(columns.length, balance.labelSpan ?? 1));
+  if (balance.labelKey)
+    return (
+      <tr className={className}>
+        {multiple && <td />}
+        {columns.map((column) =>
+          column.key === balance.labelKey ? (
+            <th key={column.key} scope="row">
+              {balance.label}
+            </th>
+          ) : (
+            <td key={column.key} data-align={column.align}>
+              {balance.values[column.key] ?? null}
+            </td>
+          ),
+        )}
+        {actions && <td />}
+      </tr>
+    );
+  return (
+    <tr className={className}>
+      {multiple && <td />}
+      <th scope="row" colSpan={span}>
+        {balance.label}
+      </th>
+      {columns.slice(span).map((column) => (
+        <td key={column.key} data-align={column.align}>
+          {balance.values[column.key] ?? null}
+        </td>
+      ))}
+      {actions && <td />}
+    </tr>
+  );
+}
 function TableRecordProperties<T>({
   row,
   columns,
@@ -110,6 +161,8 @@ export function DataTable<T>({
   sortingDisabled = false,
   actions,
   totals,
+  openingBalance,
+  onEndReached,
   bordered,
   properties = {},
   toolbar,
@@ -134,7 +187,11 @@ export function DataTable<T>({
   onSortChange?: (sort: ListSort | null) => void;
   sortingDisabled?: boolean;
   actions?: (row: T) => ReactNode;
-  totals?: TableTotals | undefined;
+  totals?: TableTotals | readonly TableTotals[] | undefined;
+  /** Resumen informativo previo a las filas; no es un registro seleccionable. */
+  openingBalance?: TableTotals | undefined;
+  /** Renderizado continuo opcional. No cambia la selección ni la paginación de los ABM. */
+  onEndReached?: (() => void) | undefined;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
   bordered?: boolean;
   /** Incluido por defecto. false cuando el toolbar externo ya consulta un detalle específico. */
@@ -154,6 +211,20 @@ export function DataTable<T>({
   /** Permite distinguir una grilla sin consultar de una búsqueda sin resultados. */
   emptyMessage?: ReactNode;
 }) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const end = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    const marker = end.current;
+    if (!onEndReached || !marker) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) onEndReached();
+      },
+      { root: viewport.current, rootMargin: "0px 0px 300px 0px" },
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [onEndReached]);
   const selectionGroup = useId();
   const [localSort, setLocalSort] = useState<ListSort | null>(null);
   const currentSort = onSortChange ? sort : localSort;
@@ -230,6 +301,7 @@ export function DataTable<T>({
             </div>
           )}
       <div
+        ref={viewport}
         className="table-scroll"
         data-bordered={bordered}
         tabIndex={0}
@@ -296,6 +368,15 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
+            {openingBalance && (
+              <BalanceRow
+                balance={openingBalance}
+                columns={columns}
+                multiple={multiple}
+                actions={Boolean(actions)}
+                className="table-opening-balance"
+              />
+            )}
             {rows.length ? (
               displayedRows.map((row) => (
                 <tr
@@ -371,34 +452,31 @@ export function DataTable<T>({
                 </td>
               </tr>
             )}
+            {onEndReached && (
+              <tr ref={end} className="table-continuation" aria-live="polite">
+                <td
+                  colSpan={
+                    columns.length + Number(Boolean(actions)) + Number(multiple)
+                  }
+                >
+                  Mostrando más registros al desplazarte…
+                </td>
+              </tr>
+            )}
           </tbody>
           {totals && (
             <tfoot>
-              <tr>
-                {multiple && <td />}
-                <th
-                  scope="row"
-                  colSpan={Math.max(
-                    1,
-                    Math.min(columns.length, totals.labelSpan ?? 1),
-                  )}
-                >
-                  {totals.label}
-                </th>
-                {columns
-                  .slice(
-                    Math.max(
-                      1,
-                      Math.min(columns.length, totals.labelSpan ?? 1),
-                    ),
-                  )
-                  .map((column) => (
-                    <td key={column.key} data-align={column.align}>
-                      {totals.values[column.key] ?? null}
-                    </td>
-                  ))}
-                {actions && <td />}
-              </tr>
+              {(Array.isArray(totals) ? totals : [totals]).map(
+                (balance, index) => (
+                  <BalanceRow
+                    key={index}
+                    balance={balance}
+                    columns={columns}
+                    multiple={multiple}
+                    actions={Boolean(actions)}
+                  />
+                ),
+              )}
             </tfoot>
           )}
         </table>

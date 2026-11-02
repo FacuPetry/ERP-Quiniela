@@ -7,7 +7,9 @@ import type {
 import { apiRequest } from "../../services/http";
 import { ClientSearch } from "../current-account/ClientSearch";
 import type { TableColumn } from "../ui/DataTable";
-import { displayDate, displayDateTime } from "../controls/date-value";
+import { DatePicker } from "../controls/DatePicker";
+import { useState } from "react";
+import { todayISO, displayDate, displayDateTime } from "../controls/date-value";
 import { amountFormat, formatAmount } from "../controls/amount-value";
 import { ReportView, type ReportQuery } from "./ReportView";
 const config = amountFormat();
@@ -143,27 +145,37 @@ const fields = [
 interface Filters {
   client: MasterRecord | null;
   text: string;
+  from: string;
+  to: string;
 }
-const initialFilters: Filters = { client: null, text: "" };
-async function loadLedger({ filters, page, signal }: ReportQuery<Filters>) {
+async function loadLedger({
+  filters,
+  parameters,
+  signal,
+}: ReportQuery<Filters>) {
   if (!filters.client) throw new Error("Seleccioná un cliente con la lupa.");
   return apiRequest<AccountLedger>(
     "/informes/cuenta-corriente/resumen?" +
       new URLSearchParams({
         Cliente: String(filters.client.Codigo),
-        pagina: String(page),
+        ...parameters,
+        ...(filters.from ? { Desde: filters.from } : {}),
+        ...(filters.to ? { Hasta: filters.to } : {}),
       }),
     { signal },
   );
 }
 export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
+  const [initialFilters] = useState<Filters>(() => ({
+    client: null,
+    text: "",
+    from: todayISO(),
+    to: todayISO(),
+  }));
   return (
     <ReportView<AccountLedgerRow, Filters, AccountLedger>
       title="Resumen de Cuenta corriente"
-      description="Movimientos del cliente y saldo vigente acumulado, en orden cronológico."
       caption="Mayor de Cuenta corriente"
-      icon="account"
-      badge="Saldo vigente"
       initialFilters={initialFilters}
       load={loadLedger}
       onExpired={onExpired}
@@ -173,41 +185,83 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
         r.ComprobanteDescripcion + " " + r.NumeroComprobanteTexto
       }
       properties={{ title: "Propiedades · Movimiento del mayor", fields }}
-      filtersActive={(f) => Boolean(f.client)}
+      filtersActive={(f) => Boolean(f.client || f.from || f.to)}
       filterSummary={(f) =>
         f.client
-          ? `${String(f.client.Codigo)} - ${String(f.client.Nombre)}`
+          ? `${String(f.client.Codigo)} - ${String(f.client.Nombre)} · ${f.from ? displayDate(f.from) : "Desde el inicio"} — ${f.to ? displayDate(f.to) : "Sin fecha final"}`
           : "Seleccioná un cliente."
       }
       validateFilters={(f) =>
         !f.client
           ? "Seleccioná un cliente válido mediante la lupa para consultar el resumen."
-          : undefined
+          : f.from && f.to && f.from > f.to
+            ? "Fecha desde no puede ser posterior a Fecha hasta."
+            : undefined
       }
       renderFilters={({ value, onChange }) => (
-        <ClientSearch
-          id="ledger-client"
-          label="Cliente"
-          required
-          historical
-          size="lg"
-          value={value.client}
-          onChange={(client) => onChange((current) => ({ ...current, client }))}
-          onSearchTextChange={(text) =>
-            onChange((current) => ({ ...current, text }))
-          }
-          onExpired={onExpired}
-        />
+        <>
+          <ClientSearch
+            id="ledger-client"
+            label="Cliente"
+            required
+            historical
+            size="lg"
+            value={value.client}
+            onChange={(client) =>
+              onChange((current) => ({ ...current, client }))
+            }
+            onSearchTextChange={(text) =>
+              onChange((current) => ({ ...current, text }))
+            }
+            onExpired={onExpired}
+          />
+          <DatePicker
+            id="ledger-from"
+            label="Fecha desde"
+            size="sm"
+            value={value.from}
+            onValueChange={(from) =>
+              onChange((current) => ({ ...current, from }))
+            }
+          />
+          <DatePicker
+            id="ledger-to"
+            label="Fecha hasta"
+            size="sm"
+            value={value.to}
+            onValueChange={(to) => onChange((current) => ({ ...current, to }))}
+          />
+        </>
       )}
-      totals={(data) => ({
-        label: "Totales del cliente",
-        labelSpan: 6,
+      openingBalance={(data) => ({
+        label: "Saldo anterior",
+        labelKey: "ComprobanteDescripcion",
         values: {
-          Debito: money(data.totales.Debito),
-          Credito: money(data.totales.Credito),
-          SaldoAcumulado: money(data.totales.SaldoFinal),
+          Debito: money(data.saldoAnterior.Debito),
+          Credito: money(data.saldoAnterior.Credito),
+          SaldoAcumulado: money(data.saldoAnterior.Saldo),
         },
       })}
+      totals={(data) => [
+        {
+          label: "Totales del período",
+          labelKey: "ComprobanteDescripcion",
+          values: {
+            Debito: money(data.totales.Debito),
+            Credito: money(data.totales.Credito),
+            SaldoAcumulado: money(data.totales.SaldoFinal),
+          },
+        },
+        {
+          label: "Saldo a vencer",
+          labelKey: "ComprobanteDescripcion",
+          values: {
+            Debito: money(data.saldoAVencer.Debito),
+            Credito: money(data.saldoAVencer.Credito),
+            SaldoAcumulado: money(data.saldoAVencer.SaldoAcumulado),
+          },
+        },
+      ]}
       renderNotes={(data) => (
         <div className="report-notes muted small">
           <p>
@@ -216,10 +270,18 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
             naturaleza original se conservan.
           </p>
           <p>
-            Los anulados se muestran sin incidencia y conservan su importe
-            original en Propiedades. Los originales revertidos conservan su
-            efecto junto con la contrapartida. Es un mayor del saldo vigente, no
-            una reconstrucción histórica a fecha de corte.
+            Se excluyen los anulados. Los originales revertidos conservan su
+            efecto junto con la contrapartida, cada uno en su fecha de origen.
+            El saldo anterior incluye los movimientos previos a Fecha desde; los
+            totales de Débito y Crédito corresponden solo al período.
+          </p>
+          <p>
+            La consulta utiliza los estados vigentes hoy; no reconstruye el
+            estado que tenían las operaciones antes de una anulación posterior.
+            «Saldo a vencer» agrupa movimientos con fecha de origen posterior a
+            Fecha hasta; no utiliza la fecha de vencimiento ni representa el
+            pendiente documental. Su saldo acumulado continúa el cierre con esos
+            movimientos.
           </p>
           <p>
             Afectaciones y valores se consultan desde Propiedades y no vuelven a
@@ -228,10 +290,10 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
           </p>
           {data && (
             <p>
-              Totales de todos los movimientos del cliente, no solo de la página
-              visible. Saldo por cobrar: {money(data.totales.SaldoCobrar)} ·
-              Saldo por pagar: {money(data.totales.SaldoPagar)}. Consultado:{" "}
-              {displayDateTime(data.consultadoEn)}.
+              Saldo al cierre del período: saldo anterior + débitos − créditos.
+              Saldo por cobrar al cierre: {money(data.totales.SaldoCobrar)} ·
+              Saldo por pagar al cierre: {money(data.totales.SaldoPagar)}.
+              Consultado: {displayDateTime(data.consultadoEn)}.
             </p>
           )}
         </div>
