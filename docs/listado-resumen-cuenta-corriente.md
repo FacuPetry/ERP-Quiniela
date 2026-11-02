@@ -19,6 +19,24 @@ Cliente es obligatorio, validado mediante SF, incluyendo clientes inactivos con 
 
 Sin Desde se consulta desde el inicio y Saldo anterior es cero. Sin Hasta se incluye todo lo posterior a Desde y Saldo a vencer no agrega importes. Siempre se mantienen orden Fecha de origen/ID numérico ascendente y saldo estable.
 
+### KPI del Resumen
+
+Después de aceptar una consulta, el Resumen muestra tres tarjetas superiores con la estética verde anterior, tres columnas en escritorio y apiladas en móvil:
+
+| Indicador | Campo de la misma respuesta | Alcance |
+|---|---|---|
+| Débitos | totales.Debito | Solo débitos del período |
+| Créditos | totales.Credito | Solo créditos del período |
+| Saldo total | totales.SaldoFinal | Saldo anterior + débitos − créditos del período |
+
+Los valores se formatean con el componente de importes habitual (es-AR, dos decimales, sin conversión a Number). Son los mismos que aparecen en Totales del período. No se calculan desde las filas visibles ni desde afectaciones/valores, y no incorporan movimientos posteriores a Hasta.
+
+Con el caso revisado, se debe ver **Débitos 1.000.000,00; Créditos 750.000,00; Saldo total −649.990,00**. Saldo a vencer mantiene su acumulado −674.990,00 en la tabla y no modifica las tarjetas.
+
+Se actualizan al aceptar otros filtros o al actualizar el informe. Cancelar conserva los resultados aceptados, sin consulta nueva; antes de consultar o ante un error no se muestran KPI con ceros ficticios. Una consulta vacía válida muestra sus totales reales, aunque sean cero.
+
+Esta opción está deshabilitada por defecto en ReportView; únicamente AccountLedgerPage configura `kpis`. AccountSummaryPage no se modifica. No se cambian API, permisos, fórmulas financieras ni estructura de base de datos.
+
 ### Distribución temporal acordada
 
 Todas las agrupaciones excluyen ANULADOS y utilizan **Fecha de origen**, no Vencimiento:
@@ -78,7 +96,7 @@ El menú sigue como acordeón exclusivo con 18 px de sangría en modo expandido/
 
 - Backend: `apps/api/src/reports/{ledger,store,validation,policy}.ts`.
 - Contratos: `packages/shared/src/reports.ts`.
-- Interfaz: `apps/web/src/components/reports/{ReportView,AccountLedgerPage,AccountSummaryPage}.tsx`, `reports.css`.
+- Interfaz: `apps/web/src/components/reports/{ReportView,ReportKpis,AccountLedgerPage,AccountSummaryPage}.tsx`, `reports.css`.
 - Tabla base: `apps/web/src/components/ui/DataTable.tsx`, con continuación opcional y saldos informativos configurables. Los ABM no habilitan esa continuación y mantienen su presentación/paginación.
 - Verificación: `tests/integration/account-ledger.test.ts`.
 
@@ -108,3 +126,5 @@ Caso contrastado: Saldo anterior −899.990 + Débito del período 1.000.000 −
 Esta revisión conserva las fórmulas y consultas. Se agrega el caso a la integración aislada y se contrasta la asignación en el navegador con API simulada, incluyendo saldos negativos y períodos sin detalle. La regla de tipografía se centraliza en reports.css para ambos informes y los próximos.
 
 La imagen del usuario confirmó una discontinuidad visual: colocar el acumulado posterior antes de Totales hacía que la última columna regresara al saldo al cierre. Se aplica la alternativa autorizada: Totales del período antes de Saldo a vencer. `closingBalancePlacement="afterTotals"` configura ese orden desde la base sin cambiar fórmulas. Saldo a vencer conserva estilo blanco/peso normal, aunque se compone en el mismo grupo final de tabla.
+
+Para aceptar los KPI, contrastar las tres tarjetas con Totales del período; cambiar fechas/cliente y aplicar, cancelar una edición posterior y revisar resultado vacío. Repetir con anulaciones/reversiones ya registradas, varios medios o afectaciones y más de 200 movimientos: las tarjetas siempre usan los totales de la consulta completa. Verificar el apilado móvil y que Listado no tenga tarjetas.

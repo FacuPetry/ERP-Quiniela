@@ -17,6 +17,7 @@ import {
   type BalancePlacement,
 } from "../ui/DataTable";
 import { Modal } from "../ui/Modal";
+import { ReportKpis, type ReportKpi } from "./ReportKpis";
 import "./reports.css";
 export interface ReportResult<T> {
   registros: T[];
@@ -48,6 +49,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowKey,
   rowLabel,
   properties,
+  kpis,
   totals,
   openingBalance,
   closingBalance,
@@ -69,6 +71,8 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowKey: (row: T) => string;
   rowLabel?: (row: T) => string;
   properties?: TableProperties<T>;
+  /** Opcional y sin indicadores predeterminados; solo usa una consulta aceptada. */
+  kpis?: (data: R) => readonly ReportKpi[];
   totals?: (data: R) => TableTotals | readonly TableTotals[] | undefined;
   openingBalance?: (data: R) => TableTotals | undefined;
   closingBalance?: (data: R) => TableTotals | undefined;
@@ -144,6 +148,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
           {error}
         </p>
       )}
+      {data && kpis && <ReportKpis items={kpis(data)} />}
       <section
         className="panel report-results"
         key={`${revision}:${sort?.campo ?? ""}:${sort?.direccion ?? ""}`}

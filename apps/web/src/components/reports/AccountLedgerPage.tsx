@@ -204,6 +204,30 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
         r.ComprobanteDescripcion + " " + r.NumeroComprobanteTexto
       }
       properties={{ title: "Propiedades · Movimiento del mayor", fields }}
+      kpis={(data) => [
+        {
+          key: "Debito",
+          label: "Débitos",
+          value: money(data.totales.Debito),
+          description: "Débitos del período consultado.",
+          icon: "account",
+        },
+        {
+          key: "Credito",
+          label: "Créditos",
+          value: money(data.totales.Credito),
+          description: "Créditos del período consultado.",
+          icon: "wallet",
+        },
+        {
+          key: "SaldoFinal",
+          label: "Saldo total",
+          value: money(data.totales.SaldoFinal),
+          description: "Saldo al cierre; excluye movimientos posteriores.",
+          icon: "exchange",
+          emphasis: true,
+        },
+      ]}
       filtersActive={(f) => Boolean(f.client || f.from || f.to)}
       filterSummary={(f) =>
         f.client

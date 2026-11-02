@@ -7,6 +7,40 @@
   display: grid;
   gap: 8px;
 }
+/* Indicadores optativos: cada informe aporta los valores de su misma consulta. */
+.report-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.report-total {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.report-total > svg {
+  color: #6c8b55;
+}
+.report-number {
+  font-size: clamp(20px, 2.4vw, 30px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.report-layout .report-total-net {
+  background: #eaf2e3;
+  border-color: #d6e4cc;
+}
+@media (max-width: 700px) {
+  .report-totals {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .report-total {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+}
 /* La base de Informes compone DataTable sin cambiar la presentación de los ABM. */
 .report-layout .report-results {
   min-width: 0;

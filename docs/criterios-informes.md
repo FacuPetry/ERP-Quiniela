@@ -22,6 +22,14 @@ Cada importe financiero debe agregarse una sola vez desde su asiento real. Las r
 - Las APIs mantienen opcionalmente el contrato paginado anterior para compatibilidad; los informes de la aplicación siempre usan el modo continuo. Los ABM mantienen su paginación habitual.
 - Totales y saldos se calculan como DECIMAL; viajar como texto, sin sumas monetarias mediante Number. Mantener orden estable y validar filtros/fechas y permisos en servidor.
 
+## KPI opcionales
+
+ReportView admite `kpis(data)` de forma optativa y ReportKpis centraliza las tarjetas, iconos, formato visual y adaptación móvil. Sin esa propiedad no se muestra ningún indicador. No se habilitan automáticamente para futuros informes ni se infieren desde nombres de columnas.
+
+El informe aporta cada valor ya formateado desde la misma respuesta aceptada que alimenta la tabla; la base no suma importes. No se presentan indicadores antes de aceptar filtros, durante una carga nueva ni ante un error. Cancelar filtros conserva los indicadores de la última consulta aceptada. Una respuesta válida sin movimientos puede mostrar ceros; no se confunde con una consulta fallida.
+
+Por decisión funcional, **solo Resumen de Cuenta corriente** configura tres KPI: Débitos/Créditos del período y Saldo total al cierre (saldo anterior + débitos − créditos del período). No incluye el saldo posterior de «Saldo a vencer». El Listado conserva su presentación sin KPI. La tipografía destacada de las tarjetas es independiente de la regla de texto normal del detalle de tabla.
+
 ## Filas informativas
 
 DataTable admite saldos informativos antes y después del detalle (`openingBalance`/`closingBalance`) y un pie de una o varias filas (`totals`). `closingBalancePlacement` permite colocar el saldo final antes o después de Totales; por defecto mantiene antes, y el Resumen configura después para continuar visualmente el acumulado posterior al cierre. `labelKey` coloca el nombre en una columna concreta; las otras celdas quedan vacías salvo los valores configurados. Son filas informativas, sin selección ni Propiedades de una operación ficticia.

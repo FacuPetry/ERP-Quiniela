@@ -95,8 +95,24 @@ INF-01 cuenta con una primera versión funcional y una base visual reutilizable.
 | INF-04 | Cartera y vencimientos de cheques de terceros | Disponibilidad, depositados, acreditados, rechazados e historial; evitar confundir cartera con fondos bancarios disponibles. |
 | INF-05 | Movimientos bancarios registrados | Transferencias y efectos de cheques, con vigencia de anulados y contrapartidas de reversión. Aclarar que no representa un saldo bancario completo mientras falte FUN-03. |
 | INF-06 | Exportación e impresión | Definir después de acordar cada informe: columnas, totales, filtros, permisos y necesidad real de PDF/Excel/CSV. |
+| INF-07 | Ingresos y retiros internos de efectivo | Candidato a acordar: caja/jornada, fecha, concepto, responsable, ingresos, egresos y neto interno; solo Tesorería, sin afectar Cuenta corriente ni mezclar transferencias bancarias. |
+| INF-08 | Pendientes por vencimiento y antigüedad | Candidato a acordar después de los controles diarios: deudas documentales pendientes, afectaciones vigentes, cuenta Cobrar/Pagar y vencimientos; distinguir pendientes actuales de reconstrucción histórica y de saldos netos. |
 
 Los informes deben respetar las reglas financieras existentes: las afectaciones no restan dos veces; un original revertido conserva sus efectos históricos y tiene una contrapartida; una anulación registral invalida sus efectos; los movimientos bancarios deben aplicar su predicado de vigencia. Una consulta a fecha de corte requiere analizar también cuándo se registraron las correcciones, no solo el estado actual.
+
+### Prioridad propuesta de informes posteriores (sin implementación autorizada)
+
+| Orden | Informe | Primera entrega recomendada |
+|---|---|---|
+| 1 | INF-02 · Resumen diario de caja | Selección de caja y jornada real (CAJASALDO), apertura/cierre, responsable, saldo inicial, ingresos/egresos en efectivo, teórico, contado y diferencia. Separar Cobros/pagos de aportes/retiros de Tesorería. Transferencias y cheques como medios informativos, sin sumarlos al efectivo físico. Contado/diferencia quedan pendientes mientras la jornada esté abierta. Preservar los importes de cierres ya registrados y ubicar reversos en su jornada real. |
+| 2 | INF-04 · Cartera y estados de cheques de terceros | Una fila por cheque, importe, estado actual, banco, cliente de origen y vencimiento, con totales por estado/banco y próximos vencimientos. Cartera, depositados, acreditados, endosados y rechazados claramente separados; historial desde Propiedades. No incluir cheques propios en el primer alcance ni confundir el estado actual con un estado histórico a fecha de corte. |
+| 3 | INF-05 · Movimientos bancarios registrados | Cuenta/fechas, ingreso/egreso, transferencia o evento de cheque, referencia, operación relacionada y totales del período. Reutilizar la vigencia financiera existente, sin contar dos veces la transferencia o el evento. Presentar flujo registrado, no saldo bancario disponible: FUN-03/FUN-04 siguen sin definir. |
+| 4 | INF-07 · Tesorería interna de efectivo | Aportes/retiros por caja, jornada, concepto, fecha y usuario, con subtotales de ingresos/egresos y detalle de reversión. Puede desarrollarse como ampliación del informe de Caja, reutilizando su consulta/columnas cuando corresponda. Los traspasos y Banco↔Caja siguen pendientes y no se simulan como nuevos movimientos. |
+| 5 | INF-03 · Cobros/pagos y afectaciones | Cliente, comprobante/número, fecha, sentido, total de operación, medios, importe aplicado e importe a cuenta, con relaciones desde Propiedades. Una incidencia por operación aunque afecte varios documentos o tenga varios medios. |
+
+La recomendación toma los datos persistidos ya disponibles: CAJASALDO conserva apertura/cierre e importes de cierre; CAJAMOVIMIENTO separa ImporteEfectivo/ImporteTotal y módulo; CHEQUE/CHEQUEEVENTO mantienen estado/eventos; TRANSFERENCIA/BANCOMOVIMIENTO registran efectos por cuenta. No exige desarrollar nueva operatoria financiera para las primeras lecturas.
+
+Propuesta incremental: acordar y entregar primero **solo INF-02**, validar con un cierre real y comparar con la pantalla de caja; después elegir INF-04 o INF-05 según el uso de cheques/transferencias. Cada informe reutilizará ReportView, modal de filtros, DataTable, Propiedades, formato monetario y control de permisos en API. Sus KPI, si se necesitan, requerirán habilitación expresa; no se heredan automáticamente. Los demás informes quedan propuestos, no implementados. INF-08 y exportación/impresión se pueden priorizar después de validar estos resultados.
 
 ### Otras mejoras futuras
 
@@ -127,3 +143,5 @@ Ajustes de interfaz posteriores: Usuarios adopta FilterDialog; Informes compone 
 Entrega de Listado y Resumen: Listado por Tipo/Cliente sin KPI; mayor cronológico de cliente obligatorio con totales y vínculos informativos, sin multiplicar importes. Acordeón exclusivo y sangría en submenús. Ver [reglas y aceptación](listado-resumen-cuenta-corriente.md). No se habilita corte histórico ni exportación.
 
 Ajuste de Informes: scroll continuo sin paginación visible, exclusión de anulados en consultas/relaciones, filtros de fechas con Saldo anterior y Saldo a vencer por fecha de origen, sin tarjetas descriptivas. Ver [criterios obligatorios de informes actuales/futuros](criterios-informes.md). No se modifica la registración financiera ni el esquema.
+
+Mejora de Resumen de Cuenta corriente: tres KPI opcionales, habilitados únicamente en ese informe (Débitos/Créditos del período y Saldo total al cierre), desde los totales existentes. Listado conserva su diseño sin KPI. La propuesta de informes siguiente es de planificación y no agrega rutas, permisos, módulos o cálculos nuevos.
