@@ -8,7 +8,7 @@ Informe de saldos por cliente, antes llamado Resumen. Conserva URL `/informes-cu
 
 - Tipo de cliente es el primer filtro opcional (Todos), mediante DropDown con tipos activos/históricos. Consulta la clasificación actual del maestro.
 - Cliente es secundario y opcional, mediante SF. La búsqueda se limita al tipo elegido; cambiar Tipo limpia Cliente.
-- Mantiene Código, Cliente, Saldo por cobrar, Saldo por pagar y Saldo neto. Pendiente documental y créditos sin aplicar siguen en Propiedades. No hay KPI.
+- Muestra Código, Cliente, Débitos (por cobrar), Créditos (por pagar) y Saldo neto; estos nombres corresponden a los mismos saldos actuales, no a importes brutos. Pendiente documental y créditos sin aplicar siguen en Propiedades. No hay KPI.
 - No cambian las fórmulas ni filtros de saldos. Se aplica el modo continuo común, sin páginas visibles; los anulados ya estaban excluidos del saldo.
 
 ## Resumen: mayor de un cliente por período
@@ -128,3 +128,5 @@ Esta revisión conserva las fórmulas y consultas. Se agrega el caso a la integr
 La imagen del usuario confirmó una discontinuidad visual: colocar el acumulado posterior antes de Totales hacía que la última columna regresara al saldo al cierre. Se aplica la alternativa autorizada: Totales del período antes de Saldo a vencer. `closingBalancePlacement="afterTotals"` configura ese orden desde la base sin cambiar fórmulas. Saldo a vencer conserva estilo blanco/peso normal, aunque se compone en el mismo grupo final de tabla.
 
 Para aceptar los KPI, contrastar las tres tarjetas con Totales del período; cambiar fechas/cliente y aplicar, cancelar una edición posterior y revisar resultado vacío. Repetir con anulaciones/reversiones ya registradas, varios medios o afectaciones y más de 200 movimientos: las tarjetas siempre usan los totales de la consulta completa. Verificar el apilado móvil y que Listado no tenga tarjetas.
+
+La entrega de [Resumen diario de caja](resumen-diario-caja.md) retira Cuenta de las columnas visibles del mayor (permanece en Propiedades) y agrega Total general al Listado usando los totales existentes de todos los clientes filtrados. No cambia los cálculos ni los KPI. Débitos (por cobrar) y Créditos (por pagar) son alias de SaldoCobrar y SaldoPagar; se conservan signos, filtros y pendiente documental.

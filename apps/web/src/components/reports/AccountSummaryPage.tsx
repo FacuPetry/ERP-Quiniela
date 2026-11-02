@@ -29,14 +29,14 @@ const columns: TableColumn<AccountSummaryRow>[] = [
   {
     key: "SaldoCobrar",
     align: "right",
-    label: "Saldo por cobrar",
+    label: "Débitos (por cobrar)",
     sort: "SaldoCobrar",
     render: (r) => money(r.SaldoCobrar),
   },
   {
     key: "SaldoPagar",
     align: "right",
-    label: "Saldo por pagar",
+    label: "Créditos (por pagar)",
     sort: "SaldoPagar",
     render: (r) => money(r.SaldoPagar),
   },
@@ -112,6 +112,15 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
         title: "Propiedades · Listado de Cuenta corriente",
         fields: extraFields,
       }}
+      totals={(data) => ({
+        label: "Total general",
+        labelKey: "ClienteNombre",
+        values: {
+          SaldoCobrar: money(data.totales.SaldoCobrar),
+          SaldoPagar: money(data.totales.SaldoPagar),
+          SaldoNeto: money(data.totales.SaldoNeto),
+        },
+      })}
       filtersActive={(f) => Boolean(f.client || f.clientType)}
       filterSummary={(f) =>
         f.client
@@ -169,6 +178,11 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
       )}
       renderNotes={(data) => (
         <div className="report-notes muted small">
+          <p>
+            Débitos y Créditos representan los saldos actuales por cobrar y por
+            pagar, respectivamente; no son sumas brutas de movimientos. El Total
+            general incluye todos los clientes que cumplen los filtros.
+          </p>
           <p>
             Saldos actuales de los clientes que cumplen los filtros.{" "}
             {data && <>Consultado: {displayDateTime(data.consultadoEn)}.</>}

@@ -51,7 +51,6 @@ const columns: TableColumn<AccountLedgerRow>[] = [
     label: "Número de comprobante",
     render: (r) => r.NumeroComprobanteTexto,
   },
-  { key: "Cuenta", label: "Cuenta", render: account },
   {
     key: "Detalle",
     label: "Concepto o detalle",
@@ -83,6 +82,7 @@ const columns: TableColumn<AccountLedgerRow>[] = [
 ];
 const fields = [
   ...columns.map((c) => ({ key: c.key, label: c.label, render: c.render })),
+  { key: "Cuenta", label: "Cuenta", render: account },
   {
     key: "Naturaleza",
     label: "Naturaleza registrada",
