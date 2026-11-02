@@ -26,7 +26,7 @@ La revisión del código encuentra implementado el circuito solicitado. No se id
 
 ### Límites que debe conocer el usuario
 
-- **Consulta de saldos:** el listado operativo de Cuenta corriente conserva su presentación. La nueva opción Informes → Resumen de Cuenta corriente muestra saldos actuales por cliente y separa, en Propiedades, el pendiente documental y los créditos sin aplicar. La consulta histórica a una fecha todavía no está implementada. El nuevo Resumen incorpora el mayor cronológico del saldo vigente.
+- **Consulta de saldos:** el listado operativo de Cuenta corriente conserva su presentación. La opción Informes → Listado de Cuenta corriente muestra saldos actuales por cliente y separa, en Propiedades, el pendiente documental y los créditos sin aplicar. La consulta histórica a una fecha todavía no está implementada. El nuevo Resumen incorpora el mayor cronológico del saldo vigente.
 - **Anticipos:** se pueden registrar importes a cuenta y consultar su remanente. Todavía no existe una acción general para aplicarlos a documentos futuros o compensar créditos independientes. Para el circuito básico de esta versión, trabajar con medios de pago iguales al total afectado y dejar el importe a cuenta en cero. Esto es una pauta de uso; no se agregó una restricción al sistema. Las compensaciones automáticas de reversión y rechazo tienen un alcance específico.
 - **Bancos:** se registran los efectos bancarios de transferencias y eventos de cheque. No existe saldo inicial bancario, control de disponibilidad/descubierto ni conciliación. Los fondos reales se verifican en el banco; no presentar el historial registrado como saldo disponible completo.
 - **Correcciones de Valores:** no hay una acción general para deshacer depósitos, acreditaciones o rechazos. Tampoco se resuelve todavía el rechazo de un cheque endosado. Las restricciones actuales evitan corregir automáticamente una operación con dependencias posteriores.
@@ -85,12 +85,12 @@ No quedaron defectos visuales concretos confirmados en esta revisión. Los compo
 
 ### Reportes e informes
 
-INF-01 cuenta con una primera versión funcional y una base visual reutilizable. El resto y las ampliaciones siguen pendientes de definición; no deben incorporarse todos en una sola entrega.
+INF-01 e INF-02 cuentan con versiones funcionales sobre la base visual reutilizable. Los demás informes se desarrollan de forma incremental; esta entrega no los incorpora.
 
 | ID | Informe candidato | Alcance a acordar |
 |---|---|---|
 | INF-01 | Saldos y pendientes por cliente | **Implementado:** listado de saldos actuales, filtro de cliente mediante SF, totales, scroll continuo y Propiedades con pendiente documental/créditos sin aplicar. El Resumen agrega mayor por período, saldos anterior/posterior por origen, aplicaciones/valores informativos y totales; la reconstrucción histórica de estados sigue pendiente, si se requiere. |
-| INF-02 | Resumen diario de caja | Apertura, cobros/pagos por medio, ingresos/retiros de Tesorería, efectivo teórico, contado y diferencia. Identificar la apertura real, no agrupar solo por fecha o caja física. |
+| INF-02 | Resumen diario de caja | **Implementado:** una fila por apertura real, filtros de caja/estado/fecha de apertura, ingresos/egresos físicos, cierres guardados, contado/diferencia y desgloses informativos en Propiedades. Totales de flujos sin sumar saldos entre jornadas. Ver [alcance y aceptación](resumen-diario-caja.md). |
 | INF-03 | Cobros, pagos y afectaciones | Consulta por cliente, fecha, comprobante y medio; trazabilidad de anulación y reversión. |
 | INF-04 | Cartera y vencimientos de cheques de terceros | Disponibilidad, depositados, acreditados, rechazados e historial; evitar confundir cartera con fondos bancarios disponibles. |
 | INF-05 | Movimientos bancarios registrados | Transferencias y efectos de cheques, con vigencia de anulados y contrapartidas de reversión. Aclarar que no representa un saldo bancario completo mientras falte FUN-03. |
@@ -100,11 +100,11 @@ INF-01 cuenta con una primera versión funcional y una base visual reutilizable.
 
 Los informes deben respetar las reglas financieras existentes: las afectaciones no restan dos veces; un original revertido conserva sus efectos históricos y tiene una contrapartida; una anulación registral invalida sus efectos; los movimientos bancarios deben aplicar su predicado de vigencia. Una consulta a fecha de corte requiere analizar también cuándo se registraron las correcciones, no solo el estado actual.
 
-### Prioridad propuesta de informes posteriores (sin implementación autorizada)
+### Orden incremental de informes
 
 | Orden | Informe | Primera entrega recomendada |
 |---|---|---|
-| 1 | INF-02 · Resumen diario de caja | Selección de caja y jornada real (CAJASALDO), apertura/cierre, responsable, saldo inicial, ingresos/egresos en efectivo, teórico, contado y diferencia. Separar Cobros/pagos de aportes/retiros de Tesorería. Transferencias y cheques como medios informativos, sin sumarlos al efectivo físico. Contado/diferencia quedan pendientes mientras la jornada esté abierta. Preservar los importes de cierres ya registrados y ubicar reversos en su jornada real. |
+| 1 · Implementado | INF-02 · Resumen diario de caja | Selección de caja y jornada real (CAJASALDO), apertura/cierre, responsable, saldo inicial, ingresos/egresos en efectivo, teórico, contado y diferencia. Separar Cobros/pagos de aportes/retiros de Tesorería. Transferencias y cheques como medios informativos, sin sumarlos al efectivo físico. Contado/diferencia quedan pendientes mientras la jornada esté abierta. Preservar los importes de cierres ya registrados y ubicar reversos en su jornada real. |
 | 2 | INF-04 · Cartera y estados de cheques de terceros | Una fila por cheque, importe, estado actual, banco, cliente de origen y vencimiento, con totales por estado/banco y próximos vencimientos. Cartera, depositados, acreditados, endosados y rechazados claramente separados; historial desde Propiedades. No incluir cheques propios en el primer alcance ni confundir el estado actual con un estado histórico a fecha de corte. |
 | 3 | INF-05 · Movimientos bancarios registrados | Cuenta/fechas, ingreso/egreso, transferencia o evento de cheque, referencia, operación relacionada y totales del período. Reutilizar la vigencia financiera existente, sin contar dos veces la transferencia o el evento. Presentar flujo registrado, no saldo bancario disponible: FUN-03/FUN-04 siguen sin definir. |
 | 4 | INF-07 · Tesorería interna de efectivo | Aportes/retiros por caja, jornada, concepto, fecha y usuario, con subtotales de ingresos/egresos y detalle de reversión. Puede desarrollarse como ampliación del informe de Caja, reutilizando su consulta/columnas cuando corresponda. Los traspasos y Banco↔Caja siguen pendientes y no se simulan como nuevos movimientos. |
@@ -112,7 +112,7 @@ Los informes deben respetar las reglas financieras existentes: las afectaciones 
 
 La recomendación toma los datos persistidos ya disponibles: CAJASALDO conserva apertura/cierre e importes de cierre; CAJAMOVIMIENTO separa ImporteEfectivo/ImporteTotal y módulo; CHEQUE/CHEQUEEVENTO mantienen estado/eventos; TRANSFERENCIA/BANCOMOVIMIENTO registran efectos por cuenta. No exige desarrollar nueva operatoria financiera para las primeras lecturas.
 
-Propuesta incremental: acordar y entregar primero **solo INF-02**, validar con un cierre real y comparar con la pantalla de caja; después elegir INF-04 o INF-05 según el uso de cheques/transferencias. Cada informe reutilizará ReportView, modal de filtros, DataTable, Propiedades, formato monetario y control de permisos en API. Sus KPI, si se necesitan, requerirán habilitación expresa; no se heredan automáticamente. Los demás informes quedan propuestos, no implementados. INF-08 y exportación/impresión se pueden priorizar después de validar estos resultados.
+Entrega incremental vigente: **INF-02 implementado**; validar con un cierre real y comparar con la pantalla de caja. Continuar después con INF-04 o INF-05 según el uso de cheques/transferencias. Cada informe reutilizará ReportView, modal de filtros, DataTable, Propiedades, formato monetario y control de permisos en API. Sus KPI, si se necesitan, requerirán habilitación expresa; no se heredan automáticamente. Los demás informes de esa lista siguen pendientes; esta entrega no los implementa. INF-08 y exportación/impresión se pueden priorizar después de validar estos resultados.
 
 ### Otras mejoras futuras
 
@@ -145,3 +145,5 @@ Entrega de Listado y Resumen: Listado por Tipo/Cliente sin KPI; mayor cronológi
 Ajuste de Informes: scroll continuo sin paginación visible, exclusión de anulados en consultas/relaciones, filtros de fechas con Saldo anterior y Saldo a vencer por fecha de origen, sin tarjetas descriptivas. Ver [criterios obligatorios de informes actuales/futuros](criterios-informes.md). No se modifica la registración financiera ni el esquema.
 
 Mejora de Resumen de Cuenta corriente: tres KPI opcionales, habilitados únicamente en ese informe (Débitos/Créditos del período y Saldo total al cierre), desde los totales existentes. Listado conserva su diseño sin KPI. La propuesta de informes siguiente es de planificación y no agrega rutas, permisos, módulos o cálculos nuevos.
+
+Entrega incremental de Caja: INF-02 desarrollado, ajuste de nombres y Total general en el Listado y Cuenta oculta en el mayor. No hay modificaciones de esquema o registración financiera. Los informes de cheques, bancos y Tesorería separados se mantienen para próximas entregas. Ver [pruebas y permisos](resumen-diario-caja.md).

@@ -1,4 +1,5 @@
 import { cashBankMovements } from "../database/bank-movements.js";
+import { treasuryMovement } from "../database/cash-scope.js";
 import { listOrder, type ListOrderQuery } from "../database/list-order.js";
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
@@ -41,8 +42,7 @@ const eligible =
   "c.Activo=1 AND c.EsReversion=0 AND c.ModuloOrigen='COBROSPAGOS' AND c.Naturaleza='CREDITO' AND ((c.Cuenta='COBRAR' AND c.SentidoFondos='INGRESO') OR (c.Cuenta='PAGAR' AND c.SentidoFondos='EGRESO'))";
 // La ausencia de cliente y de asiento comercial identifica fondos internos.
 // No se usa la configuración mutable del maestro para reclasificar historia.
-const treasuryScope =
-  "m.Cliente IS NULL AND NOT EXISTS (SELECT 1 FROM CUENTACORRIENTE scope_cc WHERE scope_cc.CajaMovimiento=m.IDTabla)";
+const treasuryScope = treasuryMovement("m");
 const movementScope = (module: CashModule) =>
   module === "TESORERIA"
     ? "(" + treasuryScope + ")"

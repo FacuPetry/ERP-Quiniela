@@ -28,6 +28,7 @@ import { MasterPage } from "./masters/MasterPage";
 import { UsersPage } from "./users/UsersPage";
 import { AccountLedgerPage } from "./reports/AccountLedgerPage";
 import { AccountSummaryPage } from "./reports/AccountSummaryPage";
+import { DailyCashPage } from "./reports/DailyCashPage";
 import { ValuesPage } from "./values/ValuesPage";
 
 function AppLink({
@@ -538,6 +539,8 @@ function WorkspaceContent({
             />
           ) : path === "/valores" ? (
             <ValuesPage key={path} session={session} onExpired={onLogout} />
+          ) : path === "/resumen-diario-caja" ? (
+            <DailyCashPage onExpired={onLogout} />
           ) : path === "/resumen-cuenta-corriente" ? (
             <AccountLedgerPage onExpired={onLogout} />
           ) : path === "/informes-cuenta-corriente" ? (

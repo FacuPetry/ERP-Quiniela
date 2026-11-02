@@ -23,6 +23,11 @@ export const menuOptions = [
     label: "Resumen de Cuenta corriente",
     group: "Informes",
   },
+  {
+    key: "resumen-diario-caja",
+    label: "Resumen diario de caja",
+    group: "Informes",
+  },
 ] as const;
 export type MenuKey = (typeof menuOptions)[number]["key"];
 export interface MenuPermission {

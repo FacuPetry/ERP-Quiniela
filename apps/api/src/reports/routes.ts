@@ -4,10 +4,23 @@ import type { AuthService } from "../auth/service.js";
 import { requireSession, requireMenu } from "../auth/middleware.js";
 import { MasterRequestError } from "../masters/validation.js";
 import type { ReportStore } from "./store.js";
-import { ledgerQuery, summaryQuery } from "./validation.js";
+import { cashReportQuery, ledgerQuery, summaryQuery } from "./validation.js";
 export function reportsRouter(auth: AuthService, store: ReportStore) {
   const r = Router();
   r.use(requireSession(auth));
+  r.get(
+    "/caja/diario",
+    requireMenu("resumen-diario-caja"),
+    async (req, res) => {
+      const q = cashReportQuery.safeParse(req.query);
+      if (!q.success)
+        throw new MasterRequestError(
+          400,
+          "Revisá la caja, el estado y el rango de fechas.",
+        );
+      res.json(await store.dailyCash(q.data));
+    },
+  );
   r.get(
     "/cuenta-corriente",
     requireMenu("informes-cuenta-corriente"),

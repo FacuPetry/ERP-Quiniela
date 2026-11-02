@@ -63,6 +63,14 @@ export const modules: {
     detail: "",
   },
   {
+    path: "/resumen-diario-caja",
+    title: "Resumen diario de caja",
+    group: "Informes",
+    icon: "box",
+    description: "Jornadas, efectivo y cierres de caja.",
+    detail: "",
+  },
+  {
     path: "/tipos-cliente",
     title: "Tipos de cliente",
     group: "Maestros",

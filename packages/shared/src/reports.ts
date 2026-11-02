@@ -96,3 +96,52 @@ export interface AccountLedger {
     SaldoPagar: string;
   };
 }
+
+/** Una fila por apertura real de caja, no por fecha ni comprobante. */
+export interface DailyCashRow {
+  Clave: string;
+  Caja: string;
+  CajaNombre: string;
+  AperturaEn: string;
+  CierreEn: string | null;
+  Estado: "ABIERTO" | "CERRADO";
+  UsuarioAperturaNombre: string;
+  UsuarioCierreNombre: string | null;
+  Observacion: string | null;
+  SaldoInicial: string;
+  IngresosEfectivo: string;
+  EgresosEfectivo: string;
+  IngresosComerciales: string;
+  EgresosComerciales: string;
+  IngresosTesoreria: string;
+  EgresosTesoreria: string;
+  IngresosOtrosMedios: string;
+  EgresosOtrosMedios: string;
+  Teorico: string | null;
+  TeoricoCalculado: string;
+  SaldoContado: string | null;
+  Diferencia: string | null;
+  CierreCoincide: boolean | null;
+  Movimientos: number;
+}
+export interface DailyCashReport {
+  registros: DailyCashRow[];
+  total: number;
+  pagina: number;
+  limite: number;
+  consultadoEn: string;
+  totales: {
+    IngresosEfectivo: string;
+    EgresosEfectivo: string;
+    IngresosComerciales: string;
+    EgresosComerciales: string;
+    IngresosTesoreria: string;
+    EgresosTesoreria: string;
+    IngresosOtrosMedios: string;
+    EgresosOtrosMedios: string;
+    Diferencia: string | null;
+    Movimientos: number;
+    Abiertas: number;
+    Cerradas: number;
+  };
+}

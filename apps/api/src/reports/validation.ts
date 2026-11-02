@@ -41,3 +41,19 @@ export const ledgerQuery = z
     "Revisá el rango de fechas.",
   );
 export type LedgerQuery = z.infer<typeof ledgerQuery>;
+
+export const cashReportQuery = z
+  .object({
+    ...listOrderFields,
+    ...resultFields,
+    Caja: z.string().trim().min(1).max(20).optional(),
+    Estado: z.enum(["TODOS", "ABIERTO", "CERRADO"]).default("TODOS"),
+    Desde: date.optional(),
+    Hasta: date.optional(),
+  })
+  .strict()
+  .refine(
+    (v) => !v.Desde || !v.Hasta || v.Desde <= v.Hasta,
+    "Revisá el rango de fechas.",
+  );
+export type CashReportQuery = z.infer<typeof cashReportQuery>;
