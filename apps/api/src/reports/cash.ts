@@ -1,5 +1,9 @@
 import type { Pool, RowDataPacket } from "mysql2/promise";
-import type { DailyCashReport, DailyCashRow } from "@erp/shared";
+import type {
+  DailyCashReport,
+  DailyCashRow,
+  DailyCashTotals,
+} from "@erp/shared";
 import { treasuryMovement } from "../database/cash-scope.js";
 import { listOrder } from "../database/list-order.js";
 import { reportMovement } from "./policy.js";
@@ -40,6 +44,18 @@ const monetaryFlows = [
   "EgresosOtrosMedios",
 ] as const;
 
+function readTotals(t: RowDataPacket): DailyCashTotals {
+  return {
+    ...(Object.fromEntries(
+      monetaryFlows.map((k) => [k, String(t[k])]),
+    ) as Record<(typeof monetaryFlows)[number], string>),
+    Diferencia: t.Diferencia == null ? null : String(t.Diferencia),
+    Movimientos: Number(t.Movimientos),
+    Abiertas: Number(t.Abiertas),
+    Cerradas: Number(t.Cerradas),
+  };
+}
+
 export async function dailyCash(
   pool: Pool,
   q: CashReportQuery,
@@ -77,7 +93,7 @@ export async function dailyCash(
     SUM(CASE WHEN m.Sentido='EGRESO' THEN m.ImporteTotal-m.ImporteEfectivo ELSE 0 END) AS EgresosOtrosMedios
     FROM (SELECT m.*,(${treasuryMovement("m")}) AS EsTesoreria FROM CAJAMOVIMIENTO m
       WHERE ${reportMovement("m")} AND m.Sentido IN ('INGRESO','EGRESO')) m GROUP BY m.CajaSaldo`;
-  const projected = `SELECT cs.IDTabla AS Clave,cs.Caja,ca.Nombre AS CajaNombre,cs.AperturaEn,cs.CierreEn,cs.Estado,
+  const projected = `SELECT cs.IDTabla AS Clave,ca.Codigo AS Caja,ca.Nombre AS CajaNombre,cs.AperturaEn,cs.CierreEn,cs.Estado,
     ua.Nombre AS UsuarioAperturaNombre,uc.Nombre AS UsuarioCierreNombre,cs.Observacion,cs.SaldoInicial,
     ${monetaryFlows.map((k) => `COALESCE(f.${k},0) AS ${k}`).join(",")},
     COALESCE(f.Movimientos,0) AS Movimientos,
@@ -105,20 +121,27 @@ export async function dailyCash(
     },
     "s.Clave",
   );
+  // Los grupos permanecen contiguos; ordenar otra columna cambia el orden
+  // dentro de cada Caja. CajaNombre permite invertir el orden de los grupos.
+  const groupedOrder = `s.CajaNombre ${q.orden === "CajaNombre" && q.direccion === "desc" ? "DESC" : "ASC"},s.Caja ASC,${order}`;
+  const aggregate = `COUNT(*) AS total,
+      ${monetaryFlows.map((k) => `COALESCE(SUM(s.${k}),0) AS ${k}`).join(",")},
+      COALESCE(SUM(s.Movimientos),0) AS Movimientos,COALESCE(SUM(s.Estado='ABIERTO'),0) AS Abiertas,COALESCE(SUM(s.Estado='CERRADO'),0) AS Cerradas,
+      CASE WHEN SUM(s.Estado='CERRADO')>0 AND SUM(s.Estado='CERRADO' AND s.Diferencia IS NULL)=0 THEN SUM(s.Diferencia) ELSE NULL END AS Diferencia`;
   const c = await pool.getConnection();
   try {
     await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     await c.query("START TRANSACTION READ ONLY");
     const [totals] = await c.execute<RowDataPacket[]>(
-      `SELECT COUNT(*) AS total,
-      ${monetaryFlows.map((k) => `COALESCE(SUM(s.${k}),0) AS ${k}`).join(",")},
-      COALESCE(SUM(s.Movimientos),0) AS Movimientos,COALESCE(SUM(s.Estado='ABIERTO'),0) AS Abiertas,COALESCE(SUM(s.Estado='CERRADO'),0) AS Cerradas,
-      CASE WHEN SUM(s.Estado='CERRADO')>0 AND SUM(s.Estado='CERRADO' AND s.Diferencia IS NULL)=0 THEN SUM(s.Diferencia) ELSE NULL END AS Diferencia
-      FROM (${projected}) s`,
+      `SELECT ${aggregate} FROM (${projected}) s`,
+      params,
+    );
+    const [groups] = await c.execute<RowDataPacket[]>(
+      `SELECT s.Caja,s.CajaNombre,${aggregate} FROM (${projected}) s GROUP BY s.Caja,s.CajaNombre ORDER BY s.CajaNombre,s.Caja`,
       params,
     );
     const [rows] = await c.execute<RowDataPacket[]>(
-      `SELECT s.* FROM (${projected}) s ORDER BY ${order}${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
+      `SELECT s.* FROM (${projected}) s ORDER BY ${groupedOrder}${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
       [...params, ...(q.continuo ? [] : [q.limite, (q.pagina - 1) * q.limite])],
     );
     await c.commit();
@@ -145,15 +168,13 @@ export async function dailyCash(
       pagina: q.continuo ? 1 : q.pagina,
       limite: q.continuo ? Math.max(1, Number(t.total)) : q.limite,
       consultadoEn: new Date().toISOString(),
-      totales: {
-        ...(Object.fromEntries(
-          monetaryFlows.map((k) => [k, String(t[k])]),
-        ) as Record<(typeof monetaryFlows)[number], string>),
-        Diferencia: t.Diferencia == null ? null : String(t.Diferencia),
-        Movimientos: Number(t.Movimientos),
-        Abiertas: Number(t.Abiertas),
-        Cerradas: Number(t.Cerradas),
-      },
+      totales: readTotals(t),
+      subtotales: groups.map((g) => ({
+        ...readTotals(g),
+        Caja: String(g.Caja),
+        CajaNombre: String(g.CajaNombre),
+        Jornadas: Number(g.total),
+      })),
     };
   } catch (e) {
     await c.rollback();

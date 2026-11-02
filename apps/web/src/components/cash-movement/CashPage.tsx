@@ -23,9 +23,23 @@ import { CashBoxes, ReverseCash, AnnulCash } from "./CashActions";
 import { useActiveCash } from "./ActiveCash";
 import { amount, message } from "./format";
 import "./cash-movement.css";
-const defaults = { q: "", Estado: "TODOS", Desde: "", Hasta: "" };
+const defaults = { q: "", Caja: "", Estado: "TODOS", Desde: "", Hasta: "" };
 const filtersConfig: FilterField[] = [
   { key: "q", label: "Búsqueda general", kind: "text" },
+  {
+    key: "Caja",
+    label: "Caja",
+    kind: "relation",
+    includeInactive: true,
+    reference: {
+      name: "Caja",
+      label: "Caja",
+      kind: "relation",
+      relation: "cajas",
+      relationLabelField: "Nombre",
+      maxLength: 20,
+    },
+  },
   {
     key: "Estado",
     label: "Estado",
@@ -52,8 +66,13 @@ export function CashPage({
   const services = treasury ? treasuryServices : cashServices;
   const title = treasury ? "Tesorería" : "Cobros y pagos";
   const Form = treasury ? TreasuryForm : CashForm;
+  const { selected: activeBox } = useActiveCash();
   const [filters, setFilters] = useState<Record<string, string>>(() =>
-      initialListFilters(defaults, ["Desde", "Hasta"], "Estado"),
+      initialListFilters(
+        { ...defaults, Caja: treasury ? "" : (activeBox?.Caja ?? "") },
+        ["Desde", "Hasta"],
+        "Estado",
+      ),
     ),
     [page, setPage] = useState(1),
     [requested, setRequested] = useState(false),
@@ -79,7 +98,16 @@ export function CashPage({
     session.usuario,
     treasury ? "tesoreria" : "cobros-pagos",
   );
-  const { selected: activeBox } = useActiveCash();
+  // Sugerir mientras el listado está sin consultar. Una consulta aplicada,
+  // incluso con Caja vacía, conserva el criterio del usuario al cambiar/cerrar caja.
+  useEffect(() => {
+    if (treasury || requested || filtering || !activeBox) return;
+    setFilters((current) =>
+      current.Caja === activeBox.Caja
+        ? current
+        : { ...current, Caja: activeBox.Caja },
+    );
+  }, [treasury, requested, filtering, activeBox?.Caja]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -361,7 +389,11 @@ export function CashPage({
       </section>
       {filtering && (
         <FilterDialog
-          fields={filtersConfig}
+          fields={
+            treasury
+              ? filtersConfig.filter((field) => field.key !== "Caja")
+              : filtersConfig
+          }
           values={filters}
           defaults={defaults}
           onExpired={expired}

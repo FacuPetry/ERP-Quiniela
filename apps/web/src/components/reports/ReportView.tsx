@@ -1,6 +1,7 @@
 import {
   useEffect,
   useCallback,
+  useMemo,
   useState,
   type Dispatch,
   type ReactNode,
@@ -18,6 +19,7 @@ import {
 } from "../ui/DataTable";
 import { Modal } from "../ui/Modal";
 import { ReportKpis, type ReportKpi } from "./ReportKpis";
+import { groupReportRows } from "./group-rows";
 import "./reports.css";
 export interface ReportResult<T> {
   registros: T[];
@@ -33,6 +35,11 @@ export interface ReportQuery<F> {
 export interface ReportFilterEditor<F> {
   value: F;
   onChange: Dispatch<SetStateAction<F>>;
+}
+export interface ReportGrouping<T, R> {
+  key: (row: T) => string;
+  /** Subtotal ya calculado sobre todos los registros filtrados por el servidor. */
+  subtotal: (data: R, key: string) => TableTotals | undefined;
 }
 /** Estado de consulta y presentación comunes. Cada informe aporta filtros,
  * columnas y datos; la base no interpreta importes ni reglas financieras. */
@@ -54,7 +61,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   openingBalance,
   closingBalance,
   closingBalancePlacement = "beforeTotals",
-  showEmptyMessage = true,
+  grouping,
   renderNotes,
   onExpired,
 }: {
@@ -77,8 +84,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   openingBalance?: (data: R) => TableTotals | undefined;
   closingBalance?: (data: R) => TableTotals | undefined;
   closingBalancePlacement?: BalancePlacement;
-  /** Configurable por informe; los demás conservan sus mensajes habituales. */
-  showEmptyMessage?: boolean;
+  grouping?: ReportGrouping<T, R>;
   renderNotes?: (data: R | null) => ReactNode;
   onExpired: () => void;
 }) {
@@ -93,6 +99,13 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   const showMore = useCallback(() => setVisible((n) => n + 200), []);
   const [selected, setSelected] = useState<string | null>(null);
   const [sort, setSort] = useState<ListSort | null>(null);
+  const grouped = useMemo(
+    () =>
+      data && grouping
+        ? groupReportRows(data.registros, rowKey, grouping.key)
+        : { rows: data?.registros ?? [], lastRows: new Map<string, string>() },
+    [data, grouping, rowKey],
+  );
   useEffect(() => {
     if (!requested) return;
     const c = new AbortController();
@@ -155,7 +168,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
       >
         <DataTable
           caption={title}
-          rows={data?.registros.slice(0, visible) ?? []}
+          rows={grouped.rows.slice(0, visible)}
           columns={columns}
           rowKey={rowKey}
           {...(rowLabel ? { rowLabel } : {})}
@@ -182,15 +195,18 @@ export function ReportView<T, F, R extends ReportResult<T>>({
               : undefined
           }
           closingBalancePlacement={closingBalancePlacement}
-          showEmptyMessage={showEmptyMessage}
-          properties={{ ...properties, onExpired }}
-          emptyMessage={
-            error
-              ? "No se pudo consultar el informe."
-              : requested
-                ? "No hay registros para mostrar."
-                : "Aplicá los filtros para consultar la información."
+          rowSubtotal={
+            data && grouping
+              ? (row) => {
+                  const key = grouped.lastRows.get(rowKey(row));
+                  return key === undefined
+                    ? undefined
+                    : grouping.subtotal(data, key);
+                }
+              : undefined
           }
+          showEmptyMessage={false}
+          properties={{ ...properties, onExpired }}
           toolbar={(actions) => (
             <div className="report-toolbar">
               <div>

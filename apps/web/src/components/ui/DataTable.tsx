@@ -6,6 +6,7 @@ import {
   type SortType,
 } from "@erp/shared";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -165,6 +166,7 @@ export function DataTable<T>({
   openingBalance,
   closingBalance,
   closingBalancePlacement = "beforeTotals",
+  rowSubtotal,
   onEndReached,
   bordered,
   properties = {},
@@ -197,6 +199,8 @@ export function DataTable<T>({
   /** Resumen informativo al final; su ubicación respecto de los totales es configurable. */
   closingBalance?: TableTotals | undefined;
   closingBalancePlacement?: BalancePlacement;
+  /** Corte informativo después de una fila; no es seleccionable. */
+  rowSubtotal?: ((row: T) => TableTotals | undefined) | undefined;
   /** Renderizado continuo opcional. No cambia la selección ni la paginación de los ABM. */
   onEndReached?: (() => void) | undefined;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
@@ -387,68 +391,87 @@ export function DataTable<T>({
               />
             )}
             {rows.length ? (
-              displayedRows.map((row) => (
-                <tr
-                  key={rowKey(row)}
-                  onFocusCapture={() => setFocusedKey(rowKey(row))}
-                  {...(selectable ? { "aria-selected": isSelected(row) } : {})}
-                  onClick={(event) => {
-                    if (
-                      !selectable ||
-                      loading ||
-                      selectionDisabled ||
-                      interactiveTarget(event)
-                    )
-                      return;
-                    toggle(row);
-                    event.currentTarget
-                      .querySelector<HTMLInputElement>(".row-selector")
-                      ?.focus({ preventScroll: true });
-                  }}
-                  onDoubleClick={(event) => {
-                    if (
-                      loading ||
-                      selectionDisabled ||
-                      interactiveTarget(event)
-                    )
-                      return;
-                    onRowActivate?.(row);
-                  }}
-                >
-                  {multiple && (
-                    <td className="selection-column">
-                      <CheckBox
-                        label={
-                          <span className="sr-only">{`Seleccionar ${rowLabel(row)}`}</span>
-                        }
-                        value={isSelected(row)}
-                        disabled={loading || selectionDisabled || !selectable}
-                        onValueChange={() => toggle(row)}
-                      />
-                    </td>
-                  )}
-                  {columns.map((column, index) => (
-                    <td key={column.key} data-align={column.align}>
-                      {selectable && !multiple && index === 0 && (
-                        <input
-                          className="row-selector sr-only"
-                          type="radio"
-                          name={selectionGroup}
-                          aria-label={`Seleccionar ${rowLabel(row)}`}
-                          checked={singleKey === rowKey(row)}
-                          disabled={loading || selectionDisabled}
-                          onChange={() => {
-                            setFocusedKey(rowKey(row));
-                            changeSingle(rowKey(row));
-                          }}
-                        />
+              displayedRows.map((row) => {
+                const subtotal = rowSubtotal?.(row);
+                return (
+                  <Fragment key={rowKey(row)}>
+                    <tr
+                      onFocusCapture={() => setFocusedKey(rowKey(row))}
+                      {...(selectable
+                        ? { "aria-selected": isSelected(row) }
+                        : {})}
+                      onClick={(event) => {
+                        if (
+                          !selectable ||
+                          loading ||
+                          selectionDisabled ||
+                          interactiveTarget(event)
+                        )
+                          return;
+                        toggle(row);
+                        event.currentTarget
+                          .querySelector<HTMLInputElement>(".row-selector")
+                          ?.focus({ preventScroll: true });
+                      }}
+                      onDoubleClick={(event) => {
+                        if (
+                          loading ||
+                          selectionDisabled ||
+                          interactiveTarget(event)
+                        )
+                          return;
+                        onRowActivate?.(row);
+                      }}
+                    >
+                      {multiple && (
+                        <td className="selection-column">
+                          <CheckBox
+                            label={
+                              <span className="sr-only">{`Seleccionar ${rowLabel(row)}`}</span>
+                            }
+                            value={isSelected(row)}
+                            disabled={
+                              loading || selectionDisabled || !selectable
+                            }
+                            onValueChange={() => toggle(row)}
+                          />
+                        </td>
                       )}
-                      {column.render(row)}
-                    </td>
-                  ))}
-                  {actions && <td className="row-actions">{actions(row)}</td>}
-                </tr>
-              ))
+                      {columns.map((column, index) => (
+                        <td key={column.key} data-align={column.align}>
+                          {selectable && !multiple && index === 0 && (
+                            <input
+                              className="row-selector sr-only"
+                              type="radio"
+                              name={selectionGroup}
+                              aria-label={`Seleccionar ${rowLabel(row)}`}
+                              checked={singleKey === rowKey(row)}
+                              disabled={loading || selectionDisabled}
+                              onChange={() => {
+                                setFocusedKey(rowKey(row));
+                                changeSingle(rowKey(row));
+                              }}
+                            />
+                          )}
+                          {column.render(row)}
+                        </td>
+                      ))}
+                      {actions && (
+                        <td className="row-actions">{actions(row)}</td>
+                      )}
+                    </tr>
+                    {subtotal && (
+                      <BalanceRow
+                        balance={subtotal}
+                        columns={columns}
+                        multiple={multiple}
+                        actions={Boolean(actions)}
+                        className="table-subtotal"
+                      />
+                    )}
+                  </Fragment>
+                );
+              })
             ) : showEmptyMessage ? (
               <tr>
                 <td

@@ -11,11 +11,11 @@ Ajuste de inicialización y presentación. Sin cambios de esquema, endpoints, re
 
 ## Filtros y carga manual
 
-El estado de Cuenta corriente se inicializa al entrar con Desde/Hasta = hoy y Estado = CONFIRMADO. La grilla permanece vacía: se consulta solo al aplicar filtros o Actualizar, utilizando esos valores.
+El estado de Cuenta corriente se inicializa al entrar con Desde = hoy menos 30 días calendario, Hasta = hoy y Estado = CONFIRMADO. La grilla permanece vacía: se consulta solo al aplicar filtros o Actualizar, utilizando esos valores.
 
-El helper de UI initialListFilters(emptyFilters, dateKeys, operationStateKey?) es reutilizable para los próximos módulos. Los campos de fecha indicados se inicializan con la fecha actual; el parámetro opcional de estado establece CONFIRMADO solo para módulos operativos. Los maestros conservan sus estados Activo/Inactivo/Todos.
+El helper de UI initialListFilters(emptyFilters, dateKeys, operationStateKey?) es reutilizable para los próximos módulos. Las parejas de claves se reciben en orden Desde/Hasta y usan initialDateRange(): hoy menos 30 días calendario y hoy. Una fecha aislada conserva hoy; el parámetro opcional de estado establece CONFIRMADO solo para módulos operativos. Los maestros conservan sus estados Activo/Inactivo/Todos.
 
-El módulo debe utilizar el helper en la inicialización de su estado, de manera que Actualizar respete las mismas sugerencias aunque nunca se abra el modal. FilterDialog también propone hoy para fechas ausentes; los valores aplicados explícitos, incluidos vacíos, siempre tienen prioridad.
+El módulo debe utilizar el helper en la inicialización de su estado, de manera que Actualizar respete las mismas sugerencias aunque nunca se abra el modal. FilterDialog comparte esa inicialización para fechas ausentes; los valores aplicados explícitos, incluidos vacíos, siempre tienen prioridad.
 
 Limpiar usa una configuración independiente: fechas vacías y todos los estados. No consulta hasta Aplicar; Cancelar mantiene los filtros anteriores. Reabrir el modal conserva lo aplicado y no vuelve a insertar la fecha ni Confirmado. Los controles de fecha se reinician al limpiar para descartar borradores parciales. Regresar al módulo reinicia las sugerencias y mantiene la carga manual.
 
@@ -42,10 +42,12 @@ SF muestra «Ingrese un valor para buscar...» cuando está vacío. placeholder 
 
 ## Cómo probar
 
-1. Entrar a Cuenta corriente: no se deben cargar registros. Abrir filtros: ambas fechas muestran hoy y Estado Confirmados. Cancelar no consulta; Actualizar utiliza esos filtros.
-2. Limpiar y aplicar: fechas vacías y Todos. Reabrir: deben seguir vacías/Todos. Navegar a otro módulo y volver: hoy/Confirmados se sugieren otra vez sin cargar la lista.
+1. Entrar a Cuenta corriente: no se deben cargar registros. Abrir filtros: Fecha desde muestra hoy menos 30 días, Fecha hasta hoy y Estado Confirmados. Cancelar no consulta; Actualizar utiliza esos filtros.
+2. Limpiar y aplicar: fechas vacías y Todos. Reabrir: deben seguir vacías/Todos. Navegar a otro módulo y volver: el rango de 30 días y Confirmados se sugieren otra vez sin cargar la lista.
 3. Agregar un movimiento: ambas fechas en hoy, Importe 0,00, SF con placeholder e Importes a la izquierda. Modificar o vaciar valores: no deben reponerse solos.
 4. Consultar un movimiento anterior: fechas e importe históricos intactos. Revisar Comprobantes: Orden en cero al crear y valor existente al modificar.
 5. Para otro valor numérico inicial, configurar initialValue o field.defaultValue. Verificar también que los ID generados y códigos automáticos no pasan a cero.
 
 Validación focalizada: 32 pruebas unitarias/HTTP, comprobación de tipos del frontend y navegador con componentes fuente/servicios simulados. Se verifican inicialización única, valores existentes, vacíos, filtros/limpieza, ausencia de carga inicial, parámetros de Actualizar, fechas y alineación. No se ejecutó build de producción ni se usó la base de Hostinger.
+
+La regla actual de parejas de filtros se comparte con los Informes; no modifica las fechas sugeridas al crear movimientos. Ver [filtro Caja y pruebas del rango común](filtros-caja-agrupamiento-informes.md).

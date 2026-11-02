@@ -395,6 +395,10 @@ export function createCashMovementStore(
       );
       const p: (string | number)[] = [],
         clauses: string[] = [movementScope(module)];
+      if (q.Caja) {
+        clauses.push("cs.Caja=?");
+        p.push(q.Caja);
+      }
       if (q.Estado === "ANULADO") clauses.push("m.Estado='ANULADO'");
       else if (q.Estado === "REVERTIDO")
         clauses.push("rev.IDTabla IS NOT NULL");

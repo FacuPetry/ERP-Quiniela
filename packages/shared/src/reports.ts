@@ -130,18 +130,25 @@ export interface DailyCashReport {
   pagina: number;
   limite: number;
   consultadoEn: string;
-  totales: {
-    IngresosEfectivo: string;
-    EgresosEfectivo: string;
-    IngresosComerciales: string;
-    EgresosComerciales: string;
-    IngresosTesoreria: string;
-    EgresosTesoreria: string;
-    IngresosOtrosMedios: string;
-    EgresosOtrosMedios: string;
-    Diferencia: string | null;
-    Movimientos: number;
-    Abiertas: number;
-    Cerradas: number;
-  };
+  totales: DailyCashTotals;
+  subtotales: (DailyCashTotals & {
+    Caja: string;
+    CajaNombre: string;
+    Jornadas: number;
+  })[];
+}
+
+export interface DailyCashTotals {
+  IngresosEfectivo: string;
+  EgresosEfectivo: string;
+  IngresosComerciales: string;
+  EgresosComerciales: string;
+  IngresosTesoreria: string;
+  EgresosTesoreria: string;
+  IngresosOtrosMedios: string;
+  EgresosOtrosMedios: string;
+  Diferencia: string | null;
+  Movimientos: number;
+  Abiertas: number;
+  Cerradas: number;
 }

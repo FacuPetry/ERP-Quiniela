@@ -147,6 +147,7 @@ export const query = z
   .object({
     ...listOrderFields,
     q: z.string().trim().max(100).default(""),
+    Caja: code.optional(),
     Estado: z
       .enum(["TODOS", "CONFIRMADO", "ANULADO", "REVERTIDO"])
       .default("TODOS"),

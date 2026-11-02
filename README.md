@@ -4,7 +4,11 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Resumen diario de caja
+## Entrega en revisión — Filtros y subtotales
+
+Cobros y pagos incorpora Caja como filtro editable/limpiable, sugerido desde la caja operativa y sin limitar la consulta a su jornada abierta. Las parejas de fechas sugieren hoy menos 30 días y hoy en toda la aplicación. Los informes vacíos mantienen encabezados y totales sin mensajes de detalle. Resumen diario agrupa por caja con subtotales calculados en servidor y Total general, sin sumar saldos trasladados. Sin migraciones ni cambios de registración financiera. Ver [alcance, archivos y pruebas](docs/filtros-caja-agrupamiento-informes.md).
+
+## Resumen diario de caja
 
 Se agrega un informe por jornada real de caja con efectivo ingresado/entregado, cierres guardados, contado, diferencias y Propiedades. Permiso independiente de consulta; sin nuevas migraciones. Cuenta corriente simplifica columnas y agrega Total general al Listado, conservando cálculos y KPI del Resumen. Ver [alcance, archivos y pruebas](docs/resumen-diario-caja.md). Cheques y bancos continúan en entregas posteriores.
 

@@ -446,6 +446,69 @@ test("Informe diario: jornadas reales, flujos físicos y conservación de cierre
     },
   );
   await t.test(
+    "filtro de Caja operativo abarca aperturas cerradas y abiertas y se puede quitar",
+    async () => {
+      await pool.query(
+        "INSERT INTO CAJA (Codigo,Nombre) VALUES ('CR_OTHER','Otra caja histórica')",
+      );
+      const other = (
+        await json<{ IDTabla: string }>(
+          await req("/caja-movimiento/cajas", "POST", {
+            Caja: "CR_OTHER",
+            SaldoInicial: "0.00",
+          }),
+          201,
+        )
+      ).IDTabla;
+      await json(
+        await req("/caja-movimiento", "POST", {
+          Comprobante: "CR_C",
+          NumeroComprobante: String(number++),
+          Cliente: "CR_CLIENT",
+          CajaSaldo: other,
+          FechaOrigen: "2026-10-28",
+          Concepto: null,
+          ImporteEfectivo: "5.00",
+          ImporteACuenta: "5.00",
+          Observacion: null,
+          Afectaciones: [],
+          Valores: [],
+        }),
+        201,
+      );
+      const selected = await json<{
+        registros: { CajaSaldo: string }[];
+        total: number;
+      }>(await req("/caja-movimiento?Caja=CR_BOX&Estado=TODOS&limite=100"));
+      assert.equal(selected.total, 5);
+      assert.deepEqual(
+        new Set(selected.registros.map((r) => r.CajaSaldo)),
+        new Set([first, second]),
+      );
+      const alternative = await json<{
+        registros: { CajaSaldo: string }[];
+        total: number;
+      }>(await req("/caja-movimiento?Caja=CR_OTHER&Estado=TODOS"));
+      assert.equal(alternative.total, 1);
+      assert.equal(alternative.registros[0]!.CajaSaldo, other);
+      const cleared = await json<{
+        registros: { CajaSaldo: string }[];
+        total: number;
+      }>(await req("/caja-movimiento?q=CR_CLIENT&Estado=TODOS&limite=100"));
+      assert.equal(cleared.total, 6);
+      assert.ok(cleared.registros.some((r) => r.CajaSaldo === other));
+      assert.equal((await req("/caja-movimiento?Caja=")).status, 400);
+      assert.equal(
+        (
+          await req(
+            "/caja-movimiento?Caja=CR_BOX&Estado=TODOS&Desde=2026-10-28&Hasta=2026-10-28",
+          )
+        ).status,
+        200,
+      );
+    },
+  );
+  await t.test(
     "historia independiente de maestros y preservación de un cierre discordante",
     async () => {
       await pool.query("UPDATE CAJA SET Activo=0 WHERE Codigo='CR_BOX'");
@@ -521,6 +584,89 @@ test("Informe diario: jornadas reales, flujos físicos y conservación de cierre
       );
       assert.equal(paged.registros[0]!.SaldoInicial, "23.00");
       assert.deepEqual(paged.totales, all.totales);
+    },
+  );
+  await t.test(
+    "subtotales por identidad de Caja sobre todo el filtro y grupos contiguos",
+    async () => {
+      for (const code of ["CR_DUP1", "CR_DUP2"]) {
+        await pool.execute(
+          "INSERT INTO CAJA (Codigo,Nombre) VALUES (?,'Misma descripción')",
+          [code],
+        );
+        await pool.execute(
+          "INSERT INTO CAJASALDO (Caja,AperturaEn,SaldoInicial,UsuarioApertura,Estado,SaldoTeorico,SaldoContado) VALUES (?,'2026-10-27 12:00:00',0,?,'CERRADO',0,?)",
+          [
+            code,
+            admin.session.usuario.id,
+            code === "CR_DUP1" ? "1.00" : "2.00",
+          ],
+        );
+      }
+      // La FK de MySQL es insensible a mayúsculas; la identidad de salida
+      // utiliza el código canónico del maestro, sin separar la misma Caja.
+      await pool.execute(
+        "INSERT INTO CAJASALDO (Caja,AperturaEn,SaldoInicial,UsuarioApertura,Estado,SaldoTeorico,SaldoContado) VALUES ('cr_dup1','2026-10-27 13:00:00',0,?,'CERRADO',0,3)",
+        [admin.session.usuario.id],
+      );
+      const all = await report("continuo=1");
+      const own = all.subtotales.find((g) => g.Caja === "CR_BOX")!;
+      assert.equal(own.Jornadas, 2);
+      assert.equal(own.IngresosEfectivo, "150.00");
+      assert.equal(own.EgresosEfectivo, "220.00");
+      assert.equal(own.Diferencia, "-5.00");
+      assert.equal(own.Movimientos, 7);
+      assert.equal(
+        all.subtotales.find((g) => g.Caja === "CR_NULL")!.Diferencia,
+        null,
+      );
+      assert.equal(all.totales.Diferencia, null);
+      assert.equal(
+        all.subtotales.filter((g) => g.CajaNombre === "Misma descripción")
+          .length,
+        2,
+      );
+      assert.equal(
+        all.subtotales.find((g) => g.Caja === "CR_DUP1")!.Diferencia,
+        "4.00",
+      );
+      assert.equal(
+        all.subtotales.find((g) => g.Caja === "CR_DUP2")!.Diferencia,
+        "2.00",
+      );
+      const keys = all.registros
+        .map((r) => r.Caja)
+        .filter((code, index, rows) => index === 0 || code !== rows[index - 1]);
+      assert.equal(new Set(keys).size, keys.length);
+      const descriptions = keys.map(
+        (key) => all.subtotales.find((g) => g.Caja === key)!.CajaNombre,
+      );
+      // MySQL aplica su collation de textos: comprobar cortes/identidades y orden
+      // por descripción con dos nombres sin acentos ni diferencias de mayúsculas.
+      assert.ok(
+        descriptions.indexOf("Caja principal informe") <
+          descriptions.indexOf("Muchas jornadas"),
+      );
+      const selected = await report(
+        "Caja=CR_BOX&Estado=CERRADO&Desde=2026-10-27&Hasta=2026-10-27&continuo=1",
+      );
+      assert.equal(selected.subtotales.length, 1);
+      assert.equal(selected.subtotales[0]!.Jornadas, 1);
+      assert.equal(selected.subtotales[0]!.EgresosEfectivo, "70.00");
+      assert.equal(selected.subtotales[0]!.Diferencia, "-5.00");
+      const paged = await report("limite=1&pagina=2");
+      assert.deepEqual(paged.totales, all.totales);
+      assert.deepEqual(paged.subtotales, all.subtotales);
+      const empty = await report("Caja=INEXISTENTE&continuo=1");
+      assert.equal(empty.total, 0);
+      assert.deepEqual(empty.subtotales, []);
+      assert.equal(Number(empty.totales.IngresosEfectivo), 0);
+      const sorted = await report(
+        "orden=SaldoInicial&direccion=desc&continuo=1",
+      );
+      const many = sorted.registros.filter((r) => r.Caja === "CR_MANY");
+      assert.equal(many[0]!.SaldoInicial, "24.00");
+      assert.equal(many.at(-1)!.SaldoInicial, "0.00");
     },
   );
   await t.test(
