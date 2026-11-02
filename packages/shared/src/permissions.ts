@@ -28,6 +28,11 @@ export const menuOptions = [
     label: "Resumen diario de caja",
     group: "Informes",
   },
+  {
+    key: "informe-cheques-terceros",
+    label: "Cheques de terceros",
+    group: "Informes",
+  },
 ] as const;
 export type MenuKey = (typeof menuOptions)[number]["key"];
 export interface MenuPermission {

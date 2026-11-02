@@ -71,6 +71,15 @@ export const modules: {
     detail: "",
   },
   {
+    path: "/informe-cheques-terceros",
+    title: "Cheques de terceros",
+    group: "Informes",
+    icon: "values",
+    description:
+      "Cartera, vencimientos y estados actuales de cheques recibidos.",
+    detail: "",
+  },
+  {
     path: "/tipos-cliente",
     title: "Tipos de cliente",
     group: "Maestros",

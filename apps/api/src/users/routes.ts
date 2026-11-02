@@ -23,6 +23,7 @@ const permission = z
         "informes-cuenta-corriente",
         "resumen-cuenta-corriente",
         "resumen-diario-caja",
+        "informe-cheques-terceros",
         "sistema",
       ].includes(p.menu) || !p.escritura,
     "El informe permite únicamente consulta.",

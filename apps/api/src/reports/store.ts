@@ -3,6 +3,8 @@ import type { AccountSummary, AccountSummaryRow } from "@erp/shared";
 import { listOrder } from "../database/list-order.js";
 import { accountLedger } from "./ledger.js";
 import { dailyCash } from "./cash.js";
+import { thirdPartyCheques, thirdPartyChequeDetail } from "./cheques.js";
+import type { ChequeReportQuery } from "./validation.js";
 import type { CashReportQuery } from "./validation.js";
 import type { LedgerQuery } from "./validation.js";
 import type { SummaryQuery } from "./validation.js";
@@ -10,6 +12,8 @@ import { reportMovement } from "./policy.js";
 
 export function createReportStore(pool: Pool) {
   return {
+    thirdPartyCheques: (q: ChequeReportQuery) => thirdPartyCheques(pool, q),
+    thirdPartyChequeDetail: (id: string) => thirdPartyChequeDetail(pool, id),
     accountLedger: (q: LedgerQuery) => accountLedger(pool, q),
     dailyCash: (q: CashReportQuery) => dailyCash(pool, q),
     async accountSummary(q: SummaryQuery): Promise<AccountSummary> {

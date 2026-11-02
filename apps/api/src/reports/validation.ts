@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { listOrderFields } from "../database/list-order-validation.js";
+import { thirdPartyChequeStates } from "@erp/shared";
+import { id } from "../cash-movement/validation.js";
 const resultFields = {
   // El modo continuo devuelve el resultado completo en un único snapshot.
   continuo: z.literal("1").optional(),
@@ -57,3 +59,25 @@ export const cashReportQuery = z
     "Revisá el rango de fechas.",
   );
 export type CashReportQuery = z.infer<typeof cashReportQuery>;
+
+export const chequeReportQuery = z
+  .object({
+    ...listOrderFields,
+    ...resultFields,
+    q: z.string().trim().max(100).default(""),
+    Estado: z
+      .enum(["TODOS", ...thirdPartyChequeStates.map((s) => s.value)])
+      .default("TODOS"),
+    Banco: z.string().trim().min(1).max(20).optional(),
+    Cliente: z.string().trim().min(1).max(20).optional(),
+    FechaPor: z.enum(["EMISION", "VENCIMIENTO"]).default("VENCIMIENTO"),
+    Desde: date.optional(),
+    Hasta: date.optional(),
+  })
+  .strict()
+  .refine(
+    (v) => !v.Desde || !v.Hasta || v.Desde <= v.Hasta,
+    "Revisá el rango de fechas.",
+  );
+export type ChequeReportQuery = z.infer<typeof chequeReportQuery>;
+export const chequeReportId = id;

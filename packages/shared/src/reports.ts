@@ -152,3 +152,44 @@ export interface DailyCashTotals {
   Abiertas: number;
   Cerradas: number;
 }
+
+/** Situación actual de instrumentos, no reconstrucción histórica ni saldo bancario. */
+export interface ThirdPartyChequeRow {
+  Clave: string;
+  Numero: string;
+  Emision: string;
+  Vencimiento: string;
+  Importe: string;
+  Estado: string;
+  Banco: string;
+  BancoNombre: string;
+  BancoCuenta: string | null;
+  CuentaNombre: string | null;
+  Cliente: string | null;
+  ClienteNombre: string | null;
+  Librador: string | null;
+  CuentaLibradora: string | null;
+  Operacion: string | null;
+  Historial?: ThirdPartyChequeEvent[];
+}
+export interface ThirdPartyChequeEvent {
+  Clave: string;
+  Tipo: string;
+  Fecha: string;
+  UsuarioNombre: string;
+  CuentaNombre: string | null;
+  Operacion: string | null;
+  EstadoOperacion: string | null;
+  Observacion: string | null;
+  SentidoBancario: string | null;
+  ImporteBancario: string | null;
+}
+export interface ThirdPartyChequeReport {
+  registros: ThirdPartyChequeRow[];
+  total: number;
+  pagina: number;
+  limite: number;
+  consultadoEn: string;
+  totales: { Cantidad: number; Importe: string };
+  subtotales: { Estado: string; Cantidad: number; Importe: string }[];
+}
