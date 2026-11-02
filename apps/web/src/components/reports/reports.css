@@ -61,13 +61,22 @@
   }
 }
 
-.report-results .data-table :is(thead, tfoot) :is(th, td),
-.report-results .table-opening-balance :is(th, td) {
+.report-results .data-table :is(thead, tfoot) :is(th, td) {
   background: #f1f6ed;
   color: #3d5035;
   font-weight: 650;
   padding-top: 17px;
   padding-bottom: 17px;
+}
+.report-results .table-balance-row :is(th, td) {
+  background: #fff;
+  color: #53664b;
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 .report-ledger-details {
   display: block;

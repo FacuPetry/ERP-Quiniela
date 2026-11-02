@@ -49,6 +49,8 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   properties,
   totals,
   openingBalance,
+  closingBalance,
+  showEmptyMessage = true,
   renderNotes,
   onExpired,
 }: {
@@ -65,8 +67,11 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowKey: (row: T) => string;
   rowLabel?: (row: T) => string;
   properties?: TableProperties<T>;
-  totals?: (data: R) => TableTotals | readonly TableTotals[];
+  totals?: (data: R) => TableTotals | readonly TableTotals[] | undefined;
   openingBalance?: (data: R) => TableTotals | undefined;
+  closingBalance?: (data: R) => TableTotals | undefined;
+  /** Configurable por informe; los demás conservan sus mensajes habituales. */
+  showEmptyMessage?: boolean;
   renderNotes?: (data: R | null) => ReactNode;
   onExpired: () => void;
 }) {
@@ -163,6 +168,12 @@ export function ReportView<T, F, R extends ReportResult<T>>({
           openingBalance={
             data && openingBalance ? openingBalance(data) : undefined
           }
+          closingBalance={
+            data && visible >= data.registros.length && closingBalance
+              ? closingBalance(data)
+              : undefined
+          }
+          showEmptyMessage={showEmptyMessage}
           properties={{ ...properties, onExpired }}
           emptyMessage={
             error

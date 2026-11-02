@@ -24,6 +24,6 @@ Cada importe financiero debe agregarse una sola vez desde su asiento real. Las r
 
 ## Filas informativas
 
-DataTable admite un saldo inicial (`openingBalance`) y un pie de una o varias filas (`totals`). `labelKey` coloca el nombre en una columna concreta; las otras celdas quedan vacías salvo los valores configurados. Son filas informativas, sin selección ni Propiedades de una operación ficticia.
+DataTable admite saldos informativos antes y después del detalle (`openingBalance`/`closingBalance`) y un pie de una o varias filas (`totals`). `labelKey` coloca el nombre en una columna concreta; las otras celdas quedan vacías salvo los valores configurados. Son filas informativas, sin selección ni Propiedades de una operación ficticia.
 
-En el mayor de Cuenta corriente, «Saldo anterior» y «Saldo a vencer» llevan su nombre únicamente en **Comprobante**, y valores únicamente en **Débito, Crédito y Saldo acumulado**. Consultar el [alcance y fórmulas del mayor](listado-resumen-cuenta-corriente.md).
+En el mayor de Cuenta corriente, «Saldo anterior» y «Saldo a vencer» llevan su nombre únicamente en **Comprobante**, y valores únicamente en **Débito, Crédito y Saldo acumulado**. Se muestran como detalle blanco solo si su saldo propio es distinto de cero; Totales del período queda al final como única fila de datos destacada. El Resumen configura `showEmptyMessage=false` para no insertar mensajes cuando no hay filas; los demás informes y ABM conservan el valor predeterminado. Consultar el [alcance y fórmulas del mayor](listado-resumen-cuenta-corriente.md).

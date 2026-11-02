@@ -162,6 +162,7 @@ export function DataTable<T>({
   actions,
   totals,
   openingBalance,
+  closingBalance,
   onEndReached,
   bordered,
   properties = {},
@@ -173,6 +174,7 @@ export function DataTable<T>({
   onSelectionChange,
   onRowActivate,
   selectionDisabled = false,
+  showEmptyMessage = true,
   emptyMessage = "No hay registros para mostrar.",
 }: {
   caption: string;
@@ -190,6 +192,8 @@ export function DataTable<T>({
   totals?: TableTotals | readonly TableTotals[] | undefined;
   /** Resumen informativo previo a las filas; no es un registro seleccionable. */
   openingBalance?: TableTotals | undefined;
+  /** Resumen informativo al final del detalle, antes del pie de totales. */
+  closingBalance?: TableTotals | undefined;
   /** Renderizado continuo opcional. No cambia la selección ni la paginación de los ABM. */
   onEndReached?: (() => void) | undefined;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
@@ -210,6 +214,8 @@ export function DataTable<T>({
   selectionDisabled?: boolean;
   /** Permite distinguir una grilla sin consultar de una búsqueda sin resultados. */
   emptyMessage?: ReactNode;
+  /** false deja el cuerpo sin mensajes cuando no hay filas (también al cargar). */
+  showEmptyMessage?: boolean;
 }) {
   const viewport = useRef<HTMLDivElement>(null);
   const end = useRef<HTMLTableRowElement>(null);
@@ -374,7 +380,7 @@ export function DataTable<T>({
                 columns={columns}
                 multiple={multiple}
                 actions={Boolean(actions)}
-                className="table-opening-balance"
+                className="table-balance-row table-opening-balance"
               />
             )}
             {rows.length ? (
@@ -440,7 +446,7 @@ export function DataTable<T>({
                   {actions && <td className="row-actions">{actions(row)}</td>}
                 </tr>
               ))
-            ) : (
+            ) : showEmptyMessage ? (
               <tr>
                 <td
                   colSpan={
@@ -451,7 +457,7 @@ export function DataTable<T>({
                   {loading ? "Cargando registros…" : emptyMessage}
                 </td>
               </tr>
-            )}
+            ) : null}
             {onEndReached && (
               <tr ref={end} className="table-continuation" aria-live="polite">
                 <td
@@ -462,6 +468,15 @@ export function DataTable<T>({
                   Mostrando más registros al desplazarte…
                 </td>
               </tr>
+            )}
+            {closingBalance && (
+              <BalanceRow
+                balance={closingBalance}
+                columns={columns}
+                multiple={multiple}
+                actions={Boolean(actions)}
+                className="table-balance-row table-closing-balance"
+              />
             )}
           </tbody>
           {totals && (
