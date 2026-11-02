@@ -11,6 +11,7 @@ export interface FilterField {
   kind: "select" | "relation" | "text" | "date";
   options?: readonly { value: string; label: string }[];
   reference?: MasterField;
+  includeInactive?: boolean;
 }
 export function FilterDialog({
   fields,
@@ -73,6 +74,7 @@ export function FilterDialog({
                     value={draft[field.key] ?? ""}
                     onChange={(value) => change(field.key, value)}
                     filter
+                    includeInactive={field.includeInactive ?? false}
                     onExpired={onExpired}
                   />
                 );

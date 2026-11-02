@@ -100,7 +100,8 @@
   }
 }
 
-.report-results .data-table :is(thead, tfoot) :is(th, td) {
+.report-results .data-table :is(thead, tfoot) :is(th, td),
+.report-results .data-table .table-subtotal :is(th, td, strong, b) {
   background: #f1f6ed;
   color: #3d5035;
   font-weight: 650;

@@ -9,22 +9,14 @@ import { ClientSearch } from "../current-account/ClientSearch";
 import type { TableColumn } from "../ui/DataTable";
 import { DatePicker } from "../controls/DatePicker";
 import { useState } from "react";
-import { todayISO, displayDate, displayDateTime } from "../controls/date-value";
+import { displayDate, displayDateTime } from "../controls/date-value";
+import { initialDateRange } from "../ui/filter-defaults";
 import { amountFormat, formatAmount } from "../controls/amount-value";
 import { ReportView, type ReportQuery } from "./ReportView";
 const config = amountFormat();
 const money = (v: string) => formatAmount(v, config);
 // Solo decide visibilidad sobre el decimal exacto recibido; no modifica importes.
 const hasBalance = (value: string) => /[1-9]/.test(value);
-const hasReportContent = (data: AccountLedger) =>
-  data.registros.length > 0 ||
-  [
-    data.saldoAnterior.Saldo,
-    data.saldoAVencer.Saldo,
-    data.totales.Debito,
-    data.totales.Credito,
-    data.totales.SaldoFinal,
-  ].some(hasBalance);
 const state = (r: AccountLedgerRow) =>
   r.Estado === "ANULADO"
     ? "Anulado"
@@ -177,18 +169,11 @@ async function loadLedger({
   );
 }
 export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
-  const [initialFilters] = useState<Filters>(() => {
-    const to = todayISO();
-    // Restar días civiles en UTC a la fecha del negocio evita cambios por horario.
-    const from = new Date(to + "T00:00:00Z");
-    from.setUTCDate(from.getUTCDate() - 30);
-    return {
-      client: null,
-      text: "",
-      from: from.toISOString().slice(0, 10),
-      to,
-    };
-  });
+  const [initialFilters] = useState<Filters>(() => ({
+    client: null,
+    text: "",
+    ...initialDateRange(),
+  }));
   return (
     <ReportView<AccountLedgerRow, Filters, AccountLedger>
       title="Resumen de Cuenta corriente"
@@ -197,7 +182,6 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
       load={loadLedger}
       onExpired={onExpired}
       columns={columns}
-      showEmptyMessage={false}
       closingBalancePlacement="afterTotals"
       rowKey={(r) => r.Clave}
       rowLabel={(r) =>
@@ -302,19 +286,15 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
             }
           : undefined
       }
-      totals={(data) =>
-        hasReportContent(data)
-          ? {
-              label: "Totales del período",
-              labelKey: "ComprobanteDescripcion",
-              values: {
-                Debito: money(data.totales.Debito),
-                Credito: money(data.totales.Credito),
-                SaldoAcumulado: money(data.totales.SaldoFinal),
-              },
-            }
-          : undefined
-      }
+      totals={(data) => ({
+        label: "Totales del período",
+        labelKey: "ComprobanteDescripcion",
+        values: {
+          Debito: money(data.totales.Debito),
+          Credito: money(data.totales.Credito),
+          SaldoAcumulado: money(data.totales.SaldoFinal),
+        },
+      })}
       renderNotes={(data) => (
         <div className="report-notes muted small">
           <p>

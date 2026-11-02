@@ -8,10 +8,11 @@ import { apiRequest } from "../../services/http";
 import { DatePicker } from "../controls/DatePicker";
 import { DropDown } from "../controls/DropDown";
 import { amountFormat, formatAmount } from "../controls/amount-value";
-import { displayDate, displayDateTime, todayISO } from "../controls/date-value";
+import { displayDate, displayDateTime } from "../controls/date-value";
 import { ReferenceSelect } from "../masters/ReferenceSelect";
 import type { TableColumn } from "../ui/DataTable";
 import type { PropertyField } from "../ui/RecordProperties";
+import { initialDateRange } from "../ui/filter-defaults";
 import { ReportView, type ReportQuery } from "./ReportView";
 
 const format = amountFormat();
@@ -138,8 +139,7 @@ export function DailyCashPage({ onExpired }: { onExpired: () => void }) {
   const [initialFilters] = useState<Filters>(() => ({
     caja: "",
     estado: "TODOS",
-    from: todayISO(),
-    to: todayISO(),
+    ...initialDateRange(),
   }));
   return (
     <ReportView<DailyCashRow, Filters, DailyCashReport>
@@ -152,6 +152,23 @@ export function DailyCashPage({ onExpired }: { onExpired: () => void }) {
       rowKey={(r) => r.Clave}
       rowLabel={(r) => `${r.CajaNombre} · ${displayDateTime(r.AperturaEn)}`}
       properties={{ title: "Propiedades · Jornada de caja", fields }}
+      grouping={{
+        key: (row) => row.Caja,
+        subtotal: (data, key) => {
+          const group = data.subtotales.find((g) => g.Caja === key);
+          return group
+            ? {
+                label: `Subtotal · ${group.CajaNombre}`,
+                labelKey: "CajaNombre",
+                values: {
+                  IngresosEfectivo: money(group.IngresosEfectivo),
+                  EgresosEfectivo: money(group.EgresosEfectivo),
+                  Diferencia: money(group.Diferencia),
+                },
+              }
+            : undefined;
+        },
+      }}
       filtersActive={(f) =>
         Boolean(f.caja || f.estado !== "TODOS" || f.from || f.to)
       }
@@ -221,7 +238,7 @@ export function DailyCashPage({ onExpired }: { onExpired: () => void }) {
         </>
       )}
       totals={(data) => ({
-        label: "Totales de movimientos",
+        label: "Total general",
         labelKey: "CajaNombre",
         values: {
           IngresosEfectivo: money(data.totales.IngresosEfectivo),
@@ -232,10 +249,11 @@ export function DailyCashPage({ onExpired }: { onExpired: () => void }) {
       renderNotes={(data) => (
         <div className="report-notes muted small">
           <p>
-            Una fila por jornada real de caja. El efectivo teórico es saldo
-            inicial + ingresos − egresos de efectivo. Transferencias y cheques
-            no aumentan el efectivo físico; sus importes se consultan en
-            Propiedades.
+            Una fila por jornada real de caja, agrupada por Caja con su
+            subtotal. Ordenar una columna mantiene los grupos y ordena dentro de
+            cada caja. El efectivo teórico es saldo inicial + ingresos − egresos
+            de efectivo. Transferencias y cheques no aumentan el efectivo
+            físico; sus importes se consultan en Propiedades.
           </p>
           <p>
             Se excluyen los anulados. Un original revertido conserva su efecto

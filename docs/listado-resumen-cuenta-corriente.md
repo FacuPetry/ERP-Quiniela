@@ -52,7 +52,7 @@ Las filas Saldo anterior y Saldo a vencer tienen texto solo en **Comprobante**; 
 
 Ejemplo: anteriores Débito 100/Crédito 0 → acumulado 100; período Débito 20/Crédito 5 → cierre 115; posteriores Débito 40/Crédito 10 → Totales del período muestra 20, 5 y 115; a continuación Saldo a vencer muestra 40, 10 y acumulado 145. No sumar nuevamente los importes de las filas informativas al total del período.
 
-Si el período está vacío, se muestran únicamente los saldos propios distintos de cero y sus totales. Si no hay detalle, saldos ni importes relevantes, la tabla queda sin filas. El Resumen no presenta mensajes ni filas vacías dentro de la tabla, tampoco antes de consultar; los errores siguen informándose fuera de ella. El Listado mantiene sus mensajes habituales. Las aclaraciones debajo de ambos informes se conservan.
+Si el período está vacío, se muestran únicamente los saldos propios distintos de cero y sus totales. Si no hay detalle, saldos ni importes relevantes, el cuerpo queda sin filas y se mantiene Totales del período con ceros. El Resumen no presenta mensajes ni filas vacías dentro de la tabla, tampoco antes de consultar; los errores siguen informándose fuera de ella. El Listado también conserva encabezados y Total general con ceros después de una consulta válida vacía, sin mensajes de detalle. Las aclaraciones debajo de ambos informes se conservan.
 
 ### Convención de Débito/Crédito
 
@@ -109,7 +109,7 @@ El menú sigue como acordeón exclusivo con 18 px de sangría en modo expandido/
 5. Revisar que los rótulos de las filas informativas estén solo en Comprobante y sus restantes datos solo en las tres columnas monetarias.
 6. Anular movimientos anteriores, dentro y después del rango: no deben aparecer ni incidir en sus sumas. Revertir un cobro de jornada cerrada: original y contrapartida se conservan en sus fechas, sin doble compensación.
 7. Consultar cobros con varias afectaciones/medios, anticipos, créditos manuales y cheques rechazados. Propiedades informa relaciones vigentes; cada asiento incide una vez.
-8. Probar período sin movimientos, límites inclusivos y fechas vacías. Sin Hasta no se suman importes posteriores; sin Desde no se suman anteriores. Ocultar cada saldo cero, verificar ambos saldos negativos y un saldo posterior cero con acumulado distinto de cero; un cliente sin información debe dejar la tabla sin filas ni mensajes.
+8. Probar período sin movimientos, límites inclusivos y fechas vacías. Sin Hasta no se suman importes posteriores; sin Desde no se suman anteriores. Ocultar cada saldo cero, verificar ambos saldos negativos y un saldo posterior cero con acumulado distinto de cero; un cliente sin información debe dejar el cuerpo sin filas ni mensajes y mantener los totales en cero.
 9. Con más de 200 movimientos, bajar por scroll hasta el final: deben agregarse automáticamente todas las filas y luego el pie. Actualizar reinicia al comienzo. No deben aparecer botones de página. El orden visible es Saldo anterior → detalle → Totales del período → Saldo a vencer, omitiendo los saldos cero.
 10. Revisar detalle y saldos sin negrita (también Neto del Listado), totales destacados y colores iguales en encabezados/totales, scroll horizontal dentro de la tabla y ausencia de desborde de página en móvil. Mantener permisos de usuarios limitados.
 
@@ -130,3 +130,5 @@ La imagen del usuario confirmó una discontinuidad visual: colocar el acumulado 
 Para aceptar los KPI, contrastar las tres tarjetas con Totales del período; cambiar fechas/cliente y aplicar, cancelar una edición posterior y revisar resultado vacío. Repetir con anulaciones/reversiones ya registradas, varios medios o afectaciones y más de 200 movimientos: las tarjetas siempre usan los totales de la consulta completa. Verificar el apilado móvil y que Listado no tenga tarjetas.
 
 La entrega de [Resumen diario de caja](resumen-diario-caja.md) retira Cuenta de las columnas visibles del mayor (permanece en Propiedades) y agrega Total general al Listado usando los totales existentes de todos los clientes filtrados. No cambia los cálculos ni los KPI. Débitos (por cobrar) y Créditos (por pagar) son alias de SaldoCobrar y SaldoPagar; se conservan signos, filtros y pendiente documental.
+
+Los rangos iniciales se centralizan en `ui/filter-defaults.ts`, compartidos con los filtros operativos y el Resumen diario. Ver [ajuste común de filtros e informes vacíos](filtros-caja-agrupamiento-informes.md).
