@@ -93,8 +93,16 @@ El menú sigue como acordeón exclusivo con 18 px de sangría en modo expandido/
 7. Consultar cobros con varias afectaciones/medios, anticipos, créditos manuales y cheques rechazados. Propiedades informa relaciones vigentes; cada asiento incide una vez.
 8. Probar período sin movimientos, límites inclusivos y fechas vacías. Sin Hasta no se suman importes posteriores; sin Desde no se suman anteriores. Ocultar cada saldo cero, verificar ambos saldos negativos y un saldo posterior cero con acumulado distinto de cero; un cliente sin información debe dejar la tabla sin filas ni mensajes.
 9. Con más de 200 movimientos, bajar por scroll hasta el final: deben agregarse automáticamente todas las filas y luego el pie. Actualizar reinicia al comienzo. No deben aparecer botones de página. El orden visible es Saldo anterior → detalle → Saldo a vencer → Totales del período, omitiendo los saldos cero.
-10. Revisar saldos como detalle blanco y colores iguales en encabezados/totales, scroll horizontal dentro de la tabla y ausencia de desborde de página en móvil. Mantener permisos de usuarios limitados.
+10. Revisar detalle y saldos sin negrita (también Neto del Listado), totales destacados y colores iguales en encabezados/totales, scroll horizontal dentro de la tabla y ausencia de desborde de página en móvil. Mantener permisos de usuarios limitados.
 
 Las pruebas financieras se ejecutan en MySQL/MariaDB aislados; el navegador con API simulada comprueba presentación y flujos. No se ejecutan comandos sobre producción y Safari/iPhone real queda para la aceptación del cliente.
 
 El ajuste posterior de visibilidad, orden, estilos y valores iniciales es únicamente de interfaz; no modifica consultas ni fórmulas. Según lo solicitado, no se ejecutan compilaciones ni pruebas para ese ajuste.
+
+## Verificación del cierre frente a movimientos posteriores
+
+La posición de las filas no determina su cálculo: Totales del período siempre usa `totales.SaldoFinal` de la API; Saldo a vencer usa `saldoAVencer.SaldoAcumulado`. El primero incluye Saldo anterior y el período; el segundo incluye además los movimientos posteriores. No intercambiar los campos ni sumar Saldo a vencer al cierre por estar visualmente antes del pie.
+
+Caso contrastado: Saldo anterior −899.990 + Débito del período 1.000.000 − Crédito del período 750.000 = **cierre −649.990**. Los posteriores aportan 25.000 − 50.000 = −25.000, de modo que el acumulado de Saldo a vencer es **−674.990**. Es correcto que esas filas tengan importes diferentes y que el pie, aunque esté al final, muestre el saldo al cierre. La aclaración inferior presenta también ese importe explícito.
+
+Esta revisión conserva las fórmulas y consultas. Se agrega el caso a la integración aislada y se contrasta la asignación en el navegador con API simulada, incluyendo saldos negativos y períodos sin detalle. La regla de tipografía se centraliza en reports.css para ambos informes y los próximos.

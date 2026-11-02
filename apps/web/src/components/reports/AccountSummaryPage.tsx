@@ -45,7 +45,7 @@ const columns: TableColumn<AccountSummaryRow>[] = [
     align: "right",
     label: "Saldo neto",
     sort: "SaldoNeto",
-    render: (r) => <strong>{money(r.SaldoNeto)}</strong>,
+    render: (r) => money(r.SaldoNeto),
   },
 ];
 const extraFields = [

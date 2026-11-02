@@ -710,6 +710,57 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
+    "cierre negativo independiente del acumulado posterior: caso informado de 649990 y 674990",
+    async () => {
+      await pool.query(
+        "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES ('LG_CLOSE','Verificación del cierre','LG_T')",
+      );
+      await debt("LG_D", "1100010.00", "2026-10-27", "LG_CLOSE");
+      await debt("LG_CR", "500000.00", "2026-10-27", "LG_CLOSE");
+      await debt("LG_PR", "1500000.00", "2026-10-27", "LG_CLOSE");
+      for (const [voucher, amount] of [
+        ["LG_CR", "100000.00"],
+        ["LG_P", "100000.00"],
+        ["LG_P", "400000.00"],
+        ["LG_D", "500000.00"],
+        ["LG_CR", "500000.00"],
+        ["LG_CR", "150000.00"],
+      ]) {
+        // Asientos aislados para reproducir los importes; los circuitos reales
+        // de cobro/pago/reversión y sus relaciones se prueban arriba.
+        await pool.execute(
+          "INSERT INTO CUENTACORRIENTE (Cliente,Comprobante,FechaOrigen,Cuenta,Naturaleza,Importe,Estado,Usuario,CreadoEn) SELECT 'LG_CLOSE',Codigo,'2026-10-28',Cuenta,Naturaleza,?,'CONFIRMADO',?,? FROM COMPROBANTE WHERE Codigo=?",
+          [amount, admin.session.usuario.id, new Date(), voucher],
+        );
+      }
+      await debt("LG_D", "25000.00", "2026-10-30", "LG_CLOSE");
+      await debt("LG_CR", "50000.00", "2026-10-30", "LG_CLOSE");
+      const r = await ledger(
+        "Cliente=LG_CLOSE&Desde=2026-10-28&Hasta=2026-10-29&continuo=1",
+      );
+      assert.equal(r.total, 6);
+      assert.equal(r.saldoAnterior.Saldo, "-899990.00");
+      assert.deepEqual(r.totales, {
+        Debito: "1000000.00",
+        Credito: "750000.00",
+        SaldoFinal: "-649990.00",
+        SaldoCobrar: "350010.00",
+        SaldoPagar: "1000000.00",
+      });
+      assert.deepEqual(r.saldoAVencer, {
+        Debito: "25000.00",
+        Credito: "50000.00",
+        Saldo: "-25000.00",
+        SaldoAcumulado: "-674990.00",
+      });
+      assert.equal(r.registros.at(-1)!.SaldoAcumulado, r.totales.SaldoFinal);
+      assert.equal(
+        (await list("Cliente=LG_CLOSE")).totales.SaldoNeto,
+        r.saldoAVencer.SaldoAcumulado,
+      );
+    },
+  );
+  await t.test(
     "modo continuo sin truncar por limite/pagina y sin alterar orden ni precisión",
     async () => {
       await pool.query(

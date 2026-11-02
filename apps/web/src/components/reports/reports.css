@@ -37,6 +37,11 @@
   padding-bottom: 12px;
   font-variant-numeric: tabular-nums;
 }
+/* El detalle es uniforme, incluso si un informe incorpora strong/b en una celda.
+   El pie de totales mantiene su destacado independiente. */
+.report-results .data-table tbody :is(th, td, strong, b) {
+  font-weight: 400;
+}
 .report-results .table-sort-button {
   justify-content: inherit;
 }

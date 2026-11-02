@@ -78,7 +78,7 @@ const columns: TableColumn<AccountLedgerRow>[] = [
     key: "SaldoAcumulado",
     label: "Saldo acumulado",
     align: "right",
-    render: (r) => <strong>{money(r.SaldoAcumulado)}</strong>,
+    render: (r) => money(r.SaldoAcumulado),
   },
 ];
 const fields = [
@@ -318,10 +318,12 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
           </p>
           {data && (
             <p>
-              Saldo al cierre del período: saldo anterior + débitos − créditos.
-              Saldo por cobrar al cierre: {money(data.totales.SaldoCobrar)} ·
-              Saldo por pagar al cierre: {money(data.totales.SaldoPagar)}.
-              Consultado: {displayDateTime(data.consultadoEn)}.
+              Saldo al cierre del período: {money(data.totales.SaldoFinal)}{" "}
+              (saldo anterior + débitos − créditos del período, sin los
+              movimientos posteriores). Saldo por cobrar al cierre:{" "}
+              {money(data.totales.SaldoCobrar)} · Saldo por pagar al cierre:{" "}
+              {money(data.totales.SaldoPagar)}. Consultado:{" "}
+              {displayDateTime(data.consultadoEn)}.
             </p>
           )}
         </div>
