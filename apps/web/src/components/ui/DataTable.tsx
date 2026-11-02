@@ -23,6 +23,11 @@ function interactiveTarget(event: MouseEvent<HTMLTableRowElement>) {
   );
 }
 
+export interface TableTotals {
+  label: string;
+  labelSpan?: number;
+  values: Readonly<Record<string, ReactNode>>;
+}
 export interface TableColumn<T> {
   key: string;
   label: string;
@@ -104,6 +109,7 @@ export function DataTable<T>({
   onSortChange,
   sortingDisabled = false,
   actions,
+  totals,
   bordered,
   properties = {},
   toolbar,
@@ -128,6 +134,7 @@ export function DataTable<T>({
   onSortChange?: (sort: ListSort | null) => void;
   sortingDisabled?: boolean;
   actions?: (row: T) => ReactNode;
+  totals?: TableTotals | undefined;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
   bordered?: boolean;
   /** Incluido por defecto. false cuando el toolbar externo ya consulta un detalle específico. */
@@ -365,6 +372,35 @@ export function DataTable<T>({
               </tr>
             )}
           </tbody>
+          {totals && (
+            <tfoot>
+              <tr>
+                {multiple && <td />}
+                <th
+                  scope="row"
+                  colSpan={Math.max(
+                    1,
+                    Math.min(columns.length, totals.labelSpan ?? 1),
+                  )}
+                >
+                  {totals.label}
+                </th>
+                {columns
+                  .slice(
+                    Math.max(
+                      1,
+                      Math.min(columns.length, totals.labelSpan ?? 1),
+                    ),
+                  )
+                  .map((column) => (
+                    <td key={column.key} data-align={column.align}>
+                      {totals.values[column.key] ?? null}
+                    </td>
+                  ))}
+                {actions && <td />}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
       {properties !== false && propertyRecord && (

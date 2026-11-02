@@ -19,6 +19,7 @@ export function ClientSearch({
   onChange,
   onExpired,
   historical = false,
+  clientType = "",
   disabled = false,
   ...field
 }: FieldProps & {
@@ -26,6 +27,7 @@ export function ClientSearch({
   onChange: (value: MasterRecord | null) => void;
   onExpired: () => void;
   historical?: boolean;
+  clientType?: string;
   disabled?: boolean;
   placeholder?: string;
   onSearchTextChange?: ((text: string) => void) | undefined;
@@ -42,6 +44,7 @@ export function ClientSearch({
           "clientes",
           {
             q,
+            ...(clientType ? { referencia: clientType } : {}),
             ...listSortQuery(sort ?? null),
             pagina: String(page),
             limite: "20",
@@ -55,7 +58,7 @@ export function ClientSearch({
         throw error;
       }
     },
-    [historical, onExpired],
+    [historical, clientType, onExpired],
   );
   return (
     <SearchField

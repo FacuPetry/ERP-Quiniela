@@ -13,6 +13,7 @@ import {
   DataTable,
   type TableColumn,
   type TableProperties,
+  type TableTotals,
 } from "../ui/DataTable";
 import { Modal } from "../ui/Modal";
 import { Pagination } from "../ui/Pagination";
@@ -53,6 +54,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowLabel,
   properties,
   renderSummary,
+  totals,
   renderNotes,
   onExpired,
 }: {
@@ -73,6 +75,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   rowLabel?: (row: T) => string;
   properties?: TableProperties<T>;
   renderSummary?: (data: R) => ReactNode;
+  totals?: (data: R) => TableTotals;
   renderNotes?: (data: R | null) => ReactNode;
   onExpired: () => void;
 }) {
@@ -160,6 +163,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
           sort={sorting.value}
           onSortChange={sorting.onChange}
           bordered={false}
+          totals={data && totals ? totals(data) : undefined}
           properties={{ ...properties, onExpired }}
           emptyMessage={
             error

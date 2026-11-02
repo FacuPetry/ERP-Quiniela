@@ -1,6 +1,6 @@
 # Filtros compartidos, base de Informes y navegación por categorías
 
-Entrega de interfaz posterior a Usuarios y al primer Resumen de Cuenta corriente. No requiere migraciones, dependencias nuevas ni cambios de permisos, consultas financieras o importes.
+Entrega de interfaz posterior a Usuarios y al primer Resumen de Cuenta corriente. La base de interfaz no requiere migraciones ni dependencias. La ampliación posterior incorpora un mayor de lectura y un permiso independiente: ver [Listado y Resumen actuales](listado-resumen-cuenta-corriente.md).
 
 ## Usuarios: mismo filtro que los demás ABM
 
@@ -51,7 +51,7 @@ El editor recibe `{ value, onChange }`, utilizando controles base. Para actualiz
 
 ## Menú lateral
 
-`SidebarNavigation.tsx` presenta Inicio y las categorías **Operaciones, Maestros, Informes y Sistema**. Cada categoría se expande/contrae con un botón nativo y puede abrirse independientemente de las otras. Todas comienzan contraídas al iniciar sesión; su apertura se conserva durante la navegación de esa sesión, sin persistirse entre ingresos.
+`SidebarNavigation.tsx` presenta Inicio y las categorías **Operaciones, Maestros, Informes y Sistema**. Cada categoría se expande/contrae con un botón nativo; solo una permanece abierta y abrir otra cierra la anterior. Todas comienzan contraídas al iniciar sesión; su apertura se conserva durante la navegación de esa sesión, sin persistirse entre ingresos.
 
 Workspace entrega únicamente las opciones autorizadas por los permisos existentes. Una categoría vacía no se muestra. Mi cuenta continúa disponible para todos los usuarios, por lo que Sistema puede contener solamente esa opción. Usuarios sigue reservado al administrador.
 

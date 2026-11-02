@@ -42,11 +42,11 @@ Un usuario autorizado para una operación necesita algunas referencias aunque no
 
 La administración de aperturas/cierres se comparte entre Cobros y pagos y Tesorería. Tener acceso únicamente a Tesorería permite administrar su caja mediante esas rutas compartidas, sin conceder el listado ni las operaciones comerciales de Cobros y pagos.
 
-## Resumen de Cuenta corriente
+## Listado de Cuenta corriente (antes Resumen)
 
-Disponible en **Informes → Resumen de Cuenta corriente**. Utiliza Cliente mediante SF con selección por lupa; vacío consulta todos los clientes con movimientos confirmados, incluidos los actualmente inactivos. La base de Informes abre los filtros al ingresar y no consulta hasta Aceptar. Cancelar la primera vez deja el informe vacío; cancelar una edición posterior conserva la consulta aceptada. Ver [base de Informes y navegación por categorías](filtros-informes-menu.md).
+Disponible en **Informes → Listado de Cuenta corriente**. Utiliza Cliente mediante SF con selección por lupa; vacío consulta todos los clientes con movimientos confirmados, incluidos los actualmente inactivos. La base de Informes abre los filtros al ingresar y no consulta hasta Aceptar. Cancelar la primera vez deja el informe vacío; cancelar una edición posterior conserva la consulta aceptada. Ver [base de Informes y navegación por categorías](filtros-informes-menu.md).
 
-Presentación: tarjetas con totales, listado por cliente, orden remoto, paginación y Propiedades. En móvil las tarjetas se apilan y la grilla conserva su desplazamiento horizontal. Totales y cantidad abarcan todo el resultado filtrado, no solo la página visible. El instante de consulta se presenta en la zona horaria del negocio.
+Presentación vigente: listado por cliente, sin KPI, con orden remoto, paginación y Propiedades. El nuevo mayor está documentado en [Listado y Resumen](listado-resumen-cuenta-corriente.md). En móvil las tarjetas se apilan y la grilla conserva su desplazamiento horizontal. Totales y cantidad abarcan todo el resultado filtrado, no solo la página visible. El instante de consulta se presenta en la zona horaria del negocio.
 
 ### Significado de los importes
 

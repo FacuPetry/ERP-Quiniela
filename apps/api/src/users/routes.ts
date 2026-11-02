@@ -19,8 +19,11 @@ const permission = z
   .strict()
   .refine(
     (p) =>
-      !["informes-cuenta-corriente", "sistema"].includes(p.menu) ||
-      !p.escritura,
+      ![
+        "informes-cuenta-corriente",
+        "resumen-cuenta-corriente",
+        "sistema",
+      ].includes(p.menu) || !p.escritura,
     "El informe permite únicamente consulta.",
   );
 const input = z

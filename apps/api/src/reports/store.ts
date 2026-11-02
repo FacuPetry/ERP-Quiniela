@@ -1,10 +1,13 @@
 import type { Pool, RowDataPacket } from "mysql2/promise";
 import type { AccountSummary, AccountSummaryRow } from "@erp/shared";
 import { listOrder } from "../database/list-order.js";
+import { accountLedger } from "./ledger.js";
+import type { LedgerQuery } from "./validation.js";
 import type { SummaryQuery } from "./validation.js";
 
 export function createReportStore(pool: Pool) {
   return {
+    accountLedger: (q: LedgerQuery) => accountLedger(pool, q),
     async accountSummary(q: SummaryQuery): Promise<AccountSummary> {
       const order = listOrder(
         q,
@@ -26,6 +29,10 @@ export function createReportStore(pool: Pool) {
       if (q.Cliente) {
         filters.push("a.Cliente=?");
         params.push(q.Cliente);
+      }
+      if (q.ClienteTipo) {
+        filters.push("cl.ClienteTipo=?");
+        params.push(q.ClienteTipo);
       }
       if (q.q) {
         filters.push(

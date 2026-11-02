@@ -15,6 +15,11 @@ export const menuOptions = [
   { key: "sistema", label: "Estado del sistema", group: "Sistema" },
   {
     key: "informes-cuenta-corriente",
+    label: "Listado de Cuenta corriente",
+    group: "Informes",
+  },
+  {
+    key: "resumen-cuenta-corriente",
     label: "Resumen de Cuenta corriente",
     group: "Informes",
   },

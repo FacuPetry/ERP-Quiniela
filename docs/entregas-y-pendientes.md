@@ -26,7 +26,7 @@ La revisión del código encuentra implementado el circuito solicitado. No se id
 
 ### Límites que debe conocer el usuario
 
-- **Consulta de saldos:** el listado operativo de Cuenta corriente conserva su presentación. La nueva opción Informes → Resumen de Cuenta corriente muestra saldos actuales por cliente y separa, en Propiedades, el pendiente documental y los créditos sin aplicar. La consulta histórica a una fecha todavía no está implementada.
+- **Consulta de saldos:** el listado operativo de Cuenta corriente conserva su presentación. La nueva opción Informes → Resumen de Cuenta corriente muestra saldos actuales por cliente y separa, en Propiedades, el pendiente documental y los créditos sin aplicar. La consulta histórica a una fecha todavía no está implementada. El nuevo Resumen incorpora el mayor cronológico del saldo vigente.
 - **Anticipos:** se pueden registrar importes a cuenta y consultar su remanente. Todavía no existe una acción general para aplicarlos a documentos futuros o compensar créditos independientes. Para el circuito básico de esta versión, trabajar con medios de pago iguales al total afectado y dejar el importe a cuenta en cero. Esto es una pauta de uso; no se agregó una restricción al sistema. Las compensaciones automáticas de reversión y rechazo tienen un alcance específico.
 - **Bancos:** se registran los efectos bancarios de transferencias y eventos de cheque. No existe saldo inicial bancario, control de disponibilidad/descubierto ni conciliación. Los fondos reales se verifican en el banco; no presentar el historial registrado como saldo disponible completo.
 - **Correcciones de Valores:** no hay una acción general para deshacer depósitos, acreditaciones o rechazos. Tampoco se resuelve todavía el rechazo de un cheque endosado. Las restricciones actuales evitan corregir automáticamente una operación con dependencias posteriores.
@@ -89,7 +89,7 @@ INF-01 cuenta con una primera versión funcional y una base visual reutilizable.
 
 | ID | Informe candidato | Alcance a acordar |
 |---|---|---|
-| INF-01 | Saldos y pendientes por cliente | **Implementado:** resumen de saldos actuales, filtro de cliente mediante SF, totales, paginación y Propiedades con pendiente documental/créditos sin aplicar. Pendientes: detalle de aplicaciones/documentos dentro del informe y corte histórico, si se requieren. |
+| INF-01 | Saldos y pendientes por cliente | **Implementado:** resumen de saldos actuales, filtro de cliente mediante SF, totales, paginación y Propiedades con pendiente documental/créditos sin aplicar. El nuevo Resumen agrega mayor con aplicaciones/valores informativos y totales; el corte histórico sigue pendiente, si se requiere. |
 | INF-02 | Resumen diario de caja | Apertura, cobros/pagos por medio, ingresos/retiros de Tesorería, efectivo teórico, contado y diferencia. Identificar la apertura real, no agrupar solo por fecha o caja física. |
 | INF-03 | Cobros, pagos y afectaciones | Consulta por cliente, fecha, comprobante y medio; trazabilidad de anulación y reversión. |
 | INF-04 | Cartera y vencimientos de cheques de terceros | Disponibilidad, depositados, acreditados, rechazados e historial; evitar confundir cartera con fondos bancarios disponibles. |
@@ -122,3 +122,6 @@ Los informes deben respetar las reglas financieras existentes: las afectaciones 
 
 
 Ajustes de interfaz posteriores: Usuarios adopta FilterDialog; Informes compone ReportView con filtros iniciales y SF; el sidebar incorpora categorías y recorte dinámico. No modifican los pendientes financieros ni habilitan corte histórico o exportaciones. Ver [detalle y aceptación](filtros-informes-menu.md).
+
+
+Entrega de Listado y Resumen: Listado por Tipo/Cliente sin KPI; mayor cronológico de cliente obligatorio con totales y vínculos informativos, sin multiplicar importes. Acordeón exclusivo y sangría en submenús. Ver [reglas y aceptación](listado-resumen-cuenta-corriente.md). No se habilita corte histórico ni exportación.

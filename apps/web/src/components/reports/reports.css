@@ -122,3 +122,16 @@
     margin-left: auto;
   }
 }
+
+.report-results .data-table tfoot :is(th, td) {
+  background: #f1f6ed;
+  font-weight: 650;
+  padding-top: 17px;
+  padding-bottom: 17px;
+}
+.report-ledger-details {
+  display: block;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

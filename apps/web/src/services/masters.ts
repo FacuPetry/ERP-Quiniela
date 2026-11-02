@@ -20,16 +20,22 @@ export async function referenceOptions(
   key: MasterKey,
   query: Record<string, string>,
   signal?: AbortSignal,
+  includeInactive = false,
 ) {
   const options = new Map<string, MasterRecord>();
   for (let page = 1; ; page++) {
     const result = await listReferences(
       key,
-      { ...query, estado: "activo", pagina: String(page), limite: "100" },
+      {
+        ...query,
+        estado: includeInactive ? "todos" : "activo",
+        pagina: String(page),
+        limite: "100",
+      },
       signal,
     );
     result.registros
-      .filter((row) => row.Activo)
+      .filter((row) => includeInactive || row.Activo)
       .forEach((row) => options.set(String(row.Codigo), row));
     if (!result.registros.length || page * result.limite >= result.total) break;
   }

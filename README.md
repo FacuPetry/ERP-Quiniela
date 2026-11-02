@@ -4,7 +4,11 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Filtros, Informes y menú por categorías
+## Entrega en revisión — Listado y Resumen de Cuenta corriente
+
+El Listado de saldos incorpora Tipo de cliente y Cliente opcional, sin KPI. El nuevo Resumen es un mayor de un cliente obligatorio, con débitos, créditos, acumulados cronológicos, totales y trazabilidad de afectaciones/valores. El menú funciona como acordeón exclusivo con submenús indentados. El Listado conserva el permiso anterior; el Resumen tiene uno nuevo. No requiere migraciones. Ver [convención financiera, permisos y pruebas](docs/listado-resumen-cuenta-corriente.md).
+
+## Filtros, Informes y menú por categorías
 
 Usuarios utiliza el modal estándar de filtros. El Resumen de Cuenta corriente compone una nueva base reutilizable de Informes, con filtros iniciales, Cliente mediante SF y tabla sin líneas divisorias. El menú agrupa las opciones por categorías desplegables y ajusta los nombres largos al espacio disponible. No requiere nuevas migraciones. Ver [comportamiento y pruebas](docs/filtros-informes-menu.md).
 

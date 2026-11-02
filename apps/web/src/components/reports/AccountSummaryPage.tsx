@@ -9,7 +9,7 @@ import type { TableColumn } from "../ui/DataTable";
 import { ClientSearch } from "../current-account/ClientSearch";
 import { amountFormat, formatAmount } from "../controls/amount-value";
 import { displayDateTime } from "../controls/date-value";
-import { Icon } from "../Icon";
+import { ReferenceSelect } from "../masters/ReferenceSelect";
 import { ReportView, type ReportQuery } from "./ReportView";
 const format = amountFormat();
 const money = (v: string) => formatAmount(v, format);
@@ -74,8 +74,13 @@ const extraFields = [
 interface SummaryFilters {
   client: MasterRecord | null;
   text: string;
+  clientType: string;
 }
-const initialFilters: SummaryFilters = { client: null, text: "" };
+const initialFilters: SummaryFilters = {
+  client: null,
+  text: "",
+  clientType: "",
+};
 async function loadSummary({
   filters,
   page,
@@ -85,6 +90,7 @@ async function loadSummary({
   const params = new URLSearchParams({
     ...listSortQuery(sort),
     pagina: String(page),
+    ...(filters.clientType ? { ClienteTipo: filters.clientType } : {}),
     ...(filters.client ? { Cliente: String(filters.client.Codigo) } : {}),
   });
   return apiRequest<AccountSummary>("/informes/cuenta-corriente?" + params, {
@@ -94,7 +100,7 @@ async function loadSummary({
 export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
   return (
     <ReportView<AccountSummaryRow, SummaryFilters, AccountSummary>
-      title="Resumen de Cuenta corriente"
+      title="Listado de Cuenta corriente"
       description="Saldos actuales de apuestas y premios, con cobros, pagos y correcciones registrados."
       caption="Saldos por cliente"
       icon="account"
@@ -106,14 +112,16 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
       rowKey={(r) => r.Cliente}
       rowLabel={(r) => r.Cliente + " - " + r.ClienteNombre}
       properties={{
-        title: "Propiedades · Resumen de Cuenta corriente",
+        title: "Propiedades · Listado de Cuenta corriente",
         fields: extraFields,
       }}
-      filtersActive={(f) => Boolean(f.client)}
+      filtersActive={(f) => Boolean(f.client || f.clientType)}
       filterSummary={(f) =>
         f.client
           ? `Cliente: ${String(f.client.Codigo)} - ${String(f.client.Nombre)}`
-          : "Todos los clientes con movimientos confirmados."
+          : f.clientType
+            ? `Tipo de cliente: ${f.clientType}`
+            : "Todos los clientes con movimientos confirmados."
       }
       validateFilters={(f) =>
         !f.client && f.text.trim()
@@ -122,11 +130,31 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
       }
       renderFilters={({ value, onChange }) => (
         <>
+          <ReferenceSelect
+            field={{
+              name: "ClienteTipo",
+              label: "Tipo de cliente",
+              kind: "relation",
+              maxLength: 20,
+              relation: "tipos-cliente",
+              relationLabelField: "Descripcion",
+            }}
+            id="listing-client-type"
+            value={value.clientType}
+            filter
+            includeInactive
+            onChange={(clientType) =>
+              onChange(() => ({ clientType, client: null, text: "" }))
+            }
+            onExpired={onExpired}
+          />
           <ClientSearch
+            key={value.clientType}
             id="report-client"
             label="Cliente"
             historical
             size="lg"
+            clientType={value.clientType}
             value={value.client}
             onChange={(client) =>
               onChange((current) => ({ ...current, client }))
@@ -137,57 +165,15 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
             onExpired={onExpired}
           />
           <p className="muted small">
-            Sin cliente seleccionado se consultan todos los que tienen
-            movimientos confirmados. Incluye movimientos de cualquier fecha.
+            Tipo y Cliente son opcionales. El SF busca dentro del tipo elegido;
+            cambiar el tipo limpia la selección de cliente.
           </p>
         </>
-      )}
-      renderSummary={(data) => (
-        <div className="report-totals">
-          {(
-            [
-              {
-                key: "SaldoCobrar",
-                title: "Saldo por cobrar",
-                note: "Cuenta de apuestas",
-                icon: "account",
-              },
-              {
-                key: "SaldoPagar",
-                title: "Saldo por pagar",
-                note: "Cuenta de premios",
-                icon: "wallet",
-              },
-              {
-                key: "SaldoNeto",
-                title: "Saldo neto",
-                note: "Cobrar menos Pagar",
-                icon: "exchange",
-              },
-            ] as const
-          ).map((card) => (
-            <section
-              key={card.key}
-              className={
-                "panel report-total " +
-                (card.key === "SaldoNeto" ? "report-total-net" : "")
-              }
-            >
-              <Icon name={card.icon} />
-              <h2>{card.title}</h2>
-              <p className="report-number">
-                {data ? money(data.totales[card.key]) : "—"}
-              </p>
-              <p className="small muted">{card.note}</p>
-            </section>
-          ))}
-        </div>
       )}
       renderNotes={(data) => (
         <div className="report-notes muted small">
           <p>
-            Totales de todos los clientes que cumplen la búsqueda, no solo de la
-            página visible.{" "}
+            Saldos actuales de los clientes que cumplen los filtros.{" "}
             {data && <>Consultado: {displayDateTime(data.consultadoEn)}.</>}
           </p>
           <p>

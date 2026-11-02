@@ -1124,3 +1124,7 @@ h1:focus {
  .sidebar-collapsed .sidebar-category-chevron svg { width:10px; }
 }
 @media(prefers-reduced-motion:reduce) { .sidebar-category-chevron { transition:none; } }
+
+/* La sangría distingue los módulos de su categoría sin reducir el área del menú compacto. */
+@media (min-width:861px) { .workspace:not(.sidebar-collapsed) .sidebar-category-links { padding-left:18px; } }
+@media (max-width:860px) { .sidebar-category-links { padding-left:18px; } }

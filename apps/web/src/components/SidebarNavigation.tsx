@@ -24,9 +24,7 @@ export function SidebarNavigation({
   home: ReactNode;
   renderLink: (item: SidebarItem) => ReactNode;
 }) {
-  const [expanded, setExpanded] = useState<ReadonlySet<string>>(
-    () => new Set(),
-  );
+  const [expanded, setExpanded] = useState<string | null>(null);
   const id = useId();
   return (
     <nav aria-label="Navegación principal">
@@ -34,7 +32,7 @@ export function SidebarNavigation({
       {categories
         .filter((category) => category.items.length > 0)
         .map((category) => {
-          const open = expanded.has(category.key),
+          const open = expanded === category.key,
             active = category.items.some((item) => item.path === currentPath);
           const contentId = `${id}-${category.key}`;
           return (
@@ -48,12 +46,9 @@ export function SidebarNavigation({
                 aria-label={category.label}
                 data-active={active || undefined}
                 onClick={() =>
-                  setExpanded((previous) => {
-                    const next = new Set(previous);
-                    if (next.has(category.key)) next.delete(category.key);
-                    else next.add(category.key);
-                    return next;
-                  })
+                  setExpanded((previous) =>
+                    previous === category.key ? null : category.key,
+                  )
                 }
               >
                 <Icon name={category.icon} size={18} />

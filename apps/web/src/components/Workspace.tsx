@@ -26,6 +26,7 @@ import { CashPage } from "./cash-movement/CashPage";
 import { CurrentAccountPage } from "./current-account/CurrentAccountPage";
 import { MasterPage } from "./masters/MasterPage";
 import { UsersPage } from "./users/UsersPage";
+import { AccountLedgerPage } from "./reports/AccountLedgerPage";
 import { AccountSummaryPage } from "./reports/AccountSummaryPage";
 import { ValuesPage } from "./values/ValuesPage";
 
@@ -537,6 +538,8 @@ function WorkspaceContent({
             />
           ) : path === "/valores" ? (
             <ValuesPage key={path} session={session} onExpired={onLogout} />
+          ) : path === "/resumen-cuenta-corriente" ? (
+            <AccountLedgerPage onExpired={onLogout} />
           ) : path === "/informes-cuenta-corriente" ? (
             <AccountSummaryPage onExpired={onLogout} />
           ) : master ? (

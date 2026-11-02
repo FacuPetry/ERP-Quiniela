@@ -18,3 +18,64 @@ export interface AccountSummary {
   consultadoEn: string;
   totales: { SaldoCobrar: string; SaldoPagar: string; SaldoNeto: string };
 }
+
+export interface AccountLedgerAllocation {
+  CuentaCorriente: string;
+  CajaMovimiento: string;
+  Documento: string;
+  Operacion: string;
+  Fecha: string;
+  Importe: string;
+  Estado: string;
+  Vigente: boolean;
+}
+export interface AccountLedgerValue {
+  CajaMovimiento: string;
+  Operacion: string;
+  Tipo: string;
+  Numero: string;
+  BancoNombre: string;
+  CuentaNombre: string | null;
+  Importe: string;
+  Estado: string;
+}
+export interface AccountLedgerRow {
+  Clave: string;
+  FechaOrigen: string;
+  ComprobanteDescripcion: string;
+  NumeroComprobanteTexto: string;
+  Detalle: string;
+  Cuenta: string;
+  Naturaleza: string;
+  Estado: string;
+  EsReverso: boolean;
+  Debito: string;
+  Credito: string;
+  SaldoAcumulado: string;
+  SaldoCobrar: string;
+  SaldoPagar: string;
+  ImporteOriginal: string;
+  Operacion: string | null;
+  Original: string | null;
+  Reversion: string | null;
+  MotivoAnulacion: string | null;
+  AnuladoEn: string | null;
+  Afectaciones: AccountLedgerAllocation[];
+  Valores: AccountLedgerValue[];
+}
+export interface AccountLedger {
+  registros: AccountLedgerRow[];
+  total: number;
+  pagina: number;
+  limite: number;
+  Cliente: string;
+  ClienteNombre: string;
+  consultadoEn: string;
+  totales: {
+    Debito: string;
+    Credito: string;
+    SaldoFinal: string;
+    SaldoCobrar: string;
+    SaldoPagar: string;
+  };
+}
