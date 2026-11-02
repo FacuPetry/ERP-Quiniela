@@ -11,6 +11,7 @@ import { apiRequest, ApiRequestError } from "../../services/http";
 import { ActionToolbar } from "../ui/ActionToolbar";
 import { DataTable, type TableColumn } from "../ui/DataTable";
 import { Pagination } from "../ui/Pagination";
+import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { Modal } from "../ui/Modal";
 import { FormToolbarActions } from "../ui/FormToolbarActions";
 import { FormSections } from "../ui/FormSections";
@@ -18,6 +19,20 @@ import { useListSorting } from "../ui/useListSorting";
 import { TextBox, CheckBox, DropDown } from "../controls";
 import { displayDateTime } from "../controls/date-value";
 import "./users.css";
+const filterDefaults = { q: "", estado: "todos" };
+const filterFields: readonly FilterField[] = [
+  { key: "q", label: "Búsqueda", kind: "text" },
+  {
+    key: "estado",
+    label: "Estado",
+    kind: "select",
+    options: [
+      { value: "todos", label: "Todos" },
+      { value: "activo", label: "Activo" },
+      { value: "inactivo", label: "Inactivo" },
+    ],
+  },
+];
 const columns: TableColumn<UserRecord>[] = [
   { key: "nombre", label: "Nombre", sort: "nombre", render: (r) => r.nombre },
   {
@@ -86,9 +101,8 @@ export function UsersPage({
   session: SessionResponse;
   onExpired: () => void;
 }) {
-  const [query, setQuery] = useState(""),
-    [state, setState] = useState("todos"),
-    [draft, setDraft] = useState(""),
+  const [filters, setFilters] = useState(filterDefaults),
+    [filtering, setFiltering] = useState(false),
     [page, setPage] = useState(1),
     [revision, setRevision] = useState(0),
     [requested, setRequested] = useState(false);
@@ -122,8 +136,8 @@ export function UsersPage({
       "/usuarios?" +
         new URLSearchParams({
           ...sorting.query,
-          q: query,
-          estado: state,
+          q: filters.q,
+          estado: filters.estado,
           pagina: String(page),
         }),
       { signal: c.signal },
@@ -144,7 +158,7 @@ export function UsersPage({
         if (!c.signal.aborted) setLoading(false);
       });
     return () => c.abort();
-  }, [requested, query, state, page, revision, sorting.value, fail]);
+  }, [requested, filters, page, revision, sorting.value, fail]);
   function refresh() {
     setRequested(true);
     setRevision((v) => v + 1);
@@ -220,11 +234,12 @@ export function UsersPage({
                 busy={busy}
                 readOnly={false}
                 refreshing={loading}
-                filtersActive={Boolean(query) || state !== "todos"}
+                filtersActive={Boolean(filters.q) || filters.estado !== "todos"}
                 onAdd={() => setView({})}
                 onEdit={() => selected && void open(selected)}
                 onProperties={actions.onProperties}
                 onRefresh={refresh}
+                onFilter={() => setFiltering(true)}
                 endActions={[
                   {
                     key: "observe",
@@ -245,43 +260,6 @@ export function UsersPage({
             </div>
           )}
         />
-        <form
-          className="users-list-filters"
-          onSubmit={(e) => {
-            e.preventDefault();
-            setPage(1);
-            setQuery(draft.trim());
-            refresh();
-          }}
-        >
-          <TextBox
-            id="users-search"
-            label="Búsqueda"
-            value={draft}
-            onValueChange={setDraft}
-            placeholder="Nombre o correo"
-            size="lg"
-            maxLength={100}
-          />
-          <DropDown
-            id="users-state"
-            label="Estado"
-            size="sm"
-            value={state}
-            onValueChange={(v) => {
-              setState(v);
-              setPage(1);
-            }}
-            options={[
-              { value: "todos", label: "Todos" },
-              { value: "activo", label: "Activo" },
-              { value: "inactivo", label: "Inactivo" },
-            ]}
-          />
-          <button type="submit" className="button secondary" disabled={loading}>
-            Filtrar
-          </button>
-        </form>
         {data && (
           <Pagination
             page={page}
@@ -292,6 +270,24 @@ export function UsersPage({
           />
         )}
       </section>
+      {filtering && (
+        <FilterDialog
+          fields={filterFields}
+          values={filters}
+          defaults={filterDefaults}
+          onExpired={onExpired}
+          onClose={() => setFiltering(false)}
+          onApply={(values) => {
+            setFilters({
+              q: (values.q ?? "").trim(),
+              estado: values.estado ?? "todos",
+            });
+            setPage(1);
+            setFiltering(false);
+            refresh();
+          }}
+        />
+      )}
       {reset && (
         <PasswordReset
           detail={reset}

@@ -1,10 +1,17 @@
 import type { Pool, RowDataPacket } from "mysql2/promise";
 import type { AccountSummary, AccountSummaryRow } from "@erp/shared";
 import { listOrder } from "../database/list-order.js";
+import { accountLedger } from "./ledger.js";
+import { dailyCash } from "./cash.js";
+import type { CashReportQuery } from "./validation.js";
+import type { LedgerQuery } from "./validation.js";
 import type { SummaryQuery } from "./validation.js";
+import { reportMovement } from "./policy.js";
 
 export function createReportStore(pool: Pool) {
   return {
+    accountLedger: (q: LedgerQuery) => accountLedger(pool, q),
+    dailyCash: (q: CashReportQuery) => dailyCash(pool, q),
     async accountSummary(q: SummaryQuery): Promise<AccountSummary> {
       const order = listOrder(
         q,
@@ -19,13 +26,17 @@ export function createReportStore(pool: Pool) {
       );
       const params: string[] = [],
         filters: string[] = [
-          "a.Estado='CONFIRMADO'",
+          reportMovement("a"),
           "a.Cuenta IN ('COBRAR','PAGAR')",
           "a.Naturaleza IN ('DEUDA','CREDITO')",
         ];
       if (q.Cliente) {
         filters.push("a.Cliente=?");
         params.push(q.Cliente);
+      }
+      if (q.ClienteTipo) {
+        filters.push("cl.ClienteTipo=?");
+        params.push(q.ClienteTipo);
       }
       if (q.q) {
         filters.push(
@@ -44,7 +55,7 @@ export function createReportStore(pool: Pool) {
         SUM(CASE WHEN a.Cuenta='PAGAR' AND a.Naturaleza='DEUDA' THEN a.Importe-COALESCE(x.Aplicado,0) ELSE 0 END) AS PendientePagar
         FROM CUENTACORRIENTE a JOIN CLIENTE cl ON cl.Codigo=a.Cliente
         LEFT JOIN (SELECT f.CuentaCorriente,SUM(f.Importe) AS Aplicado FROM CAJAMOVIMIENTOAFECTACION f
-          JOIN CAJAMOVIMIENTO m ON m.IDTabla=f.CajaMovimiento WHERE m.Estado='CONFIRMADO' GROUP BY f.CuentaCorriente) x ON x.CuentaCorriente=a.IDTabla
+          JOIN CAJAMOVIMIENTO m ON m.IDTabla=f.CajaMovimiento WHERE ${reportMovement("m")} GROUP BY f.CuentaCorriente) x ON x.CuentaCorriente=a.IDTabla
         WHERE ${filters.join(" AND ")} GROUP BY a.Cliente,cl.Nombre`;
       const c = await pool.getConnection();
       try {
@@ -57,8 +68,11 @@ export function createReportStore(pool: Pool) {
         const [rows] = await c.execute<RowDataPacket[]>(
           `SELECT s.*,s.SaldoCobrar-s.SaldoPagar AS SaldoNeto,
           s.PendienteCobrar-s.SaldoCobrar AS CreditoSinAplicarCobrar,s.PendientePagar-s.SaldoPagar AS CreditoSinAplicarPagar
-          FROM (${grouped}) s ORDER BY ${order} LIMIT ? OFFSET ?`,
-          [...params, q.limite, (q.pagina - 1) * q.limite],
+          FROM (${grouped}) s ORDER BY ${order}${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
+          [
+            ...params,
+            ...(q.continuo ? [] : [q.limite, (q.pagina - 1) * q.limite]),
+          ],
         );
         await c.commit();
         const t = totals[0]!;
@@ -70,8 +84,8 @@ export function createReportStore(pool: Pool) {
               ) as unknown as AccountSummaryRow,
           ),
           total: Number(t.total),
-          pagina: q.pagina,
-          limite: q.limite,
+          pagina: q.continuo ? 1 : q.pagina,
+          limite: q.continuo ? Math.max(1, Number(t.total)) : q.limite,
           consultadoEn: new Date().toISOString(),
           totales: {
             SaldoCobrar: String(t.SaldoCobrar),

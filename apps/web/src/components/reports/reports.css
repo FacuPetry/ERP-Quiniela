@@ -1,26 +1,13 @@
-.account-report {
+.report-layout {
   display: grid;
   gap: 20px;
   min-width: 0;
 }
-.report-introduction {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.report-notes {
+  display: grid;
+  gap: 8px;
 }
-.report-introduction > .badge {
-  margin-left: auto;
-  flex-shrink: 0;
-}
-.report-filters {
-  display: flex;
-  align-items: end;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.report-filters > p {
-  flex-basis: 100%;
-}
+/* Indicadores optativos: cada informe aporta los valores de su misma consulta. */
 .report-totals {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -41,39 +28,113 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
-.account-report .report-total-net {
+.report-layout .report-total-net {
   background: #eaf2e3;
   border-color: #d6e4cc;
-}
-.report-notes {
-  display: grid;
-  gap: 8px;
 }
 @media (max-width: 700px) {
   .report-totals {
     grid-template-columns: minmax(0, 1fr);
   }
   .report-total {
-    grid-template-columns: 24px minmax(0, 1fr);
-    gap: 8px 12px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
-  .report-total > svg {
-    grid-row: 1 / span 3;
-  }
-  .report-number,
-  .report-total > p {
-    grid-column: 2;
-  }
-  .report-introduction {
+}
+/* La base de Informes compone DataTable sin cambiar la presentación de los ABM. */
+.report-layout .report-results {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+}
+.report-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 27px;
+}
+.report-toolbar h2 {
+  margin-bottom: 6px;
+}
+.report-results .data-table :is(th, td) {
+  border: 0;
+}
+.report-results .data-table th {
+  background: #f1f6ed;
+  color: #3d5035;
+  padding-top: 18px;
+  padding-bottom: 16px;
+}
+.report-results .data-table td {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* El detalle es uniforme, incluso si un informe incorpora strong/b en una celda.
+   El pie de totales mantiene su destacado independiente. */
+.report-results .data-table tbody :is(th, td, strong, b) {
+  font-weight: 400;
+}
+.report-results .table-sort-button {
+  justify-content: inherit;
+}
+.report-results th[data-align="right"] .table-sort-button {
+  margin-left: auto;
+}
+.report-filter-fields {
+  display: grid;
+  gap: 18px;
+  margin-top: 20px;
+}
+.report-filter-fields > .base-field {
+  max-width: 100%;
+}
+@media (max-width: 600px) {
+  .report-toolbar {
+    padding: 20px 18px;
     flex-wrap: wrap;
   }
-  .report-introduction > div {
-    flex: 1 1 180px;
+  .report-toolbar .action-toolbar {
+    margin-left: auto;
   }
-  .report-introduction > .badge {
-    margin-left: 0;
-  }
-  .report-filters > .base-field {
-    flex: 1 1 100%;
-  }
+}
+
+.report-results .data-table :is(thead, tfoot) :is(th, td) {
+  background: #f1f6ed;
+  color: #3d5035;
+  font-weight: 650;
+  padding-top: 17px;
+  padding-bottom: 17px;
+}
+.report-results .data-table .table-balance-row :is(th, td) {
+  background: #fff;
+  color: #53664b;
+  font-size: inherit;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.report-ledger-details {
+  display: block;
+  max-width: 28rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scroll continuo dentro del informe, sin desplazar horizontalmente la página. */
+.report-results .table-scroll {
+  max-height: 70vh;
+  overflow: auto;
+}
+.report-results .data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.report-results .table-continuation td {
+  color: #617258;
+  font-size: 13px;
 }

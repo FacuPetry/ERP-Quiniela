@@ -47,10 +47,27 @@ export const modules: {
   },
   {
     path: "/informes-cuenta-corriente",
-    title: "Resumen de Cuenta corriente",
+    title: "Listado de Cuenta corriente",
     group: "Informes",
     icon: "account",
     description: "Saldos actuales por cliente de apuestas y premios.",
+    detail: "",
+  },
+  {
+    path: "/resumen-cuenta-corriente",
+    title: "Resumen de Cuenta corriente",
+    group: "Informes",
+    icon: "account",
+    description:
+      "Mayor del cliente: movimientos, cancelaciones y saldo acumulado.",
+    detail: "",
+  },
+  {
+    path: "/resumen-diario-caja",
+    title: "Resumen diario de caja",
+    group: "Informes",
+    icon: "box",
+    description: "Jornadas, efectivo y cierres de caja.",
     detail: "",
   },
   {

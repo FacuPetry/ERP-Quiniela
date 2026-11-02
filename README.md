@@ -4,7 +4,19 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Usuarios e informe de Cuenta corriente
+## Entrega en revisión — Resumen diario de caja
+
+Se agrega un informe por jornada real de caja con efectivo ingresado/entregado, cierres guardados, contado, diferencias y Propiedades. Permiso independiente de consulta; sin nuevas migraciones. Cuenta corriente simplifica columnas y agrega Total general al Listado, conservando cálculos y KPI del Resumen. Ver [alcance, archivos y pruebas](docs/resumen-diario-caja.md). Cheques y bancos continúan en entregas posteriores.
+
+## Entrega en revisión — Listado y Resumen de Cuenta corriente
+
+El Listado de saldos incorpora Tipo de cliente y Cliente opcional, sin KPI. El Resumen es un mayor de cliente obligatorio con fechas, Saldo anterior, movimientos del período y Saldo a vencer por fecha de origen, sin anulados. Ambos informes tienen scroll continuo sin páginas, encabezados/totales en verde suave y trazabilidad de afectaciones/valores. El menú funciona como acordeón exclusivo con submenús indentados. El Listado conserva el permiso anterior; el Resumen tiene uno nuevo. No requiere migraciones. Ver [convención financiera, permisos y pruebas](docs/listado-resumen-cuenta-corriente.md) y los [criterios generales para informes futuros](docs/criterios-informes.md).
+
+## Filtros, Informes y menú por categorías
+
+Usuarios utiliza el modal estándar de filtros. El Resumen de Cuenta corriente compone una nueva base reutilizable de Informes, con filtros iniciales, Cliente mediante SF y tabla sin líneas divisorias. El menú agrupa las opciones por categorías desplegables y ajusta los nombres largos al espacio disponible. No requiere nuevas migraciones. Ver [comportamiento y pruebas](docs/filtros-informes-menu.md).
+
+## Usuarios e informe de Cuenta corriente
 
 Incluye permisos individuales por menú (sin perfiles predefinidos en la interfaz), administración de contraseñas exclusivamente por el administrador y el primer informe de saldos actuales por cliente. Los permisos se aplican también en la API. Corrige el login móvil, elimina referencias a etapas de las pantallas y unifica los toolbars de los ABM. Requiere la migración **0009_permisos_usuarios**. Ver [alcance, publicación y prueba completa](docs/usuarios-permisos-resumen.md).
 

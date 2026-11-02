@@ -7,7 +7,9 @@ import {
 } from "@erp/shared";
 import {
   useCallback,
+  useEffect,
   useId,
+  useRef,
   useState,
   type ReactNode,
   type MouseEvent,
@@ -23,10 +25,19 @@ function interactiveTarget(event: MouseEvent<HTMLTableRowElement>) {
   );
 }
 
+export interface TableTotals {
+  label: string;
+  labelSpan?: number;
+  /** Permite ubicar el nombre en su columna, dejando vacías las demás. */
+  labelKey?: string;
+  values: Readonly<Record<string, ReactNode>>;
+}
+export type BalancePlacement = "beforeTotals" | "afterTotals";
 export interface TableColumn<T> {
   key: string;
   label: string;
   render: (row: T) => ReactNode;
+  align?: "left" | "center" | "right";
   /** Cadena: clave remota de API (requiere onSortChange). Objeto: orden local sobre la colección completa. */
   sort?: string | { value: (row: T) => SortValue; type?: SortType };
   /** Valor de consulta cuando la celda contiene un editor. */
@@ -39,6 +50,53 @@ export interface TableProperties<T> {
   onExpired?: () => void;
 }
 const noSessionHandler = () => {};
+function BalanceRow({
+  balance,
+  columns,
+  multiple,
+  actions,
+  className,
+}: {
+  balance: TableTotals;
+  columns: readonly { key: string; align?: "left" | "center" | "right" }[];
+  multiple: boolean;
+  actions: boolean;
+  className?: string;
+}) {
+  const span = Math.max(1, Math.min(columns.length, balance.labelSpan ?? 1));
+  if (balance.labelKey)
+    return (
+      <tr className={className}>
+        {multiple && <td />}
+        {columns.map((column) =>
+          column.key === balance.labelKey ? (
+            <th key={column.key} scope="row">
+              {balance.label}
+            </th>
+          ) : (
+            <td key={column.key} data-align={column.align}>
+              {balance.values[column.key] ?? null}
+            </td>
+          ),
+        )}
+        {actions && <td />}
+      </tr>
+    );
+  return (
+    <tr className={className}>
+      {multiple && <td />}
+      <th scope="row" colSpan={span}>
+        {balance.label}
+      </th>
+      {columns.slice(span).map((column) => (
+        <td key={column.key} data-align={column.align}>
+          {balance.values[column.key] ?? null}
+        </td>
+      ))}
+      {actions && <td />}
+    </tr>
+  );
+}
 function TableRecordProperties<T>({
   row,
   columns,
@@ -103,6 +161,11 @@ export function DataTable<T>({
   onSortChange,
   sortingDisabled = false,
   actions,
+  totals,
+  openingBalance,
+  closingBalance,
+  closingBalancePlacement = "beforeTotals",
+  onEndReached,
   bordered,
   properties = {},
   toolbar,
@@ -113,6 +176,7 @@ export function DataTable<T>({
   onSelectionChange,
   onRowActivate,
   selectionDisabled = false,
+  showEmptyMessage = true,
   emptyMessage = "No hay registros para mostrar.",
 }: {
   caption: string;
@@ -127,6 +191,14 @@ export function DataTable<T>({
   onSortChange?: (sort: ListSort | null) => void;
   sortingDisabled?: boolean;
   actions?: (row: T) => ReactNode;
+  totals?: TableTotals | readonly TableTotals[] | undefined;
+  /** Resumen informativo previo a las filas; no es un registro seleccionable. */
+  openingBalance?: TableTotals | undefined;
+  /** Resumen informativo al final; su ubicación respecto de los totales es configurable. */
+  closingBalance?: TableTotals | undefined;
+  closingBalancePlacement?: BalancePlacement;
+  /** Renderizado continuo opcional. No cambia la selección ni la paginación de los ABM. */
+  onEndReached?: (() => void) | undefined;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
   bordered?: boolean;
   /** Incluido por defecto. false cuando el toolbar externo ya consulta un detalle específico. */
@@ -145,7 +217,23 @@ export function DataTable<T>({
   selectionDisabled?: boolean;
   /** Permite distinguir una grilla sin consultar de una búsqueda sin resultados. */
   emptyMessage?: ReactNode;
+  /** false deja el cuerpo sin mensajes cuando no hay filas (también al cargar). */
+  showEmptyMessage?: boolean;
 }) {
+  const viewport = useRef<HTMLDivElement>(null);
+  const end = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    const marker = end.current;
+    if (!onEndReached || !marker) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) onEndReached();
+      },
+      { root: viewport.current, rootMargin: "0px 0px 300px 0px" },
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [onEndReached]);
   const selectionGroup = useId();
   const [localSort, setLocalSort] = useState<ListSort | null>(null);
   const currentSort = onSortChange ? sort : localSort;
@@ -222,6 +310,7 @@ export function DataTable<T>({
             </div>
           )}
       <div
+        ref={viewport}
         className="table-scroll"
         data-bordered={bordered}
         tabIndex={0}
@@ -240,6 +329,7 @@ export function DataTable<T>({
               )}
               {columns.map((column) => (
                 <th
+                  data-align={column.align}
                   key={column.key}
                   scope="col"
                   aria-sort={
@@ -287,6 +377,15 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody>
+            {openingBalance && (
+              <BalanceRow
+                balance={openingBalance}
+                columns={columns}
+                multiple={multiple}
+                actions={Boolean(actions)}
+                className="table-balance-row table-opening-balance"
+              />
+            )}
             {rows.length ? (
               displayedRows.map((row) => (
                 <tr
@@ -329,7 +428,7 @@ export function DataTable<T>({
                     </td>
                   )}
                   {columns.map((column, index) => (
-                    <td key={column.key}>
+                    <td key={column.key} data-align={column.align}>
                       {selectable && !multiple && index === 0 && (
                         <input
                           className="row-selector sr-only"
@@ -350,7 +449,7 @@ export function DataTable<T>({
                   {actions && <td className="row-actions">{actions(row)}</td>}
                 </tr>
               ))
-            ) : (
+            ) : showEmptyMessage ? (
               <tr>
                 <td
                   colSpan={
@@ -361,8 +460,54 @@ export function DataTable<T>({
                   {loading ? "Cargando registros…" : emptyMessage}
                 </td>
               </tr>
+            ) : null}
+            {onEndReached && (
+              <tr ref={end} className="table-continuation" aria-live="polite">
+                <td
+                  colSpan={
+                    columns.length + Number(Boolean(actions)) + Number(multiple)
+                  }
+                >
+                  Mostrando más registros al desplazarte…
+                </td>
+              </tr>
+            )}
+            {closingBalance && closingBalancePlacement === "beforeTotals" && (
+              <BalanceRow
+                balance={closingBalance}
+                columns={columns}
+                multiple={multiple}
+                actions={Boolean(actions)}
+                className="table-balance-row table-closing-balance"
+              />
             )}
           </tbody>
+          {(totals ||
+            (closingBalance && closingBalancePlacement === "afterTotals")) && (
+            <tfoot>
+              {totals &&
+                (Array.isArray(totals) ? totals : [totals]).map(
+                  (balance, index) => (
+                    <BalanceRow
+                      key={index}
+                      balance={balance}
+                      columns={columns}
+                      multiple={multiple}
+                      actions={Boolean(actions)}
+                    />
+                  ),
+                )}
+              {closingBalance && closingBalancePlacement === "afterTotals" && (
+                <BalanceRow
+                  balance={closingBalance}
+                  columns={columns}
+                  multiple={multiple}
+                  actions={Boolean(actions)}
+                  className="table-balance-row table-closing-balance"
+                />
+              )}
+            </tfoot>
+          )}
         </table>
       </div>
       {properties !== false && propertyRecord && (

@@ -18,11 +18,22 @@ import {
 // Datos auxiliares de una operación habilitada; no conceden acceso al ABM,
 // sus escrituras ni sus listados completos. Respuesta de maestros proyectada.
 const dependencies: Partial<Record<MasterKey, readonly MenuKey[]>> = {
-  clientes: ["cuenta-corriente", "cobros-pagos", "informes-cuenta-corriente"],
-  "tipos-cliente": ["clientes"],
+  clientes: [
+    "cuenta-corriente",
+    "cobros-pagos",
+    "informes-cuenta-corriente",
+    "resumen-cuenta-corriente",
+  ],
+  "tipos-cliente": ["clientes", "informes-cuenta-corriente"],
   bancos: ["cuentas-bancarias", "valores"],
   "cuentas-bancarias": ["valores"],
-  cajas: ["cobros-pagos", "tesoreria", "numeraciones", "comprobantes"],
+  cajas: [
+    "cobros-pagos",
+    "tesoreria",
+    "numeraciones",
+    "comprobantes",
+    "resumen-diario-caja",
+  ],
   numeraciones: ["comprobantes"],
   comprobantes: ["comprobantes"],
 };

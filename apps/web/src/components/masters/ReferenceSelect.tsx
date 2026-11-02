@@ -11,6 +11,7 @@ export function ReferenceSelect({
   onChange,
   disabled = false,
   filter = false,
+  includeInactive = false,
   invalid = false,
   label = field.label,
   required = !filter && Boolean(field.required),
@@ -29,6 +30,7 @@ export function ReferenceSelect({
   onChange: (value: string) => void;
   disabled?: boolean;
   filter?: boolean;
+  includeInactive?: boolean;
   onExpired: () => void;
   /** Filtros admitidos por la fuente de datos, definidos por el módulo. */
   query?: Record<string, string>;
@@ -49,6 +51,7 @@ export function ReferenceSelect({
       field.relation!,
       JSON.parse(queryKey) as Record<string, string>,
       request.signal,
+      includeInactive,
     )
       .then((rows) => {
         if (!request.signal.aborted) setOptions(rows);
@@ -63,9 +66,10 @@ export function ReferenceSelect({
         if (!request.signal.aborted) setLoading(false);
       });
     return () => request.abort();
-  }, [field.relation, queryKey, revision, onExpired]);
+  }, [field.relation, queryKey, revision, onExpired, includeInactive]);
   const available = options.filter(
-    (row) => row.Activo && (!optionFilter || optionFilter(row)),
+    (row) =>
+      (includeInactive || row.Activo) && (!optionFilter || optionFilter(row)),
   );
   const hasSelected = available.some((row) => row.Codigo === value);
   return (
@@ -117,7 +121,9 @@ export function ReferenceSelect({
             )}
             {!loading && !error && !available.length && (
               <span className="field-hint">
-                No hay opciones activas disponibles.
+                {includeInactive
+                  ? "No hay opciones disponibles."
+                  : "No hay opciones activas disponibles."}
               </span>
             )}
             {error && (
