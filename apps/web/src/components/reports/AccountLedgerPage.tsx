@@ -198,6 +198,7 @@ export function AccountLedgerPage({ onExpired }: { onExpired: () => void }) {
       onExpired={onExpired}
       columns={columns}
       showEmptyMessage={false}
+      closingBalancePlacement="afterTotals"
       rowKey={(r) => r.Clave}
       rowLabel={(r) =>
         r.ComprobanteDescripcion + " " + r.NumeroComprobanteTexto

@@ -25,14 +25,14 @@ Todas las agrupaciones excluyen ANULADOS y utilizan **Fecha de origen**, no Venc
 
 1. **Saldo anterior:** suma los débitos y créditos de movimientos anteriores a Desde. Su acumulado es Débito anterior − Crédito anterior.
 2. **Detalle del período:** movimientos entre Desde y Hasta. Cada acumulado parte del saldo anterior.
-3. **Saldo a vencer:** suma los débitos y créditos de movimientos posteriores a Hasta. Su Saldo acumulado continúa el cierre: Saldo al cierre + Débito posterior − Crédito posterior. Coincide con el neto actual de todo el cliente mostrado en el Listado.
-4. **Totales del período:** Débito y Crédito solo de ese intervalo; Saldo acumulado es el saldo al cierre = Saldo anterior + Débito del período − Crédito del período. Permanece al final, sin sumar importes posteriores.
+3. **Totales del período:** Débito y Crédito solo de ese intervalo; Saldo acumulado es el saldo al cierre = Saldo anterior + Débito del período − Crédito del período. No suma importes posteriores.
+4. **Saldo a vencer:** suma los débitos y créditos de movimientos posteriores a Hasta. Su Saldo acumulado continúa el cierre: Saldo al cierre + Débito posterior − Crédito posterior. Coincide con el neto actual de todo el cliente mostrado en el Listado. Se coloca después de Totales para no volver visualmente de ese acumulado al saldo al cierre.
 
 «Saldo a vencer» es la denominación acordada para **movimientos posteriores por fecha de origen**. No representa el pendiente de documentos por fecha de vencimiento ni una nueva deuda. No se restan afectaciones nuevamente.
 
 Las filas Saldo anterior y Saldo a vencer tienen texto solo en **Comprobante**; Fecha, Número, Cuenta, Detalle y Estado quedan vacíos. Únicamente Débito, Crédito y Saldo acumulado presentan importes. No son operaciones seleccionables. Ambas se presentan como detalle: fondo blanco, tipografía y espaciado normales. Cada una se oculta cuando su **saldo propio** es cero, aunque sus débitos y créditos brutos no sean cero o el acumulado de todo el cliente sea distinto de cero. La fila de totales también usa esa disposición de columnas y es la única fila de datos con estilo destacado.
 
-Ejemplo: anteriores Débito 100/Crédito 0 → acumulado 100; período Débito 20/Crédito 5 → cierre 115; posteriores Débito 40/Crédito 10 → Saldo a vencer muestra 40, 10 y acumulado 145, seguido por Totales del período: 20, 5 y 115. No sumar nuevamente los importes de las filas informativas al total del período.
+Ejemplo: anteriores Débito 100/Crédito 0 → acumulado 100; período Débito 20/Crédito 5 → cierre 115; posteriores Débito 40/Crédito 10 → Totales del período muestra 20, 5 y 115; a continuación Saldo a vencer muestra 40, 10 y acumulado 145. No sumar nuevamente los importes de las filas informativas al total del período.
 
 Si el período está vacío, se muestran únicamente los saldos propios distintos de cero y sus totales. Si no hay detalle, saldos ni importes relevantes, la tabla queda sin filas. El Resumen no presenta mensajes ni filas vacías dentro de la tabla, tampoco antes de consultar; los errores siguen informándose fuera de ella. El Listado mantiene sus mensajes habituales. Las aclaraciones debajo de ambos informes se conservan.
 
@@ -92,7 +92,7 @@ El menú sigue como acordeón exclusivo con 18 px de sangría en modo expandido/
 6. Anular movimientos anteriores, dentro y después del rango: no deben aparecer ni incidir en sus sumas. Revertir un cobro de jornada cerrada: original y contrapartida se conservan en sus fechas, sin doble compensación.
 7. Consultar cobros con varias afectaciones/medios, anticipos, créditos manuales y cheques rechazados. Propiedades informa relaciones vigentes; cada asiento incide una vez.
 8. Probar período sin movimientos, límites inclusivos y fechas vacías. Sin Hasta no se suman importes posteriores; sin Desde no se suman anteriores. Ocultar cada saldo cero, verificar ambos saldos negativos y un saldo posterior cero con acumulado distinto de cero; un cliente sin información debe dejar la tabla sin filas ni mensajes.
-9. Con más de 200 movimientos, bajar por scroll hasta el final: deben agregarse automáticamente todas las filas y luego el pie. Actualizar reinicia al comienzo. No deben aparecer botones de página. El orden visible es Saldo anterior → detalle → Saldo a vencer → Totales del período, omitiendo los saldos cero.
+9. Con más de 200 movimientos, bajar por scroll hasta el final: deben agregarse automáticamente todas las filas y luego el pie. Actualizar reinicia al comienzo. No deben aparecer botones de página. El orden visible es Saldo anterior → detalle → Totales del período → Saldo a vencer, omitiendo los saldos cero.
 10. Revisar detalle y saldos sin negrita (también Neto del Listado), totales destacados y colores iguales en encabezados/totales, scroll horizontal dentro de la tabla y ausencia de desborde de página en móvil. Mantener permisos de usuarios limitados.
 
 Las pruebas financieras se ejecutan en MySQL/MariaDB aislados; el navegador con API simulada comprueba presentación y flujos. No se ejecutan comandos sobre producción y Safari/iPhone real queda para la aceptación del cliente.
@@ -101,8 +101,10 @@ El ajuste posterior de visibilidad, orden, estilos y valores iniciales es única
 
 ## Verificación del cierre frente a movimientos posteriores
 
-La posición de las filas no determina su cálculo: Totales del período siempre usa `totales.SaldoFinal` de la API; Saldo a vencer usa `saldoAVencer.SaldoAcumulado`. El primero incluye Saldo anterior y el período; el segundo incluye además los movimientos posteriores. No intercambiar los campos ni sumar Saldo a vencer al cierre por estar visualmente antes del pie.
+La posición de las filas no determina su cálculo: Totales del período siempre usa `totales.SaldoFinal` de la API; Saldo a vencer usa `saldoAVencer.SaldoAcumulado`. El primero incluye Saldo anterior y el período; el segundo incluye además los movimientos posteriores. No intercambiar los campos ni sumar Saldo a vencer al cierre por su posición en la tabla.
 
 Caso contrastado: Saldo anterior −899.990 + Débito del período 1.000.000 − Crédito del período 750.000 = **cierre −649.990**. Los posteriores aportan 25.000 − 50.000 = −25.000, de modo que el acumulado de Saldo a vencer es **−674.990**. Es correcto que esas filas tengan importes diferentes y que el pie, aunque esté al final, muestre el saldo al cierre. La aclaración inferior presenta también ese importe explícito.
 
 Esta revisión conserva las fórmulas y consultas. Se agrega el caso a la integración aislada y se contrasta la asignación en el navegador con API simulada, incluyendo saldos negativos y períodos sin detalle. La regla de tipografía se centraliza en reports.css para ambos informes y los próximos.
+
+La imagen del usuario confirmó una discontinuidad visual: colocar el acumulado posterior antes de Totales hacía que la última columna regresara al saldo al cierre. Se aplica la alternativa autorizada: Totales del período antes de Saldo a vencer. `closingBalancePlacement="afterTotals"` configura ese orden desde la base sin cambiar fórmulas. Saldo a vencer conserva estilo blanco/peso normal, aunque se compone en el mismo grupo final de tabla.

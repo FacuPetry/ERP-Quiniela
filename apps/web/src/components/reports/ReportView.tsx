@@ -14,6 +14,7 @@ import {
   type TableColumn,
   type TableProperties,
   type TableTotals,
+  type BalancePlacement,
 } from "../ui/DataTable";
 import { Modal } from "../ui/Modal";
 import "./reports.css";
@@ -50,6 +51,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   totals,
   openingBalance,
   closingBalance,
+  closingBalancePlacement = "beforeTotals",
   showEmptyMessage = true,
   renderNotes,
   onExpired,
@@ -70,6 +72,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   totals?: (data: R) => TableTotals | readonly TableTotals[] | undefined;
   openingBalance?: (data: R) => TableTotals | undefined;
   closingBalance?: (data: R) => TableTotals | undefined;
+  closingBalancePlacement?: BalancePlacement;
   /** Configurable por informe; los demás conservan sus mensajes habituales. */
   showEmptyMessage?: boolean;
   renderNotes?: (data: R | null) => ReactNode;
@@ -173,6 +176,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
               ? closingBalance(data)
               : undefined
           }
+          closingBalancePlacement={closingBalancePlacement}
           showEmptyMessage={showEmptyMessage}
           properties={{ ...properties, onExpired }}
           emptyMessage={

@@ -32,6 +32,7 @@ export interface TableTotals {
   labelKey?: string;
   values: Readonly<Record<string, ReactNode>>;
 }
+export type BalancePlacement = "beforeTotals" | "afterTotals";
 export interface TableColumn<T> {
   key: string;
   label: string;
@@ -163,6 +164,7 @@ export function DataTable<T>({
   totals,
   openingBalance,
   closingBalance,
+  closingBalancePlacement = "beforeTotals",
   onEndReached,
   bordered,
   properties = {},
@@ -192,8 +194,9 @@ export function DataTable<T>({
   totals?: TableTotals | readonly TableTotals[] | undefined;
   /** Resumen informativo previo a las filas; no es un registro seleccionable. */
   openingBalance?: TableTotals | undefined;
-  /** Resumen informativo al final del detalle, antes del pie de totales. */
+  /** Resumen informativo al final; su ubicación respecto de los totales es configurable. */
   closingBalance?: TableTotals | undefined;
+  closingBalancePlacement?: BalancePlacement;
   /** Renderizado continuo opcional. No cambia la selección ni la paginación de los ABM. */
   onEndReached?: (() => void) | undefined;
   /** Sin configurar, los listados internos muestran el contorno definido por su contexto. */
@@ -469,7 +472,7 @@ export function DataTable<T>({
                 </td>
               </tr>
             )}
-            {closingBalance && (
+            {closingBalance && closingBalancePlacement === "beforeTotals" && (
               <BalanceRow
                 balance={closingBalance}
                 columns={columns}
@@ -479,18 +482,29 @@ export function DataTable<T>({
               />
             )}
           </tbody>
-          {totals && (
+          {(totals ||
+            (closingBalance && closingBalancePlacement === "afterTotals")) && (
             <tfoot>
-              {(Array.isArray(totals) ? totals : [totals]).map(
-                (balance, index) => (
-                  <BalanceRow
-                    key={index}
-                    balance={balance}
-                    columns={columns}
-                    multiple={multiple}
-                    actions={Boolean(actions)}
-                  />
-                ),
+              {totals &&
+                (Array.isArray(totals) ? totals : [totals]).map(
+                  (balance, index) => (
+                    <BalanceRow
+                      key={index}
+                      balance={balance}
+                      columns={columns}
+                      multiple={multiple}
+                      actions={Boolean(actions)}
+                    />
+                  ),
+                )}
+              {closingBalance && closingBalancePlacement === "afterTotals" && (
+                <BalanceRow
+                  balance={closingBalance}
+                  columns={columns}
+                  multiple={multiple}
+                  actions={Boolean(actions)}
+                  className="table-balance-row table-closing-balance"
+                />
               )}
             </tfoot>
           )}
