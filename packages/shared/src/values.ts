@@ -143,6 +143,17 @@ export const valueTypeLabel = (value: string) =>
   valueTypes.find((v) => v.value === value)?.label ?? value;
 export const valueStateLabel = (value: string) =>
   valueStates.find((v) => v.value === value)?.label ?? value;
+/** Estados vigentes de terceros que pueden consultarse en Informes. */
+export const thirdPartyChequeStates = valueStates.filter((s) =>
+  [
+    "CARTERA",
+    "DEPOSITADO",
+    "ACREDITADO",
+    "RECHAZADO",
+    "ENDOSADO",
+    "DEVUELTO",
+  ].includes(s.value),
+);
 export function valueEventLabel(value: string) {
   const labels: Record<string, string> = {
     RECEPCION: "Recepción",

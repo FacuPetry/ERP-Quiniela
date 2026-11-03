@@ -4,15 +4,19 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Filtros y subtotales
+## Entrega en revisión — Cheques de terceros
+
+Nuevo informe de estado actual y vencimientos, una fila por cheque recibido, filtros por estado/banco/cliente/fechas, subtotales por estado y total nominal, sin propios ni recepciones anuladas. Propiedades consulta eventos vigentes sin modificar Valores. Reutiliza la base de Informes y agrega permiso independiente de consulta; sin migraciones. Ver [alcance y prueba](docs/informe-cheques-terceros.md). El roadmap distingue los pedidos explícitos CLI-01 (envío de saldos, solo documentado) y CLI-02 (control de Caja) de las propuestas futuras.
+
+## Filtros y subtotales
 
 Cobros y pagos incorpora Caja como filtro editable/limpiable, sugerido desde la caja operativa y sin limitar la consulta a su jornada abierta. Las parejas de fechas sugieren hoy menos 30 días y hoy en toda la aplicación. Los informes vacíos mantienen encabezados y totales sin mensajes de detalle. Resumen diario agrupa por caja con subtotales calculados en servidor y Total general, sin sumar saldos trasladados. Sin migraciones ni cambios de registración financiera. Ver [alcance, archivos y pruebas](docs/filtros-caja-agrupamiento-informes.md).
 
 ## Resumen diario de caja
 
-Se agrega un informe por jornada real de caja con efectivo ingresado/entregado, cierres guardados, contado, diferencias y Propiedades. Permiso independiente de consulta; sin nuevas migraciones. Cuenta corriente simplifica columnas y agrega Total general al Listado, conservando cálculos y KPI del Resumen. Ver [alcance, archivos y pruebas](docs/resumen-diario-caja.md). Cheques y bancos continúan en entregas posteriores.
+Se agrega un informe por jornada real de caja con efectivo ingresado/entregado, cierres guardados, contado, diferencias y Propiedades. Permiso independiente de consulta; sin nuevas migraciones. Cuenta corriente simplifica columnas y agrega Total general al Listado, conservando cálculos y KPI del Resumen. Ver [alcance, archivos y pruebas](docs/resumen-diario-caja.md). Cheques de terceros se incorpora en la entrega actual; bancos continúa pendiente.
 
-## Entrega en revisión — Listado y Resumen de Cuenta corriente
+## Listado y Resumen de Cuenta corriente
 
 El Listado de saldos incorpora Tipo de cliente y Cliente opcional, sin KPI. El Resumen es un mayor de cliente obligatorio con fechas, Saldo anterior, movimientos del período y Saldo a vencer por fecha de origen, sin anulados. Ambos informes tienen scroll continuo sin páginas, encabezados/totales en verde suave y trazabilidad de afectaciones/valores. El menú funciona como acordeón exclusivo con submenús indentados. El Listado conserva el permiso anterior; el Resumen tiene uno nuevo. No requiere migraciones. Ver [convención financiera, permisos y pruebas](docs/listado-resumen-cuenta-corriente.md) y los [criterios generales para informes futuros](docs/criterios-informes.md).
 
