@@ -6,7 +6,7 @@ Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendie
 
 ## Entrega en revisión — Importes y panel de Cajas
 
-AmountBox conserva formato/cursor al hacer clic, selecciona todo con Tab/Shift+Tab y normaliza la edición inválida a cero; el vacío se completa con cero al salir. Reagrupa miles sin perder precisión ni suprimir validaciones financieras del módulo. Administrar cajas reinicia el saldo inicial al abrir/cambiar Caja y presenta el resultado del último cierre al final del panel. Sin cambios de API o base de datos. Ver [alcance y prueba](docs/importes-foco-y-cajas.md).
+AmountBox conserva formato/cursor al hacer clic y selecciona todo con Tab/Shift+Tab. Mientras se escribe o pega mantiene el texto sin reformatearlo; únicamente al salir valida, aplica la máscara y convierte el vacío o inválido en cero. Conserva la precisión decimal y las validaciones financieras del módulo. Administrar cajas reinicia el saldo inicial al abrir/cambiar Caja y presenta el resultado del último cierre al final del panel. Sin cambios de API o base de datos. Ver [alcance y prueba](docs/importes-foco-y-cajas.md).
 
 ## Detalle de jornada y PDF
 
