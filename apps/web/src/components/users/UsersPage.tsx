@@ -537,7 +537,8 @@ function UserForm({
                                   { value: "none", label: "Sin acceso" },
                                   { value: "read", label: "Consulta" },
                                   ...(group === "Informes" ||
-                                  group === "Sistema"
+                                  group === "Sistema" ||
+                                  menu.key === "envio-mensajes"
                                     ? []
                                     : [{ value: "write", label: "Operar" }]),
                                 ]}

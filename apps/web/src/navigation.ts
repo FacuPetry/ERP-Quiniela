@@ -46,6 +46,14 @@ export const modules: {
       "Consultá cheques y transferencias, su historial y operaciones, y registrá depósitos, acreditaciones y rechazos de cheques de terceros.",
   },
   {
+    path: "/envio-mensajes",
+    title: "Envío de mensajes",
+    group: "Operaciones",
+    icon: "message",
+    description: "Mensajes personalizados con el saldo de Cuenta corriente.",
+    detail: "Prepará y copiá el mensaje para enviarlo manualmente.",
+  },
+  {
     path: "/informes-cuenta-corriente",
     title: "Listado de Cuenta corriente",
     group: "Informes",

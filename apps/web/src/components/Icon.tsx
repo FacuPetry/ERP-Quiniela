@@ -26,8 +26,13 @@ export type IconName =
   | "refresh"
   | "search"
   | "eraser"
-  | "calendar";
+  | "calendar"
+  | "message"
+  | "copy";
 const paths: Record<IconName, string> = {
+  message:
+    "M21 15a2 2 0 0 1-2 2H7l-5 4V5a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2ZM6 7h11M6 11h8",
+  copy: "M9 9h12v12H9ZM15 5V2H2v13h3",
   pdf: "M14 2H4v20h16V8Zm0 0v6h6M6 17v-5h2v2H6m4 3v-5h1c3 0 3 5 0 5Zm6 0v-5h3m-3 2h2",
   chevron: "m9 5 7 7-7 7",
   calendar: "M8 2v4m8-4v4M3 10h18M3 4h18v18H3ZM7 14h2m4 0h2m-8 4h2m4 0h2",

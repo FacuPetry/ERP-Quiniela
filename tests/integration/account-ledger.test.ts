@@ -9,6 +9,7 @@ import type {
   CurrentAccountDetail,
   SessionResponse,
   UserDetail,
+  BalanceMessagePreview,
 } from "@erp/shared";
 import type { RowDataPacket } from "mysql2/promise";
 import { createApp } from "../../apps/api/src/app.js";
@@ -24,6 +25,7 @@ import { createCashMovementStore } from "../../apps/api/src/cash-movement/store.
 import { createMasterStore } from "../../apps/api/src/masters/store.js";
 import { createUserStore } from "../../apps/api/src/users/store.js";
 import { createValuesStore } from "../../apps/api/src/values/store.js";
+import { createMessageStore } from "../../apps/api/src/messages/store.js";
 test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vigente", async (t) => {
   assert.equal(process.env.TEST_DATABASE_ISOLATED, "1");
   const config = readConfig();
@@ -83,6 +85,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     currentAccount: createCurrentAccountStore(pool),
     cashMovement: createCashMovementStore(pool),
     values: createValuesStore(pool),
+    messages: createMessageStore(pool),
   }).listen(0, "127.0.0.1");
   await once(server, "listening");
   const address = server.address();
@@ -160,6 +163,25 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     return json<AccountLedger>(
       await req("/informes/cuenta-corriente/resumen?" + query),
     );
+  }
+  async function message(client = "LG_A") {
+    return json<BalanceMessagePreview>(
+      await req(
+        "/mensajes/vista-previa?" + new URLSearchParams({ Cliente: client }),
+      ),
+    );
+  }
+  async function sameMessage(client = "LG_A") {
+    const preview = await message(client);
+    const report = await ledger(
+      new URLSearchParams({
+        Cliente: client,
+        Hasta: preview.FechaHasta,
+      }).toString(),
+    );
+    assert.equal(preview.SaldoTotal, report.totales.SaldoFinal);
+    assert.equal(preview.ClienteNombre, report.ClienteNombre);
+    return preview;
   }
   async function list(query = "Cliente=LG_A") {
     return json<AccountSummary>(
@@ -335,6 +357,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       assert.equal(original.Valores.length, 2);
       assert.equal(new Set(r.registros.map((v) => v.Clave)).size, 5);
       assert.equal((await list()).totales.SaldoNeto, r.totales.SaldoFinal);
+      assert.equal((await sameMessage()).Situacion, "A_FAVOR");
     },
   );
   await t.test(
@@ -437,6 +460,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       assert.equal(originalPayment.registro.Estado, "ANULADO");
       assert.equal(originalPayment.registro.ImporteTotal, "30.00");
       assert.equal(r.totales.SaldoFinal, "-80.00");
+      assert.equal((await sameMessage()).SaldoTotal, "-80.00");
     },
   );
   await t.test(
@@ -503,6 +527,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       assert.equal(reversePeriod.totales.Debito, "150.00");
       assert.equal(reversePeriod.totales.SaldoFinal, "70.00");
       assert.equal(reversePeriod.saldoAVencer.Saldo, "0.00");
+      assert.equal((await sameMessage()).SaldoTotal, "70.00");
     },
   );
   await t.test(
@@ -804,6 +829,162 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
+    "mensajes: saldo del mismo mayor hasta hoy, futuros separados y signos correctos",
+    async () => {
+      for (const client of [
+        "LG_A",
+        "LG_B",
+        "LG_EMPTY",
+        "LG_ADV",
+        "LG_RANGE",
+        "LG_CLOSE",
+        "LG_MANY",
+      ])
+        await sameMessage(client);
+      const empty = await message("LG_EMPTY");
+      assert.equal(empty.SaldoTotal, "0.00");
+      assert.equal(empty.Situacion, "SIN_SALDO");
+      assert.equal((await message("LG_CLOSE")).Situacion, "A_FAVOR");
+      await pool.query(
+        "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES ('LG_MSG','Mensaje de saldo','LG_T')",
+      );
+      const day = empty.FechaHasta;
+      const next = new Date(day + "T00:00:00Z");
+      next.setUTCDate(next.getUTCDate() + 1);
+      await debt("LG_D", "100.25", day, "LG_MSG");
+      await debt("LG_D", "900.00", next.toISOString().slice(0, 10), "LG_MSG");
+      const preview = await sameMessage("LG_MSG");
+      assert.equal(preview.SaldoTotal, "100.25");
+      assert.equal(preview.Situacion, "PENDIENTE_PAGO");
+      assert.match(preview.Mensaje, /pendiente de pago.*\$100,25/);
+      assert.equal(
+        (await ledger("Cliente=LG_MSG")).totales.SaldoFinal,
+        "1000.25",
+      );
+    },
+  );
+  await t.test(
+    "mensajes: autenticación, permiso independiente, SF y revocación inmediata",
+    async () => {
+      assert.equal(
+        (await fetch(base + "/api/mensajes/vista-previa?Cliente=LG_A")).status,
+        401,
+      );
+      for (const q of [
+        "",
+        "Cliente=",
+        "Cliente=LG_A&Cliente=LG_B",
+        "Cliente=LG_A&SaldoTotal=1.00",
+        "Cliente=LG_A&Hasta=2099-01-01",
+      ])
+        assert.equal((await req("/mensajes/vista-previa?" + q)).status, 400);
+      assert.equal(
+        (await req("/mensajes/vista-previa?Cliente=NO_EXISTE")).status,
+        404,
+      );
+      const ledgerReader = await login("ledger-reader@example.invalid");
+      assert.equal(
+        (
+          await req(
+            "/mensajes/vista-previa?Cliente=LG_A",
+            "GET",
+            undefined,
+            ledgerReader,
+          )
+        ).status,
+        403,
+      );
+      const input = {
+        nombre: "Solo mensajes",
+        email: "message-reader@example.invalid",
+        activo: true,
+        password,
+        permisos: [{ menu: "envio-mensajes", escritura: false }],
+      };
+      const detail = await json<UserDetail>(
+        await req("/usuarios", "POST", input),
+        201,
+      );
+      const reader = await login(input.email);
+      assert.equal(
+        (
+          await req(
+            "/mensajes/vista-previa?Cliente=LG_A",
+            "GET",
+            undefined,
+            reader,
+          )
+        ).status,
+        200,
+      );
+      const refs = await json<{ registros: Record<string, unknown>[] }>(
+        await req("/referencias/clientes?q=LG_A", "GET", undefined, reader),
+      );
+      assert.ok(refs.registros.some((c) => c.Codigo === "LG_A"));
+      assert.ok(
+        refs.registros.every((c) =>
+          Object.keys(c).every((key) =>
+            ["Codigo", "Nombre", "Activo"].includes(key),
+          ),
+        ),
+      );
+      for (const path of [
+        "/maestros/clientes",
+        "/cuenta-corriente",
+        "/informes/cuenta-corriente/resumen?Cliente=LG_A",
+        "/caja-movimiento",
+      ])
+        assert.equal((await req(path, "GET", undefined, reader)).status, 403);
+      assert.equal(
+        (
+          await req("/usuarios", "POST", {
+            ...input,
+            email: "message-writer@example.invalid",
+            permisos: [{ menu: "envio-mensajes", escritura: true }],
+          })
+        ).status,
+        400,
+      );
+      await json(
+        await req(
+          "/usuarios/" + detail.registro.id,
+          "PUT",
+          {
+            nombre: input.nombre,
+            email: input.email,
+            activo: true,
+            permisos: [],
+          },
+          admin,
+          detail.version,
+        ),
+      );
+      assert.equal(
+        (
+          await req(
+            "/mensajes/vista-previa?Cliente=LG_A",
+            "GET",
+            undefined,
+            reader,
+          )
+        ).status,
+        401,
+      );
+      const revoked = await login(input.email);
+      assert.equal(
+        (
+          await req(
+            "/mensajes/vista-previa?Cliente=LG_A",
+            "GET",
+            undefined,
+            revoked,
+          )
+        ).status,
+        403,
+      );
+    },
+  );
+  await t.test(
     "consultas sin escrituras sobre importes, estados, eventos, cierres, numeración ni auditoría",
     async () => {
       const tables = [
@@ -840,6 +1021,9 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       await ledger("Cliente=LG_A&Desde=2026-01-02&Hasta=2026-01-03&continuo=1");
       await ledger("Cliente=LG_MANY&continuo=1");
       await list("ClienteTipo=LG_T");
+      await message("LG_A");
+      await message("LG_EMPTY");
+      await message("LG_B");
       assert.deepEqual(await snapshot(), before);
     },
   );

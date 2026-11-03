@@ -4,7 +4,11 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Importes y panel de Cajas
+## Entrega en revisión — Envío de mensajes
+
+Operaciones → Envío de mensajes permite seleccionar un cliente mediante SF, consultar su saldo neto hasta hoy con la misma consulta del Resumen de Cuenta corriente y copiar un mensaje predeterminado. Distingue deuda, saldo a favor y saldo neto cero; no realiza envíos. Nuevo permiso independiente de consulta; sin tablas ni migraciones. Los informes pendientes quedan en pausa. Ver [alcance y pruebas](docs/envio-mensajes.md).
+
+## Importes y panel de Cajas
 
 AmountBox conserva formato/cursor al hacer clic y selecciona todo con Tab/Shift+Tab. Mientras se escribe o pega mantiene el texto sin reformatearlo; únicamente al salir valida, aplica la máscara y convierte el vacío o inválido en cero. Conserva la precisión decimal y las validaciones financieras del módulo. Administrar cajas reinicia el saldo inicial al abrir/cambiar Caja y presenta el resultado del último cierre al final del panel. Sin cambios de API o base de datos. Ver [alcance y prueba](docs/importes-foco-y-cajas.md).
 
@@ -14,7 +18,7 @@ INF-09 agrega el detalle de una apertura real con acumulado de efectivo, movimie
 
 ## Cheques de terceros
 
-Nuevo informe de estado actual y vencimientos, una fila por cheque recibido, filtros por estado/banco/cliente/fechas, subtotales por estado y total nominal, sin propios ni recepciones anuladas. Propiedades consulta eventos vigentes sin modificar Valores. Reutiliza la base de Informes y agrega permiso independiente de consulta; sin migraciones. Ver [alcance y prueba](docs/informe-cheques-terceros.md). El roadmap distingue los pedidos explícitos CLI-01 (envío de saldos, solo documentado) y CLI-02 (control de Caja) de las propuestas futuras.
+Nuevo informe de estado actual y vencimientos, una fila por cheque recibido, filtros por estado/banco/cliente/fechas, subtotales por estado y total nominal, sin propios ni recepciones anuladas. Propiedades consulta eventos vigentes sin modificar Valores. Reutiliza la base de Informes y agrega permiso independiente de consulta; sin migraciones. Ver [alcance y prueba](docs/informe-cheques-terceros.md). El roadmap distingue los pedidos explícitos CLI-01 (mensajes de saldos, con preparación/copia individual en la entrega actual) y CLI-02 (control de Caja) de las propuestas futuras.
 
 ## Filtros y subtotales
 

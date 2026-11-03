@@ -17,6 +17,8 @@ import type { ReportStore } from "./reports/store.js";
 import { usersRouter } from "./users/routes.js";
 import type { UserStore } from "./users/store.js";
 import { referencesRouter } from "./references/routes.js";
+import { messagesRouter } from "./messages/routes.js";
+import type { MessageStore } from "./messages/store.js";
 
 interface AppOptions {
   checkDatabase: () => Promise<void>;
@@ -30,6 +32,7 @@ interface AppOptions {
   values?: ValuesStore;
   reports?: ReportStore;
   users?: UserStore;
+  messages?: MessageStore;
 }
 
 export function createApp({
@@ -44,6 +47,7 @@ export function createApp({
   values,
   reports,
   users,
+  messages,
 }: AppOptions) {
   const app = express();
   app.disable("x-powered-by");
@@ -105,6 +109,10 @@ export function createApp({
   if (reports) {
     if (!auth) throw new Error("Los informes requieren autenticación.");
     app.use("/api/informes", reportsRouter(auth, reports));
+  }
+  if (messages) {
+    if (!auth) throw new Error("Envío de mensajes requiere autenticación.");
+    app.use("/api/mensajes", messagesRouter(auth, messages));
   }
   app.use("/api", (_req, res) => {
     res

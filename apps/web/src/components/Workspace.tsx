@@ -32,6 +32,7 @@ import { ThirdPartyChequesPage } from "./reports/ThirdPartyChequesPage";
 import { CashJourneyPage } from "./reports/CashJourneyPage";
 import { DailyCashPage } from "./reports/DailyCashPage";
 import { ValuesPage } from "./values/ValuesPage";
+import { MessagesPage } from "./messages/MessagesPage";
 
 function AppLink({
   path,
@@ -439,6 +440,7 @@ function WorkspaceContent({
                             "/cobros-pagos",
                             "/tesoreria",
                             "/valores",
+                            "/envio-mensajes",
                           ].includes(item.path)
                             ? "Abrir módulo"
                             : "Ver alcance"}{" "}
@@ -541,6 +543,8 @@ function WorkspaceContent({
             />
           ) : path === "/valores" ? (
             <ValuesPage key={path} session={session} onExpired={onLogout} />
+          ) : path === "/envio-mensajes" ? (
+            <MessagesPage key={path} onExpired={onLogout} />
           ) : path === "/informe-cheques-terceros" ? (
             <ThirdPartyChequesPage onExpired={onLogout} />
           ) : path === "/detalle-movimientos-caja" ? (

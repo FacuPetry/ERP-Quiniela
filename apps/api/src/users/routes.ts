@@ -26,8 +26,9 @@ const permission = z
         "detalle-movimientos-caja",
         "informe-cheques-terceros",
         "sistema",
+        "envio-mensajes",
       ].includes(p.menu) || !p.escritura,
-    "El informe permite únicamente consulta.",
+    "Esta opción permite únicamente consulta.",
   );
 const input = z
   .object({
