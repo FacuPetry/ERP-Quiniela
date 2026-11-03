@@ -29,6 +29,7 @@ import { UsersPage } from "./users/UsersPage";
 import { AccountLedgerPage } from "./reports/AccountLedgerPage";
 import { AccountSummaryPage } from "./reports/AccountSummaryPage";
 import { ThirdPartyChequesPage } from "./reports/ThirdPartyChequesPage";
+import { CashJourneyPage } from "./reports/CashJourneyPage";
 import { DailyCashPage } from "./reports/DailyCashPage";
 import { ValuesPage } from "./values/ValuesPage";
 
@@ -542,6 +543,8 @@ function WorkspaceContent({
             <ValuesPage key={path} session={session} onExpired={onLogout} />
           ) : path === "/informe-cheques-terceros" ? (
             <ThirdPartyChequesPage onExpired={onLogout} />
+          ) : path === "/detalle-movimientos-caja" ? (
+            <CashJourneyPage onExpired={onLogout} />
           ) : path === "/resumen-diario-caja" ? (
             <DailyCashPage onExpired={onLogout} />
           ) : path === "/resumen-cuenta-corriente" ? (

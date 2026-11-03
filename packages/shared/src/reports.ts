@@ -153,6 +153,43 @@ export interface DailyCashTotals {
   Cerradas: number;
 }
 
+export type CashJourneyOption = Pick<
+  DailyCashRow,
+  "Clave" | "Caja" | "CajaNombre" | "AperturaEn" | "CierreEn" | "Estado"
+>;
+export interface CashJourneyRow {
+  Clave: string;
+  FechaOrigen: string;
+  RegistradoEn: string;
+  ComprobanteDescripcion: string;
+  NumeroComprobanteTexto: string;
+  ClienteNombre: string | null;
+  ConceptoDescripcion: string | null;
+  Detalle: string;
+  UsuarioNombre: string;
+  Modulo: "TESORERIA" | "COBROSPAGOS";
+  Estado: string;
+  EsReverso: boolean;
+  Original: string | null;
+  ImporteTotal: string;
+  IngresoEfectivo: string;
+  EgresoEfectivo: string;
+  OtrosMediosNeto: string;
+  SaldoAcumulado: string;
+}
+export interface CashJourneyReport {
+  registros: CashJourneyRow[];
+  total: number;
+  consultadoEn: string;
+  jornada: DailyCashRow;
+  totales: {
+    IngresoEfectivo: string;
+    EgresoEfectivo: string;
+    OtrosMediosNeto: string;
+    SaldoAcumulado: string;
+  };
+}
+
 /** Situación actual de instrumentos, no reconstrucción histórica ni saldo bancario. */
 export interface ThirdPartyChequeRow {
   Clave: string;

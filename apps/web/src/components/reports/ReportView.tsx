@@ -2,6 +2,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   useState,
   type Dispatch,
   type ReactNode,
@@ -20,6 +21,9 @@ import {
 import { Modal } from "../ui/Modal";
 import { ReportKpis, type ReportKpi } from "./ReportKpis";
 import { groupReportRows } from "./group-rows";
+import { buildReportDocument } from "./report-document";
+import { PdfDownload } from "./PdfDownload";
+import type { ReportPdfFile } from "./report-pdf";
 import "./reports.css";
 export interface ReportResult<T> {
   registros: T[];
@@ -51,6 +55,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   validateFilters,
   filtersActive,
   filterSummary,
+  reportSummary,
   load,
   columns,
   rowKey,
@@ -72,6 +77,8 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   validateFilters?: (filters: F) => string | undefined;
   filtersActive: (filters: F) => boolean;
   filterSummary: (filters: F) => ReactNode;
+  /** Identificación basada en la respuesta, útil para una jornada real. */
+  reportSummary?: (data: R, filters: F) => ReactNode;
   /** Mantener estable con una función de módulo o useCallback. */
   load: (query: ReportQuery<F>) => Promise<R>;
   columns: readonly TableColumn<T>[];
@@ -99,6 +106,20 @@ export function ReportView<T, F, R extends ReportResult<T>>({
   const showMore = useCallback(() => setVisible((n) => n + 200), []);
   const [selected, setSelected] = useState<string | null>(null);
   const [sort, setSort] = useState<ListSort | null>(null);
+  const exportRun = useRef(0);
+  useEffect(
+    () => () => {
+      exportRun.current++;
+    },
+    [],
+  );
+  const [accepted, setAccepted] = useState<{
+    filters: F;
+    sort: ListSort | null;
+  } | null>(null);
+  const [exporting, setExporting] = useState(false),
+    [exportError, setExportError] = useState("");
+  const [pdf, setPdf] = useState<ReportPdfFile | null>(null);
   const grouped = useMemo(
     () =>
       data && grouping
@@ -112,6 +133,11 @@ export function ReportView<T, F, R extends ReportResult<T>>({
     setLoading(true);
     setError("");
     setData(null);
+    exportRun.current++;
+    setExporting(false);
+    setAccepted(null);
+    setPdf(null);
+    setExportError("");
     setVisible(200);
     setSelected(null);
     void load({
@@ -127,6 +153,7 @@ export function ReportView<T, F, R extends ReportResult<T>>({
             "No se pudo obtener el informe completo. Volvé a consultar.",
           );
         setData(result);
+        setAccepted({ filters, sort });
       })
       .catch((e) => {
         if (c.signal.aborted) return;
@@ -154,6 +181,59 @@ export function ReportView<T, F, R extends ReportResult<T>>({
     }
     setRevision((v) => v + 1);
   }
+  async function exportPdf() {
+    if (
+      !data ||
+      !accepted ||
+      exporting ||
+      loading ||
+      accepted.filters !== filters ||
+      accepted.sort !== sort
+    )
+      return;
+    const run = ++exportRun.current;
+    setExporting(true);
+    setExportError("");
+    setPdf(null);
+    try {
+      const document = buildReportDocument({
+        title,
+        filters: reportSummary
+          ? reportSummary(data, accepted.filters)
+          : filterSummary(accepted.filters),
+        rows: data.registros,
+        columns,
+        rowKey,
+        grouping: grouping
+          ? {
+              key: grouping.key,
+              subtotal: (key) => grouping.subtotal(data, key),
+            }
+          : undefined,
+        totals: totals?.(data),
+        openingBalance: openingBalance?.(data),
+        closingBalance: closingBalance?.(data),
+        closingBalancePlacement,
+        notes: renderNotes?.(data),
+      });
+      const { createReportPdf, downloadReportPdf } =
+        await import("./report-pdf");
+      const file = await createReportPdf(document);
+      if (run === exportRun.current) {
+        setPdf(file);
+        downloadReportPdf(file);
+      }
+    } catch (e) {
+      if (run === exportRun.current)
+        setExportError(
+          e instanceof Error
+            ? e.message
+            : "No se pudo generar el PDF. Volvé a intentar.",
+        );
+    } finally {
+      if (run === exportRun.current) setExporting(false);
+    }
+  }
   return (
     <div className="report-layout">
       {error && (
@@ -161,6 +241,18 @@ export function ReportView<T, F, R extends ReportResult<T>>({
           {error}
         </p>
       )}
+      {exportError && (
+        <p className="notice error" role="alert">
+          No se pudo emitir el PDF. {exportError} La consulta se conserva; podés
+          volver a exportar.
+        </p>
+      )}
+      {exporting && (
+        <p className="muted small" role="status">
+          Generando PDF completo…
+        </p>
+      )}
+      {pdf && <PdfDownload file={pdf} />}
       {data && kpis && <ReportKpis items={kpis(data)} />}
       <section
         className="panel report-results"
@@ -212,9 +304,11 @@ export function ReportView<T, F, R extends ReportResult<T>>({
               <div>
                 <span className="sr-only">{caption}</span>
                 <p className="muted small">
-                  {requested
-                    ? filterSummary(filters)
-                    : "Todavía no se realizó una consulta."}
+                  {data && reportSummary
+                    ? reportSummary(data, accepted?.filters ?? filters)
+                    : requested
+                      ? filterSummary(filters)
+                      : "Todavía no se realizó una consulta."}
                 </p>
               </div>
               <ActionToolbar
@@ -223,7 +317,23 @@ export function ReportView<T, F, R extends ReportResult<T>>({
                   refresh: "Actualizar informe",
                 }}
                 readOnly
-                busy={false}
+                busy={exporting}
+                startActions={[
+                  {
+                    key: "pdf",
+                    label: "Exportar a PDF",
+                    icon: "pdf",
+                    disabled:
+                      !data ||
+                      loading ||
+                      !accepted ||
+                      accepted.filters !== filters ||
+                      accepted.sort !== sort,
+                    onClick: () => {
+                      void exportPdf();
+                    },
+                  },
+                ]}
                 refreshing={loading}
                 selected={actions.selected}
                 filtersActive={requested && filtersActive(filters)}

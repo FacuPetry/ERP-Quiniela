@@ -10,6 +10,8 @@ import {
   summaryQuery,
   chequeReportQuery,
   chequeReportId,
+  cashJourneyQuery,
+  cashJourneysQuery,
 } from "./validation.js";
 export function reportsRouter(auth: AuthService, store: ReportStore) {
   const r = Router();
@@ -74,6 +76,29 @@ export function reportsRouter(auth: AuthService, store: ReportStore) {
       if (!id.success)
         throw new MasterRequestError(400, "Seleccioná un cheque válido.");
       res.json(await store.thirdPartyChequeDetail(id.data));
+    },
+  );
+  r.get(
+    "/caja/jornadas",
+    requireMenu("detalle-movimientos-caja"),
+    async (req, res) => {
+      const q = cashJourneysQuery.safeParse(req.query);
+      if (!q.success)
+        throw new MasterRequestError(400, "Seleccioná una caja válida.");
+      res.json(await store.cashJourneys(q.data.Caja));
+    },
+  );
+  r.get(
+    "/caja/detalle",
+    requireMenu("detalle-movimientos-caja"),
+    async (req, res) => {
+      const q = cashJourneyQuery.safeParse(req.query);
+      if (!q.success)
+        throw new MasterRequestError(
+          400,
+          "Seleccioná una jornada válida y su caja.",
+        );
+      res.json(await store.cashJourney(q.data));
     },
   );
   const errors: ErrorRequestHandler = (error, _req, res, _next) => {

@@ -1,4 +1,4 @@
-import { canWriteMenu } from "@erp/shared";
+import { canAccessMenu, canWriteMenu } from "@erp/shared";
 import { useListSorting } from "../ui/useListSorting";
 import { displayDate } from "../controls/date-value";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -410,6 +410,10 @@ export function CashPage({
       {managingBoxes && (
         <CashBoxes
           csrf={session.csrfToken}
+          canIssueReport={canAccessMenu(
+            session.usuario,
+            "detalle-movimientos-caja",
+          )}
           onClose={() => setManagingBoxes(false)}
           onExpired={expired}
         />

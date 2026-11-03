@@ -43,3 +43,9 @@ En el mayor de Cuenta corriente, «Saldo anterior» y «Saldo a vencer» llevan 
 ReportView admite `grouping.key(row)` y `grouping.subtotal(data, key)`. La base reúne los registros por identidad de grupo, conserva el orden de primera aparición y agrega el corte solo después de su última fila real en la colección completa. No agrega encabezados de grupo ni calcula dinero en el cliente. Un bloque de 200 filas que corta un grupo no genera un subtotal prematuro.
 
 El informe debe devolver subtotales sobre todo el filtro desde el mismo snapshot que el detalle y el total general. DataTable presenta esos cortes como filas informativas no seleccionables; Informes les aplica el mismo estilo destacado que al pie. Resumen diario agrupa por código de Caja y ordena por descripción, sin mezclar cajas distintas que tengan igual nombre. Ver [contrato, límites y pruebas](filtros-caja-agrupamiento-informes.md).
+
+## Exportación PDF e impresión
+
+ReportView configura la exportación desde el documento semántico de la colección completa aceptada, sin leer las filas visibles del DOM ni calcular importes en el navegador. Comparte columnas (con `exportValue` opcional), saldos, cortes y totales. Se deshabilita antes de una consulta válida; cancelar filtros no cambia lo exportado. Un error conserva el resultado y permite reintentar.
+
+El motor PDF repite encabezados y numeración, usa orientación/papel según ancho y fuentes locales con licencia para acentos y signos. El archivo incluye filtros, detalle, totales y aclaraciones; el mismo PDF se abre/imprime desde el visor, sin otro diseño de impresión. Hay enlace explícito de descarga para móvil. Ver [contrato, reemisión al cerrar y aceptación](detalle-jornada-exportacion-pdf.md).

@@ -7,6 +7,8 @@ import type {
   CashDetail,
   CurrentAccountDetail,
   DailyCashReport,
+  CashJourneyReport,
+  CashJourneyOption,
   SessionResponse,
   UserDetail,
 } from "@erp/shared";
@@ -670,6 +672,224 @@ test("Informe diario: jornadas reales, flujos físicos y conservación de cierre
     },
   );
   await t.test(
+    "detalle de jornada real: multimedio, anulados, reversos y acumulado de efectivo",
+    async () => {
+      const old = await json<CashJourneyReport>(
+        await req("/informes/caja/detalle?Caja=CR_BOX&CajaSaldo=" + first),
+      );
+      assert.equal(old.total, 5);
+      assert.equal(old.jornada.Clave, first);
+      assert.equal(old.jornada.Estado, "CERRADO");
+      assert.deepEqual(
+        old.registros.map((r) => r.SaldoAcumulado),
+        ["100.00", "150.00", "90.00", "80.00", "80.00"],
+      );
+      assert.deepEqual(old.totales, {
+        IngresoEfectivo: "150.00",
+        EgresoEfectivo: "70.00",
+        OtrosMediosNeto: "150.00",
+        SaldoAcumulado: "80.00",
+      });
+      const received = old.registros.find(
+        (r) => r.Clave === receipt.registro.IDTabla,
+      )!;
+      assert.equal(received.Estado, "REVERTIDO");
+      assert.equal(received.ImporteTotal, "300.00");
+      assert.equal(received.OtrosMediosNeto, "250.00");
+      assert.equal(received.IngresoEfectivo, "50.00");
+      assert.equal(
+        old.registros.find((r) => r.Clave === treasuryIn.registro.IDTabla)!
+          .Modulo,
+        "TESORERIA",
+      );
+      assert.ok(old.registros.every((r) => r.Estado !== "ANULADO"));
+      const fresh = await json<CashJourneyReport>(
+        await req("/informes/caja/detalle?CajaSaldo=" + second),
+      );
+      assert.equal(fresh.total, 2);
+      assert.equal(fresh.jornada.SaldoInicial, "200.00");
+      assert.deepEqual(
+        fresh.registros.map((r) => r.SaldoAcumulado),
+        ["150.00", "50.00"],
+      );
+      assert.ok(fresh.registros.every((r) => r.EsReverso && r.Original));
+      assert.equal(fresh.totales.OtrosMediosNeto, "-250.00");
+      // Volver a emitir una jornada vieja nunca selecciona la nueva apertura activa.
+      assert.equal(
+        (
+          await json<CashJourneyReport>(
+            await req("/informes/caja/detalle?CajaSaldo=" + first),
+          )
+        ).jornada.Clave,
+        first,
+      );
+      assert.equal(old.jornada.Teorico, "80.00");
+      assert.equal(old.jornada.SaldoContado, "75.00");
+      assert.equal(old.jornada.Diferencia, "-5.00");
+      await pool.execute(
+        "UPDATE CAJASALDO SET SaldoTeorico='79.00' WHERE IDTabla=?",
+        [first],
+      );
+      const mismatch = await json<CashJourneyReport>(
+        await req("/informes/caja/detalle?CajaSaldo=" + first),
+      );
+      assert.equal(mismatch.jornada.Teorico, "79.00");
+      assert.equal(mismatch.totales.SaldoAcumulado, "80.00");
+      assert.equal(mismatch.jornada.Diferencia, "-4.00");
+      assert.equal(mismatch.jornada.CierreCoincide, false);
+      await pool.execute(
+        "UPDATE CAJASALDO SET SaldoTeorico='80.00' WHERE IDTabla=?",
+        [first],
+      );
+    },
+  );
+  await t.test(
+    "detalle: precisión, jornada sin movimientos y cierre incompleto",
+    async () => {
+      const big = (await report("Caja=CR_BIG")).registros[0]!;
+      const d = await json<CashJourneyReport>(
+        await req("/informes/caja/detalle?CajaSaldo=" + big.Clave),
+      );
+      assert.equal(d.total, 1);
+      assert.equal(d.registros[0]!.SaldoAcumulado, "90071992547410.00");
+      assert.equal(d.totales.IngresoEfectivo, "0.09");
+      const incomplete = (await report("Caja=CR_NULL")).registros[0]!;
+      const empty = await json<CashJourneyReport>(
+        await req("/informes/caja/detalle?CajaSaldo=" + incomplete.Clave),
+      );
+      assert.equal(empty.total, 0);
+      assert.equal(empty.jornada.Teorico, null);
+      assert.equal(empty.jornada.Diferencia, null);
+      assert.equal(empty.totales.SaldoAcumulado, "0.00");
+    },
+  );
+  await t.test(
+    "detalle: permiso independiente, apertura validada, referencias e históricos",
+    async () => {
+      assert.equal(
+        (await fetch(base + "/informes/caja/detalle?CajaSaldo=" + first))
+          .status,
+        401,
+      );
+      const input = {
+        nombre: "Consulta detalle",
+        email: "cash-journey-reader@example.invalid",
+        activo: true,
+        password,
+        permisos: [{ menu: "detalle-movimientos-caja", escritura: false }],
+      };
+      await json<UserDetail>(await req("/usuarios", "POST", input), 201);
+      const reader = await login(input.email);
+      for (const path of [
+        "/informes/caja/detalle?CajaSaldo=" + first,
+        "/informes/caja/jornadas?Caja=CR_BOX",
+        "/referencias/cajas?estado=todos",
+      ])
+        assert.equal(
+          (await req(path, "GET", undefined, reader)).status,
+          200,
+          path,
+        );
+      for (const path of [
+        "/caja-movimiento",
+        "/tesoreria",
+        "/maestros/cajas",
+        "/informes/caja/diario",
+      ])
+        assert.equal(
+          (await req(path, "GET", undefined, reader)).status,
+          403,
+          path,
+        );
+      const onlyDaily = await login("cash-report-reader@example.invalid");
+      assert.equal(
+        (
+          await req(
+            "/informes/caja/detalle?CajaSaldo=" + first,
+            "GET",
+            undefined,
+            onlyDaily,
+          )
+        ).status,
+        403,
+      );
+      const options = await json<{ registros: CashJourneyOption[] }>(
+        await req("/informes/caja/jornadas?Caja=CR_BOX"),
+      );
+      assert.deepEqual(
+        new Set(options.registros.map((o) => o.Clave)),
+        new Set([first, second]),
+      );
+      assert.ok(options.registros.some((o) => o.Estado === "CERRADO"));
+      assert.equal(
+        (await req("/informes/caja/detalle?Caja=CR_EDGE&CajaSaldo=" + first))
+          .status,
+        404,
+      );
+      for (const q of [
+        "",
+        "CajaSaldo=no-id",
+        "CajaSaldo=9223372036854775808",
+        "CajaSaldo=" + first + "&Desde=2026-10-28",
+        "CajaSaldo=" + first + "&orden=Importe",
+      ])
+        assert.equal((await req("/informes/caja/detalle?" + q)).status, 400, q);
+      assert.equal(
+        (await req("/informes/caja/detalle?CajaSaldo=9223372036854775807"))
+          .status,
+        404,
+      );
+      assert.equal((await req("/informes/caja/jornadas?Caja=")).status, 400);
+      assert.equal(
+        (
+          await req("/usuarios", "POST", {
+            ...input,
+            email: "journey-write@example.invalid",
+            permisos: [{ menu: "detalle-movimientos-caja", escritura: true }],
+          })
+        ).status,
+        400,
+      );
+    },
+  );
+  await t.test(
+    "detalle completo: más de 200 registros, mismo instante y origen fuera de orden",
+    async () => {
+      // Fixture de volumen del informe, con cierre consistente y desempate de registro.
+      await pool.query(
+        "INSERT INTO CAJA (Codigo,Nombre) VALUES ('CR_VOLUME','Jornada de volumen')",
+      );
+      await pool.execute(
+        "INSERT INTO CAJASALDO (Caja,AperturaEn,SaldoInicial,UsuarioApertura,Estado,CierreEn,SaldoTeorico,SaldoContado) VALUES ('CR_VOLUME','2026-10-27 12:00:00','1000.00',?,'CERRADO','2026-10-27 22:00:00','3052.05','3052.05')",
+        [admin.session.usuario.id],
+      );
+      const [ids] = await pool.query<RowDataPacket[]>(
+        "SELECT IDTabla FROM CAJASALDO WHERE Caja='CR_VOLUME'",
+      );
+      const openingId = String(ids[0]!.IDTabla);
+      for (let n = 0; n < 205; n++)
+        await pool.execute(
+          "INSERT INTO CAJAMOVIMIENTO (Comprobante,NumeroComprobante,Cliente,FechaOrigen,CajaSaldo,Concepto,ImporteEfectivo,ImporteTotal,Sentido,Estado,Usuario,CreadoEn) VALUES ('CR_TI',?,NULL,?,?,'CR_FUND','10.01','10.01','INGRESO','CONFIRMADO',?,'2026-10-27 13:00:00')",
+          [
+            String(910000001 + n),
+            n % 2 ? "2026-10-27" : "2026-10-28",
+            openingId,
+            admin.session.usuario.id,
+          ],
+        );
+      const d = await json<CashJourneyReport>(
+        await req("/informes/caja/detalle?CajaSaldo=" + openingId),
+      );
+      assert.equal(d.total, 205);
+      assert.equal(d.registros.length, 205);
+      assert.equal(d.totales.IngresoEfectivo, "2052.05");
+      assert.equal(d.registros.at(-1)!.SaldoAcumulado, "3052.05");
+      assert.equal(d.registros[0]!.NumeroComprobanteTexto, "0009-10000001");
+      assert.equal(d.registros[1]!.SaldoAcumulado, "1020.02");
+      assert.equal(d.jornada.CierreCoincide, true);
+    },
+  );
+  await t.test(
     "solo lectura: no modificar operaciones, cierres, numeración ni auditoría",
     async () => {
       const tables = [
@@ -703,6 +923,9 @@ test("Informe diario: jornadas reales, flujos físicos y conservación de cierre
       await report();
       await report("Desde=2026-10-27&Hasta=2026-10-28&continuo=1");
       await report("Caja=CR_MANY&limite=1");
+      await req("/informes/caja/detalle?CajaSaldo=" + first);
+      await req("/informes/caja/detalle?CajaSaldo=" + second);
+      await req("/informes/caja/jornadas?Caja=CR_BOX");
       assert.deepEqual(await snapshot(), before);
     },
   );

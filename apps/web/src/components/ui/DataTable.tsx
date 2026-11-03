@@ -43,6 +43,8 @@ export interface TableColumn<T> {
   sort?: string | { value: (row: T) => SortValue; type?: SortType };
   /** Valor de consulta cuando la celda contiene un editor. */
   property?: (row: T) => ReactNode;
+  /** Texto completo para exportación si render usa un control/componente complejo. */
+  exportValue?: (row: T) => string;
 }
 export interface TableProperties<T> {
   title?: string;

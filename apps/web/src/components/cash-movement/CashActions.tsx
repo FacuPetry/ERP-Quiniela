@@ -25,6 +25,9 @@ import { ApiRequestError } from "../../services/http";
 import { useActiveCash } from "./ActiveCash";
 import { TextBox, CheckBox } from "../controls";
 import { amount, message } from "./format";
+import { createCashJourneyPdf } from "../reports/cash-journey-report";
+import { PdfDownload } from "../reports/PdfDownload";
+import type { ReportPdfFile } from "../reports/report-pdf";
 export function useCashOptions(
   onExpired: () => void,
   services: MovementServices = cashServices,
@@ -69,11 +72,13 @@ export function useCashOptions(
 }
 export function CashBoxes({
   csrf,
+  canIssueReport,
   onClose,
   onChanged,
   onExpired,
 }: {
   csrf: string;
+  canIssueReport: boolean;
   onClose: () => void;
   onChanged?: () => void;
   onExpired: () => void;
@@ -95,6 +100,14 @@ export function CashBoxes({
     [note, setNote] = useState(""),
     [busy, setBusy] = useState(false);
   const retry = useRef({ body: "", key: "" });
+  const [issuing, setIssuing] = useState(false);
+  const [closed, setClosed] = useState<{
+    id: string;
+    name: string;
+    error: string;
+    file: ReportPdfFile | null;
+  } | null>(null);
+  const locked = busy || issuing;
   const operationId = useId();
   const [propertyBox, setPropertyBox] = useState<string | null>(null);
   const [highlighted, setHighlighted] = useState<string | null>(
@@ -104,7 +117,35 @@ export function CashBoxes({
   const selectedOpening = data?.aperturas.find(
     (o) => o.IDTabla === highlighted,
   );
-  async function save() {
+  async function issueReport(target: { id: string; name: string }) {
+    if (!canIssueReport || issuing) return;
+    setIssuing(true);
+    setClosed((current) =>
+      current?.id === target.id
+        ? { ...current, error: "", file: null }
+        : current,
+    );
+    try {
+      const file = await createCashJourneyPdf(target.id);
+      setClosed((current) =>
+        current?.id === target.id ? { ...current, file } : current,
+      );
+      const { downloadReportPdf } = await import("../reports/report-pdf");
+      downloadReportPdf(file);
+    } catch (e) {
+      if (e instanceof ApiRequestError && e.status === 401) onExpired();
+      setClosed((current) =>
+        current?.id === target.id ? { ...current, error: message(e) } : current,
+      );
+    } finally {
+      setIssuing(false);
+    }
+  }
+  async function save(emitReport = false) {
+    // Capturar la apertura antes de confirmar: nunca consultar la próxima activa.
+    const target = closing
+      ? { id: closing.IDTabla, name: closing.CajaNombre }
+      : null;
     const input = closing
       ? { SaldoContado: counted, Observacion: note || null }
       : { Caja: box, SaldoInicial: initial };
@@ -122,6 +163,12 @@ export function CashBoxes({
           retry.current.key,
         );
         if (selected?.IDTabla === closing.IDTabla) select(null);
+        setClosed({
+          id: closing.IDTabla,
+          name: closing.CajaNombre,
+          error: "",
+          file: null,
+        });
       } else
         await cashOpen(
           input as { Caja: string; SaldoInicial: string },
@@ -138,9 +185,12 @@ export function CashBoxes({
       else {
         setError(message(e));
       }
+      return;
     } finally {
       setBusy(false);
     }
+    // El cierre ya fue confirmado. Una emisión fallida no reintenta ni revierte el POST.
+    if (emitReport && target) await issueReport(target);
   }
   return (
     <>
@@ -148,13 +198,45 @@ export function CashBoxes({
         open
         title="Administrar cajas"
         size="lg"
-        busy={busy}
+        busy={locked}
         onClose={onClose}
       >
         {error && (
           <p className="notice error" role="alert">
             {error}
           </p>
+        )}
+        {closed && (
+          <section
+            className="cash-box-operation"
+            aria-label="Resultado del cierre"
+          >
+            <p className="notice" role="status">
+              La caja {closed.name} quedó cerrada correctamente.
+            </p>
+            {issuing && (
+              <p role="status">Generando informe de la jornada cerrada…</p>
+            )}
+            {closed.error && (
+              <p className="notice error" role="alert">
+                El cierre se conserva, pero no se pudo emitir el PDF:{" "}
+                {closed.error} Podés volver a emitirlo aquí o desde Informes.
+              </p>
+            )}
+            {closed.file && <PdfDownload file={closed.file} />}
+            {canIssueReport && !issuing && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={locked}
+                onClick={() => {
+                  void issueReport(closed);
+                }}
+              >
+                Volver a emitir informe de esta jornada
+              </button>
+            )}
+          </section>
         )}
         <section
           className="cash-box-list"
@@ -168,7 +250,7 @@ export function CashBoxes({
                 properties: "Propiedades",
               }}
               selected={Boolean(selectedOpening)}
-              busy={busy}
+              busy={locked}
               readOnly
               filtersActive={false}
               refreshing={loading}
@@ -183,7 +265,7 @@ export function CashBoxes({
             caption="Cajas abiertas"
             rows={data?.aperturas ?? []}
             rowKey={(r) => r.IDTabla}
-            loading={busy || loading}
+            loading={locked || loading}
             selectedKey={highlighted}
             onSelectionChange={setHighlighted}
             rowLabel={(o) => o.CajaNombre}
@@ -220,7 +302,7 @@ export function CashBoxes({
                   type="button"
                   className="button secondary"
                   disabled={
-                    busy ||
+                    locked ||
                     loading ||
                     selected?.IDTabla === r.IDTabla ||
                     !data?.cajas.some((c) => c.Codigo === r.Caja)
@@ -238,7 +320,7 @@ export function CashBoxes({
                 </button>
                 <button
                   className="button secondary"
-                  disabled={busy || loading}
+                  disabled={locked || loading}
                   onClick={() => {
                     setClosing(r);
                     setCounted(r.SaldoActual);
@@ -269,13 +351,13 @@ export function CashBoxes({
                     label="Efectivo contado"
                     value={counted}
                     onValueChange={setCounted}
-                    disabled={busy || loading}
+                    disabled={locked || loading}
                   />
                   <TextArea
                     label="Observación de cierre"
                     value={note}
                     onValueChange={setNote}
-                    disabled={busy || loading}
+                    disabled={locked || loading}
                     hint="Si el contado difiere del teórico, la observación es obligatoria. La diferencia se registra sin crear ajustes automáticos."
                   />
                 </>
@@ -285,7 +367,7 @@ export function CashBoxes({
                     label="Caja"
                     value={box}
                     onValueChange={setBox}
-                    disabled={busy || loading}
+                    disabled={locked || loading}
                     options={[
                       { value: "", label: "Seleccioná una caja" },
                       ...data.cajas
@@ -300,7 +382,7 @@ export function CashBoxes({
                     label="Saldo inicial"
                     value={initial}
                     onValueChange={setInitial}
-                    disabled={busy || loading}
+                    disabled={locked || loading}
                   />
                 </>
               )}
@@ -309,7 +391,7 @@ export function CashBoxes({
                   closing ? (
                     <button
                       className="button secondary"
-                      disabled={busy || loading}
+                      disabled={locked || loading}
                       onClick={() => setClosing(null)}
                     >
                       Cancelar cierre
@@ -319,17 +401,25 @@ export function CashBoxes({
               >
                 <button
                   className="button primary"
-                  disabled={busy || loading || (!closing && !box)}
+                  disabled={locked || loading || (!closing && !box)}
                   onClick={() => {
                     void save();
                   }}
                 >
-                  {busy
-                    ? "Guardando…"
-                    : closing
-                      ? "Confirmar cierre"
-                      : "Abrir caja"}
+                  {busy ? "Guardando…" : closing ? "Cerrar caja" : "Abrir caja"}
                 </button>
+                {closing && canIssueReport && (
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={locked || loading}
+                    onClick={() => {
+                      void save(true);
+                    }}
+                  >
+                    Cerrar caja y emitir informe
+                  </button>
+                )}
               </FormToolbarActions>
             </div>
           </section>
@@ -338,7 +428,7 @@ export function CashBoxes({
       {changeBox && (
         <Modal
           title="Cambiar caja seleccionada"
-          busy={busy}
+          busy={locked}
           lockScroll
           restoreFocus
           onClose={() => setChangeBox(null)}
@@ -360,7 +450,7 @@ export function CashBoxes({
             <button
               type="button"
               className="button primary"
-              disabled={busy || loading}
+              disabled={locked || loading}
               onClick={() => {
                 const current = data?.aperturas.find(
                   (o) => o.IDTabla === changeBox.IDTabla,

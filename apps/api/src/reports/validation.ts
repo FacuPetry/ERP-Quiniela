@@ -81,3 +81,10 @@ export const chequeReportQuery = z
   );
 export type ChequeReportQuery = z.infer<typeof chequeReportQuery>;
 export const chequeReportId = id;
+export const cashJourneyQuery = z
+  .object({ CajaSaldo: id, Caja: z.string().trim().min(1).max(20).optional() })
+  .strict();
+export type CashJourneyQuery = z.infer<typeof cashJourneyQuery>;
+export const cashJourneysQuery = z
+  .object({ Caja: z.string().trim().min(1).max(20) })
+  .strict();

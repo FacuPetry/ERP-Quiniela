@@ -71,6 +71,14 @@ export const modules: {
     detail: "",
   },
   {
+    path: "/detalle-movimientos-caja",
+    title: "Detalle de movimientos por caja/jornada",
+    group: "Informes",
+    icon: "box",
+    description: "Movimientos y saldo de efectivo de una apertura real.",
+    detail: "",
+  },
+  {
     path: "/informe-cheques-terceros",
     title: "Cheques de terceros",
     group: "Informes",
