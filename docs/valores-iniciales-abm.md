@@ -6,7 +6,7 @@ Ajuste de inicialización y presentación. Sin cambios de esquema, endpoints, re
 
 - La ficha Importes se alinea a la izquierda. Conserva ancho compacto, label/valor en fila en escritorio y ancho disponible en móvil.
 - Al crear se calculan una vez Fecha de origen y Fecha de vencimiento con todayISO() (fecha civil de Argentina), y se inicializa Importe con cero, presentado como 0,00.
-- Ambas fechas y el importe son editables. Vaciar el importe no repone automáticamente el cero. La API conserva el requisito de importe mayor que cero y vencimiento no anterior al origen.
+- Ambas fechas y el importe son editables. Vaciar el importe permite un borrador vacío durante la edición; al salir, AmountBox repone cero con su formato. La API conserva el requisito de importe mayor que cero y vencimiento no anterior al origen.
 - Al consultar se utilizan las fechas e importe del movimiento, incluido vencimiento NULL; no se sustituyen por hoy o cero.
 
 ## Filtros y carga manual
@@ -23,7 +23,7 @@ Los movimientos de otro día y los anulados pueden no aparecer con los filtros s
 
 ## Números y SF
 
-AmountBox y TextBox type number admiten initialValue (por defecto "0"). Para usar esa inicialización se omite value o se entrega undefined y se recibe el valor en onValueChange una única vez. Un valor explícito de edición o una cadena vacía nunca se reemplazan. En un formulario controlado puede inicializarse directamente el estado con defaultNumericValue o el valor específico del módulo.
+AmountBox y TextBox type number admiten initialValue (por defecto "0"). Para usar esa inicialización se omite value o se entrega undefined y se recibe el valor en onValueChange una única vez. Un valor explícito de edición o una cadena vacía recibida por props no se reemplazan por inicialización. La posterior edición inválida/vacía de AmountBox se normaliza a cero según sus reglas de interacción. En un formulario controlado puede inicializarse directamente el estado con defaultNumericValue o el valor específico del módulo.
 
 AmountBox representa el cero con format/locale: 0,00 con dos decimales; 0,000 con tres; 0 sin decimales. No altera la máscara ni los límites del formulario.
 

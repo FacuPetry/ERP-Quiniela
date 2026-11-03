@@ -4,7 +4,11 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Detalle de jornada y PDF
+## Entrega en revisión — Importes y panel de Cajas
+
+AmountBox conserva formato/cursor al hacer clic y selecciona todo con Tab/Shift+Tab. Mientras se escribe o pega mantiene el texto sin reformatearlo; únicamente al salir valida, aplica la máscara y convierte el vacío o inválido en cero. Conserva la precisión decimal y las validaciones financieras del módulo. Administrar cajas reinicia el saldo inicial al abrir/cambiar Caja y presenta el resultado del último cierre al final del panel. Sin cambios de API o base de datos. Ver [alcance y prueba](docs/importes-foco-y-cajas.md).
+
+## Detalle de jornada y PDF
 
 INF-09 agrega el detalle de una apertura real con acumulado de efectivo, movimientos válidos, medios no físicos informativos y cierre guardado. La base de Informes exporta todas sus filas, saldos, cortes y totales a PDF, con páginas y fuentes locales; se imprime el mismo archivo desde el visor. Cerrar caja y emitir informe confirma el cierre existente y luego genera el PDF de esa apertura; el cierre se conserva si falla la emisión. Nuevo permiso independiente de consulta; sin migraciones. Ver [alcance, archivos y pruebas](docs/detalle-jornada-exportacion-pdf.md).
 

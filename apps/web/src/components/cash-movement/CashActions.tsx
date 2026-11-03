@@ -169,12 +169,14 @@ export function CashBoxes({
           error: "",
           file: null,
         });
-      } else
+      } else {
         await cashOpen(
           input as { Caja: string; SaldoInicial: string },
           csrf,
           retry.current.key,
         );
+        setInitial("0.00");
+      }
       onChanged?.();
       setClosing(null);
       setNote("");
@@ -205,38 +207,6 @@ export function CashBoxes({
           <p className="notice error" role="alert">
             {error}
           </p>
-        )}
-        {closed && (
-          <section
-            className="cash-box-operation"
-            aria-label="Resultado del cierre"
-          >
-            <p className="notice" role="status">
-              La caja {closed.name} quedó cerrada correctamente.
-            </p>
-            {issuing && (
-              <p role="status">Generando informe de la jornada cerrada…</p>
-            )}
-            {closed.error && (
-              <p className="notice error" role="alert">
-                El cierre se conserva, pero no se pudo emitir el PDF:{" "}
-                {closed.error} Podés volver a emitirlo aquí o desde Informes.
-              </p>
-            )}
-            {closed.file && <PdfDownload file={closed.file} />}
-            {canIssueReport && !issuing && (
-              <button
-                type="button"
-                className="button secondary"
-                disabled={locked}
-                onClick={() => {
-                  void issueReport(closed);
-                }}
-              >
-                Volver a emitir informe de esta jornada
-              </button>
-            )}
-          </section>
         )}
         <section
           className="cash-box-list"
@@ -366,7 +336,10 @@ export function CashBoxes({
                   <DropDown
                     label="Caja"
                     value={box}
-                    onValueChange={setBox}
+                    onValueChange={(nextBox) => {
+                      setBox(nextBox);
+                      setInitial("0.00");
+                    }}
                     disabled={locked || loading}
                     options={[
                       { value: "", label: "Seleccioná una caja" },
@@ -422,6 +395,39 @@ export function CashBoxes({
                 )}
               </FormToolbarActions>
             </div>
+          </section>
+        )}
+        {closed && (
+          <section
+            className="cash-box-operation"
+            aria-label="Resultado del cierre"
+          >
+            <h3>Último cierre</h3>
+            <p className="notice" role="status">
+              La caja {closed.name} quedó cerrada correctamente.
+            </p>
+            {issuing && (
+              <p role="status">Generando informe de la jornada cerrada…</p>
+            )}
+            {closed.error && (
+              <p className="notice error" role="alert">
+                El cierre se conserva, pero no se pudo emitir el PDF:{" "}
+                {closed.error} Podés volver a emitirlo aquí o desde Informes.
+              </p>
+            )}
+            {closed.file && <PdfDownload file={closed.file} />}
+            {canIssueReport && !issuing && (
+              <button
+                type="button"
+                className="button secondary"
+                disabled={locked}
+                onClick={() => {
+                  void issueReport(closed);
+                }}
+              >
+                Volver a emitir informe de esta jornada
+              </button>
+            )}
           </section>
         )}
       </OffCanvas>

@@ -3,14 +3,11 @@ import { TextBox } from "./TextBox";
 import type { FieldProps } from "./Field";
 import { useNumericInitialValue } from "./useNumericInitialValue";
 import { defaultNumericValue } from "./numeric-defaults";
-import {
-  amountFormat,
-  formatAmount,
-  parseAmountInput,
-  editAmount,
-} from "./amount-value";
+import { amountFormat, formatAmount } from "./amount-value";
+import { draftAmountEdit, finishAmountEdit } from "./amount-edit";
+import { useTabFocus } from "./useTabFocus";
 export interface AmountBoxProps extends FieldProps {
-  /** Decimal canónico con punto, sin miles/símbolos; vacío si no hay valor válido. */
+  /** Decimal canónico con punto, sin miles/símbolos. La edición inválida emite cero. */
   value?: string;
   initialValue?: string;
   onValueChange: (value: string) => void;
@@ -38,19 +35,12 @@ export function AmountBox({
   );
   const config = useMemo(() => amountFormat(format, locale), [format, locale]);
   const [text, setText] = useState(() => formatAmount(value, config));
-  const [message, setMessage] = useState("");
-  const editing = useRef(false);
+  const fromTab = useTabFocus();
   const emitted = useRef(value),
     lastConfig = useRef(config);
   useEffect(() => {
-    if (value !== emitted.current || config !== lastConfig.current) {
-      setText(
-        editing.current
-          ? editAmount(value, config)
-          : formatAmount(value, config),
-      );
-      setMessage("");
-    }
+    if (value !== emitted.current || config !== lastConfig.current)
+      setText(formatAmount(value, config));
     emitted.current = value;
     lastConfig.current = config;
   }, [value, config]);
@@ -58,72 +48,32 @@ export function AmountBox({
     emitted.current = next;
     onValueChange(next);
   }
-  function finish(formatted: boolean) {
-    if (readOnly || disabled) return;
-    const parsed = parseAmountInput(text, config, maxIntegerDigits);
-    setMessage(parsed.error ?? "");
-    if (!parsed.error)
-      setText(
-        formatted
-          ? formatAmount(parsed.value, config)
-          : editAmount(parsed.value, config),
-      );
-    emit(parsed.value);
-  }
   return (
     <TextBox
       {...field}
       className="amount-control"
       value={text}
       onValueChange={(next) => {
-        setText(next);
-        setMessage("");
-        emit(parseAmountInput(next, config, maxIntegerDigits).value);
+        if (readOnly || disabled) return;
+        const draft = draftAmountEdit(next, config, maxIntegerDigits);
+        // Conservar exactamente el texto del navegador evita mover el cursor
+        // o modificar el pegado, la selección y las teclas de borrado.
+        setText(draft.text);
+        emit(draft.value);
       }}
-      error={message || field.error}
+      error={field.error}
       disabled={disabled}
       readOnly={readOnly}
       inputMode="decimal"
       onFocus={(event) => {
-        if (readOnly) return;
-        editing.current = true;
-        // Solo desagrupar valores ya formateados: un error visible debe poder corregirse.
-        if (text === formatAmount(value, config))
-          setText(editAmount(value, config));
-        event.currentTarget.select();
-      }}
-      onPaste={(event) => {
-        if (readOnly || disabled) return;
-        const control = event.currentTarget;
-        // Un importe completo pegado también pasa a la vista de edición sin miles.
-        // Las inserciones parciales conservan la edición/selección nativa del input.
-        if (
-          control.selectionStart !== 0 ||
-          control.selectionEnd !== text.length
-        )
-          return;
-        const parsed = parseAmountInput(
-          event.clipboardData.getData("text"),
-          config,
-          maxIntegerDigits,
-        );
-        if (parsed.error) return;
-        event.preventDefault();
-        const next = editAmount(parsed.value, config);
-        setText(next);
-        setMessage("");
-        emit(parsed.value);
-        requestAnimationFrame(() => {
-          if (document.activeElement === control)
-            control.setSelectionRange(next.length, next.length);
-        });
+        if (!readOnly && !disabled && fromTab(event.currentTarget))
+          event.currentTarget.select();
       }}
       onBlur={() => {
-        editing.current = false;
-        finish(true);
-      }}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") finish(false);
+        if (readOnly || disabled) return;
+        const result = finishAmountEdit(text, config, maxIntegerDigits);
+        setText(result.text);
+        emit(result.value);
       }}
     />
   );

@@ -87,7 +87,7 @@ test("AmountBox admite máscara, agrupación y región configurables sin redonde
   assert.throws(() => amountFormat("$0.00"));
   assert.throws(() => amountFormat("0.################"));
 });
-test("AmountBox invalida importes incorrectos y exceso de precisión; el formulario conserva sus restricciones", () => {
+test("El parser estricto detecta importes incorrectos y exceso de precisión; el formulario conserva sus restricciones", () => {
   const config = amountFormat();
   for (const raw of [
     "abc",
@@ -125,7 +125,7 @@ test("Fechas visibles usan dd/MM/yyyy sin modificar fechas civiles y mantienen l
   assert.equal(displayDateTime("no es fecha"), "");
 });
 
-test("AmountBox edita sin miles ni decimales de relleno y conserva el valor exacto al reformatear", () => {
+test("editAmount convierte fragmentos de pegado sin miles ni relleno y conserva el valor exacto", () => {
   const config = amountFormat();
   for (const value of [
     "1000.00",
@@ -157,7 +157,7 @@ test("AmountBox edita sin miles ni decimales de relleno y conserva el valor exac
   );
   assert.equal(formatAmount(deleted.value, config), "100,00");
 });
-test("AmountBox conserva máscaras y regiones configurables al entrar y salir de edición", () => {
+test("editAmount respeta máscaras/regiones y conserva el parser estricto", () => {
   for (const config of [
     amountFormat("#,##0"),
     amountFormat("0.00"),

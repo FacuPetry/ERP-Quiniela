@@ -32,8 +32,8 @@ Textbox monetario reutilizable con Field y los mismos anchos, altura, bordes, fo
 - `format` predeterminado: `#,##0.00`. Los ceros después del punto determinan los decimales; `0.00` omite miles, `#,##0.000` presenta tres decimales y `#,##0` ninguno. Admite hasta veinte decimales obligatorios. La puntuación de la máscara es convencional, no el separador que se teclea.
 - `locale` predeterminado: es-AR. Determina los separadores visibles; por ejemplo en-US muestra 1,250.50.
 - Admite las propiedades comunes de Field, size, required, readOnly y disabled. `maxIntegerDigits` limita los dígitos enteros según la necesidad del módulo.
-- Al salir normaliza y formatea. Al enfocar muestra el valor sin miles ni ceros decimales de relleno, conservando los decimales significativos: `1.000,00` se edita como `1000`, y `1.250,50` como `1250,5`. Mantiene la selección inicial completa y permite ubicar el cursor para insertar/borrar en cualquier parte. Los estados intermedios de escritura no se sobreescriben por la actualización del valor controlado. Enter valida sin reinsertar agrupaciones mientras continúa el foco.
-- Pegar un importe completo válido también lo lleva a la vista de edición; las inserciones parciales mantienen el comportamiento nativo del input. Un importe inválido queda visible para corregir y no conserva internamente el importe anterior. En consulta readOnly/disabled se mantiene el formato y no se aceptan cambios mediante pegado.
+- Al recibir foco conserva el texto formateado. Clic/touch mantienen el cursor nativo; Tab/Shift+Tab seleccionan todo sin convertir el importe a entero. Mientras se escribe, borra o pega conserva exactamente el texto del navegador, sin agregar miles, completar decimales ni remapear el cursor. Solo al salir (Blur) valida y aplica la máscara. Enter no fuerza el formato mientras el campo siga enfocado.
+- El pegado y las teclas de borrado mantienen su comportamiento nativo. El texto vacío o inválido permanece visible durante la edición y se reemplaza por cero formateado al salir, sin mensaje sintáctico propio. El valor asociado sigue siendo decimal canónico: las entradas válidas actualizan los cálculos y las inválidas emiten cero, nunca el texto inválido ni un importe anterior. En readOnly/disabled no se aceptan cambios ni se sustituyen valores recibidos.
 
 | Entrada es-AR | Valor interno | Presentación |
 |---|---|---|
@@ -45,7 +45,7 @@ Textbox monetario reutilizable con Field y los mismos anchos, altura, bordes, fo
 
 En Argentina, un punto con grupos completos de tres cifras se interpreta como miles: 1.000 significa mil. Sin agrupación válida se acepta también el punto decimal de entrada, como 1000.5. El valor recibido por props es siempre canónico y no se vuelve a interpretar como entrada regional.
 
-No redondea cifras significativas excedentes. Por ejemplo 12,345 con dos decimales queda visible para corregirlo, informa el error y entrega vacío en lugar de un importe válido. Los ceros decimales sobrantes pueden normalizarse sin pérdida de valor. Letras, símbolos, notación científica y agrupaciones inválidas tampoco producen un importe válido. Los importes negativos pueden representarse en el control; la condición positiva corresponde al módulo. Cuenta corriente conserva su rechazo de cero/negativos, máximo 16 enteros y dos decimales. Configurar otro formato no modifica restricciones de la API.
+El parser sigue detectando precisión excedente sin redondear. AmountBox convierte una edición inválida (por ejemplo 12,345 con dos decimales, letras o dos comas decimales) en cero canónico; visualmente conserva el borrador hasta Blur, cuando muestra cero formateado. Los ceros decimales sobrantes se pueden normalizar sin pérdida de valor. Los errores financieros aportados por el formulario se conservan; no se confunden con mensajes sintácticos del control. Los importes negativos pueden representarse en el control; la condición positiva corresponde al módulo. Cuenta corriente conserva su rechazo de cero/negativos, máximo 16 enteros y dos decimales. Configurar otro formato no modifica restricciones de la API.
 
 Uso actual: Importe en altas y consultas de Cuenta corriente. No se duplican controles por módulo ni se cambia el valor de la base.
 
@@ -69,7 +69,7 @@ Se mantienen las búsquedas, selección, paginación, validación de identidad, 
 1. Agregar un movimiento de Cuenta corriente. Escribir cada ejemplo de fecha y salir con Tab: verificar el formato, año asumido y limpieza de fechas imposibles/letras.
 2. Usar el icono de calendario: seleccionar una fecha y comprobar el textbox. En consulta no debe permitir modificarla. Probar también Desde/Hasta del modal de filtros y Limpiar.
 3. En Importe ingresar los ejemplos, salir con Tab y verificar miles/coma/dos decimales. Reemplazar un valor anterior, copiar/pegar 1.000,25 y comprobar que no se mezclan los valores.
-4. Ingresar 12,345: debe informar exceso de decimales sin redondear ni guardar un valor anterior. Cero/negativos siguen rechazados por Cuenta corriente.
+4. Ingresar 12,345: debe mantener el texto durante la edición y mostrar 0,00 al salir, sin redondear ni guardar un valor anterior. Cero/negativos siguen rechazados por Cuenta corriente.
 5. Completar un movimiento válido y guardar. Consultar: fecha dd/MM/yyyy e importe formateado, conservando ISO y decimal canónico en la solicitud. Guardado, numeración, consulta y anulación mantienen su circuito.
 6. Probar Buscar/Limpiar del SF, cero/una/múltiples coincidencias, teclado y móvil. Los botones deben verse unidos y conservar el comportamiento.
 
@@ -80,8 +80,6 @@ La revisión de [foco y Safari](foco-controles-safari.md) establece entradas mó
 
 ## Revisión de edición y neto de Caja
 
-El problema de agregar un cero a un importe agrupado provenía de mantener los puntos de miles dentro del texto editable. Una cadena como 1.0000 ya no es una agrupación válida y puede confundirse con la alternativa de entrada decimal con punto. Se separa la presentación de la edición, sin relajar las validaciones del parser ni redondear importes. El valor que reciben los módulos sigue siendo el mismo decimal canónico exacto; no cambian la API, DECIMAL ni los registros guardados.
+La edición se conserva literalmente en `amount-edit.ts`, separado del parser estricto. Por ejemplo, escribir `10000` mantiene ese texto hasta salir, cuando pasa a `10.000,00`. No se corrigen ni se eliminan separadores durante la escritura: una agrupación inválida se convierte en cero al salir. El foco conserva la presentación; solo Tab/Shift+Tab seleccionan todo. Ver [comportamiento actual, casos de prueba y cambios de Cajas](importes-foco-y-cajas.md).
 
-CashForm reubica el control Neto debajo de Valores de terceros, dentro de la columna Medios de pago. La columna Aplicación conserva Importe a cobrar/pagar, Adelanto recibido o Anticipo entregado y el aviso de diferencia. No cambian cálculos ni guardado; en móvil ambas columnas se apilan como antes.
-
-Prueba: cargar 1000, salir y verificar 1.000,00; volver al campo, ir al final, agregar 0 y salir: 10.000,00. Repetir insertando/borrando en el medio, pegando un importe completo con miles/coma y con máscaras de cero/tres decimales o región en-US. Un exceso significativo de decimales conserva el error; corregirlo vuelve a habilitar el importe válido. Revisar también solo lectura, límite de enteros y valores grandes. La revisión se verificó con 44 pruebas unitarias, tipos y el componente real en Chromium con API simulada; no se ejecutó compilación de producción ni integración financiera contra bases de datos para este ajuste.
+El neto de Cobros y pagos mantiene su ubicación debajo de Valores de terceros, del lado izquierdo. No se modifican sus cálculos ni la validación de efectivo/bancos por esta revisión.
