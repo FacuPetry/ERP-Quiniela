@@ -4,7 +4,11 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Cheques de terceros
+## Entrega en revisión — Detalle de jornada y PDF
+
+INF-09 agrega el detalle de una apertura real con acumulado de efectivo, movimientos válidos, medios no físicos informativos y cierre guardado. La base de Informes exporta todas sus filas, saldos, cortes y totales a PDF, con páginas y fuentes locales; se imprime el mismo archivo desde el visor. Cerrar caja y emitir informe confirma el cierre existente y luego genera el PDF de esa apertura; el cierre se conserva si falla la emisión. Nuevo permiso independiente de consulta; sin migraciones. Ver [alcance, archivos y pruebas](docs/detalle-jornada-exportacion-pdf.md).
+
+## Cheques de terceros
 
 Nuevo informe de estado actual y vencimientos, una fila por cheque recibido, filtros por estado/banco/cliente/fechas, subtotales por estado y total nominal, sin propios ni recepciones anuladas. Propiedades consulta eventos vigentes sin modificar Valores. Reutiliza la base de Informes y agrega permiso independiente de consulta; sin migraciones. Ver [alcance y prueba](docs/informe-cheques-terceros.md). El roadmap distingue los pedidos explícitos CLI-01 (envío de saldos, solo documentado) y CLI-02 (control de Caja) de las propuestas futuras.
 

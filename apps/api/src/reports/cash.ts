@@ -1,4 +1,4 @@
-import type { Pool, RowDataPacket } from "mysql2/promise";
+import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import type {
   DailyCashReport,
   DailyCashRow,
@@ -59,9 +59,14 @@ function readTotals(t: RowDataPacket): DailyCashTotals {
 export async function dailyCash(
   pool: Pool,
   q: CashReportQuery,
+  scope?: { connection: PoolConnection; openingId: string },
 ): Promise<DailyCashReport> {
   const where = ["cs.Estado IN ('ABIERTO','CERRADO')"];
   const params: (string | Date)[] = [];
+  if (scope) {
+    where.push("cs.IDTabla=?");
+    params.push(scope.openingId);
+  }
   if (q.Caja) {
     where.push("cs.Caja=?");
     params.push(q.Caja);
@@ -92,7 +97,7 @@ export async function dailyCash(
     SUM(CASE WHEN m.Sentido='INGRESO' THEN m.ImporteTotal-m.ImporteEfectivo ELSE 0 END) AS IngresosOtrosMedios,
     SUM(CASE WHEN m.Sentido='EGRESO' THEN m.ImporteTotal-m.ImporteEfectivo ELSE 0 END) AS EgresosOtrosMedios
     FROM (SELECT m.*,(${treasuryMovement("m")}) AS EsTesoreria FROM CAJAMOVIMIENTO m
-      WHERE ${reportMovement("m")} AND m.Sentido IN ('INGRESO','EGRESO')) m GROUP BY m.CajaSaldo`;
+      WHERE ${reportMovement("m")} AND m.Sentido IN ('INGRESO','EGRESO')${scope ? " AND m.CajaSaldo=?" : ""}) m GROUP BY m.CajaSaldo`;
   const projected = `SELECT cs.IDTabla AS Clave,ca.Codigo AS Caja,ca.Nombre AS CajaNombre,cs.AperturaEn,cs.CierreEn,cs.Estado,
     ua.Nombre AS UsuarioAperturaNombre,uc.Nombre AS UsuarioCierreNombre,cs.Observacion,cs.SaldoInicial,
     ${monetaryFlows.map((k) => `COALESCE(f.${k},0) AS ${k}`).join(",")},
@@ -128,23 +133,30 @@ export async function dailyCash(
       ${monetaryFlows.map((k) => `COALESCE(SUM(s.${k}),0) AS ${k}`).join(",")},
       COALESCE(SUM(s.Movimientos),0) AS Movimientos,COALESCE(SUM(s.Estado='ABIERTO'),0) AS Abiertas,COALESCE(SUM(s.Estado='CERRADO'),0) AS Cerradas,
       CASE WHEN SUM(s.Estado='CERRADO')>0 AND SUM(s.Estado='CERRADO' AND s.Diferencia IS NULL)=0 THEN SUM(s.Diferencia) ELSE NULL END AS Diferencia`;
-  const c = await pool.getConnection();
+  // El detalle de una apertura no necesita agregar las demás jornadas.
+  const queryParams = scope ? [scope.openingId, ...params] : params;
+  const c = scope?.connection ?? (await pool.getConnection());
   try {
-    await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
-    await c.query("START TRANSACTION READ ONLY");
+    if (!scope) {
+      await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+      await c.query("START TRANSACTION READ ONLY");
+    }
     const [totals] = await c.execute<RowDataPacket[]>(
       `SELECT ${aggregate} FROM (${projected}) s`,
-      params,
+      queryParams,
     );
     const [groups] = await c.execute<RowDataPacket[]>(
       `SELECT s.Caja,s.CajaNombre,${aggregate} FROM (${projected}) s GROUP BY s.Caja,s.CajaNombre ORDER BY s.CajaNombre,s.Caja`,
-      params,
+      queryParams,
     );
     const [rows] = await c.execute<RowDataPacket[]>(
       `SELECT s.* FROM (${projected}) s ORDER BY ${groupedOrder}${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
-      [...params, ...(q.continuo ? [] : [q.limite, (q.pagina - 1) * q.limite])],
+      [
+        ...queryParams,
+        ...(q.continuo ? [] : [q.limite, (q.pagina - 1) * q.limite]),
+      ],
     );
-    await c.commit();
+    if (!scope) await c.commit();
     const t = totals[0]!;
     return {
       registros: rows.map(
@@ -177,9 +189,9 @@ export async function dailyCash(
       })),
     };
   } catch (e) {
-    await c.rollback();
+    if (!scope) await c.rollback();
     throw e;
   } finally {
-    c.release();
+    if (!scope) c.release();
   }
 }

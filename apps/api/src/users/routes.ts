@@ -23,6 +23,7 @@ const permission = z
         "informes-cuenta-corriente",
         "resumen-cuenta-corriente",
         "resumen-diario-caja",
+        "detalle-movimientos-caja",
         "informe-cheques-terceros",
         "sistema",
       ].includes(p.menu) || !p.escritura,

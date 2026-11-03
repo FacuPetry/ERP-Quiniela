@@ -34,6 +34,7 @@ const dependencies: Partial<Record<MasterKey, readonly MenuKey[]>> = {
     "numeraciones",
     "comprobantes",
     "resumen-diario-caja",
+    "detalle-movimientos-caja",
   ],
   numeraciones: ["comprobantes"],
   comprobantes: ["comprobantes"],

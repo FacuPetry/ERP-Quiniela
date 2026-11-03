@@ -3,6 +3,8 @@ import type { AccountSummary, AccountSummaryRow } from "@erp/shared";
 import { listOrder } from "../database/list-order.js";
 import { accountLedger } from "./ledger.js";
 import { dailyCash } from "./cash.js";
+import { cashJourney, cashJourneys } from "./cash-journey.js";
+import type { CashJourneyQuery } from "./validation.js";
 import { thirdPartyCheques, thirdPartyChequeDetail } from "./cheques.js";
 import type { ChequeReportQuery } from "./validation.js";
 import type { CashReportQuery } from "./validation.js";
@@ -12,6 +14,8 @@ import { reportMovement } from "./policy.js";
 
 export function createReportStore(pool: Pool) {
   return {
+    cashJourney: (q: CashJourneyQuery) => cashJourney(pool, q),
+    cashJourneys: (box: string) => cashJourneys(pool, box),
     thirdPartyCheques: (q: ChequeReportQuery) => thirdPartyCheques(pool, q),
     thirdPartyChequeDetail: (id: string) => thirdPartyChequeDetail(pool, id),
     accountLedger: (q: LedgerQuery) => accountLedger(pool, q),
