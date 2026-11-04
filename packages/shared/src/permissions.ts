@@ -4,7 +4,7 @@ export const menuOptions = [
   { key: "cobros-pagos", label: "Cobros y pagos", group: "Operaciones" },
   { key: "tesoreria", label: "Tesorería", group: "Operaciones" },
   { key: "valores", label: "Valores", group: "Operaciones" },
-  { key: "envio-mensajes", label: "Envío de mensajes", group: "Operaciones" },
+  { key: "envio-mensajes", label: "Envío de mensajes", group: "Notificaciones" },
   { key: "tipos-cliente", label: "Tipos de cliente", group: "Maestros" },
   { key: "clientes", label: "Clientes", group: "Maestros" },
   { key: "comprobantes", label: "Comprobantes", group: "Maestros" },

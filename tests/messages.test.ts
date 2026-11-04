@@ -4,6 +4,13 @@ import {
   balanceMessage,
   messageBalanceDate,
 } from "../apps/api/src/messages/text.js";
+import { whatsappPhone } from "../apps/api/src/messages/phone.js";
+import {
+  defaultMessageTemplate,
+  messageTemplateProblem,
+  renderMessageTemplate,
+  whatsappMessageUrl,
+} from "@erp/shared";
 
 test("Mensaje de saldo distingue deuda, saldo a favor y cero sin invertir signos", () => {
   const positive = balanceMessage("Ana", "150000.00", "2026-11-03");
@@ -45,4 +52,84 @@ test("Fecha del mensaje usa el día de Argentina también en el límite de media
     messageBalanceDate(new Date("2026-11-03T03:00:00Z")),
     "2026-11-03",
   );
+});
+test("Plantillas reemplazan todas las variables literalmente, sin recursión ni cálculo financiero", () => {
+  const value = balanceMessage("Ana {MontoTotal}", "-150000.25", "2026-11-03");
+  assert.equal(
+    renderMessageTemplate(
+      "{NombreCliente}: {MontoTotal} / {MontoTotal} al {FechaSaldo}",
+      value.Variables,
+    ),
+    "Ana {MontoTotal}: -$150.000,25 / -$150.000,25 al 03/11/2026",
+  );
+  assert.equal(
+    renderMessageTemplate(defaultMessageTemplate, value.Variables),
+    value.Mensaje,
+  );
+  assert.equal(
+    renderMessageTemplate("Texto sin variables", value.Variables),
+    "Texto sin variables",
+  );
+  for (const text of [
+    "",
+    "   ",
+    "{NoExiste}",
+    "{NombreCliente",
+    "NombreCliente}",
+    "{{NombreCliente}}",
+    "a".repeat(2001),
+  ]) {
+    assert.ok(messageTemplateProblem(text), text);
+    assert.throws(() => renderMessageTemplate(text, value.Variables));
+  }
+  assert.throws(() =>
+    renderMessageTemplate("{NombreCliente}".repeat(120), {
+      ...value.Variables,
+      NombreCliente: "a".repeat(100),
+    }),
+  );
+});
+test("Teléfonos de WhatsApp se validan sin inventar área ni tomar extensiones o múltiples contactos", () => {
+  for (const raw of [
+    "+54 9 11 1234-5678",
+    "005491112345678",
+    "5491112345678",
+    "54 9 11 1234-5678",
+    "011 15-1234-5678",
+  ])
+    assert.equal(whatsappPhone(raw).WhatsAppNumero, "5491112345678", raw);
+  assert.equal(whatsappPhone("11 1234-5678").WhatsAppNumero, "541112345678");
+  assert.equal(whatsappPhone("+1 202 555 0123").WhatsAppNumero, "12025550123");
+  for (const raw of [
+    null,
+    "",
+    "   ",
+    "123",
+    "15-1234-5678",
+    "abc",
+    "+54 9 11 1234-5678 int 2",
+    "+54 9 11 1234-5678 / +54 9 11 9876-5432",
+    "+000123456789",
+    "+541234567890123456",
+  ]) {
+    const phone = whatsappPhone(raw);
+    assert.equal(phone.WhatsAppNumero, null, String(raw));
+    assert.ok(phone.WhatsAppError);
+  }
+});
+test("El enlace wa.me incluye contacto y mensaje exactos, sin permitir cambiar su destino", () => {
+  const message = "Hola Ana & Luis\nSaldo: -$1.250,50. {texto} #1? 😊";
+  const url = new URL(whatsappMessageUrl("5491112345678", message)!);
+  assert.equal(url.origin, "https://wa.me");
+  assert.equal(url.pathname, "/5491112345678");
+  assert.equal(url.searchParams.get("text"), message);
+  for (const number of [
+    null,
+    "",
+    "123",
+    "javascript:alert(1)",
+    "5491112345678?text=otro",
+    "+5491112345678",
+  ])
+    assert.equal(whatsappMessageUrl(number, message), null);
 });

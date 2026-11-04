@@ -491,63 +491,67 @@ function UserForm({
                     necesarias siguen disponibles dentro de las operaciones
                     autorizadas.
                   </p>
-                  {["Operaciones", "Maestros", "Informes", "Sistema"].map(
-                    (group) => (
-                      <fieldset key={group}>
-                        <legend>{group}</legend>
-                        {menuOptions
-                          .filter((m) => m.group === group)
-                          .map((menu) => {
-                            const permission = input.permisos.find(
-                              (p) => p.menu === menu.key,
-                            );
-                            return (
-                              <DropDown
-                                key={menu.key}
-                                id={"user-menu-" + menu.key}
-                                label={menu.label}
-                                size="md"
-                                value={
-                                  !permission
-                                    ? "none"
-                                    : permission.escritura
-                                      ? "write"
-                                      : "read"
-                                }
-                                disabled={disabled}
-                                onValueChange={(v) =>
-                                  setInput((s) => ({
-                                    ...s,
-                                    permisos: [
-                                      ...s.permisos.filter(
-                                        (p) => p.menu !== menu.key,
-                                      ),
-                                      ...(v === "none"
-                                        ? []
-                                        : [
-                                            {
-                                              menu: menu.key,
-                                              escritura: v === "write",
-                                            },
-                                          ]),
-                                    ],
-                                  }))
-                                }
-                                options={[
-                                  { value: "none", label: "Sin acceso" },
-                                  { value: "read", label: "Consulta" },
-                                  ...(group === "Informes" ||
-                                  group === "Sistema" ||
-                                  menu.key === "envio-mensajes"
-                                    ? []
-                                    : [{ value: "write", label: "Operar" }]),
-                                ]}
-                              />
-                            );
-                          })}
-                      </fieldset>
-                    ),
-                  )}
+                  {[
+                    "Operaciones",
+                    "Maestros",
+                    "Informes",
+                    "Notificaciones",
+                    "Sistema",
+                  ].map((group) => (
+                    <fieldset key={group}>
+                      <legend>{group}</legend>
+                      {menuOptions
+                        .filter((m) => m.group === group)
+                        .map((menu) => {
+                          const permission = input.permisos.find(
+                            (p) => p.menu === menu.key,
+                          );
+                          return (
+                            <DropDown
+                              key={menu.key}
+                              id={"user-menu-" + menu.key}
+                              label={menu.label}
+                              size="md"
+                              value={
+                                !permission
+                                  ? "none"
+                                  : permission.escritura
+                                    ? "write"
+                                    : "read"
+                              }
+                              disabled={disabled}
+                              onValueChange={(v) =>
+                                setInput((s) => ({
+                                  ...s,
+                                  permisos: [
+                                    ...s.permisos.filter(
+                                      (p) => p.menu !== menu.key,
+                                    ),
+                                    ...(v === "none"
+                                      ? []
+                                      : [
+                                          {
+                                            menu: menu.key,
+                                            escritura: v === "write",
+                                          },
+                                        ]),
+                                  ],
+                                }))
+                              }
+                              options={[
+                                { value: "none", label: "Sin acceso" },
+                                { value: "read", label: "Consulta" },
+                                ...(group === "Informes" ||
+                                group === "Sistema" ||
+                                menu.key === "envio-mensajes"
+                                  ? []
+                                  : [{ value: "write", label: "Operar" }]),
+                              ]}
+                            />
+                          );
+                        })}
+                    </fieldset>
+                  ))}
                   {errors.permisos && (
                     <p className="notice error">{errors.permisos}</p>
                   )}

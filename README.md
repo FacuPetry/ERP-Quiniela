@@ -6,7 +6,7 @@ Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendie
 
 ## Entrega en revisión — Envío de mensajes
 
-Operaciones → Envío de mensajes permite seleccionar un cliente mediante SF, consultar su saldo neto hasta hoy con la misma consulta del Resumen de Cuenta corriente y copiar un mensaje predeterminado. Distingue deuda, saldo a favor y saldo neto cero; no realiza envíos. Nuevo permiso independiente de consulta; sin tablas ni migraciones. Los informes pendientes quedan en pausa. Ver [alcance y pruebas](docs/envio-mensajes.md).
+Notificaciones → Envío de mensajes permite seleccionar un cliente mediante SF, consultar su saldo neto hasta hoy con la misma consulta del Resumen, personalizar y guardar una plantilla por usuario e insertar variables. Ofrece Copiar mensaje y Abrir WhatsApp con teléfono validado y texto preparado; el envío se confirma dentro de WhatsApp. Conserva el permiso independiente de consulta. Requiere la migración **0010_mensaje_saldo_plantilla** (columna opcional en USUARIO; sin tablas nuevas). Los informes pendientes quedan en pausa. Ver [alcance y pruebas](docs/envio-mensajes.md).
 
 ## Importes y panel de Cajas
 

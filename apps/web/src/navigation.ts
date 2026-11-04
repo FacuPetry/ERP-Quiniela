@@ -48,7 +48,7 @@ export const modules: {
   {
     path: "/envio-mensajes",
     title: "Envío de mensajes",
-    group: "Operaciones",
+    group: "Notificaciones",
     icon: "message",
     description: "Mensajes personalizados con el saldo de Cuenta corriente.",
     detail: "Prepará y copiá el mensaje para enviarlo manualmente.",

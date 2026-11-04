@@ -1,66 +1,92 @@
-# Envío de mensajes — preparación y copia individual
+# Envío de mensajes — plantillas personales y WhatsApp manual
 
-Entrega de CLI-01, 03/11/2026. Los informes todavía pendientes quedan en pausa hasta nuevo aviso. Este módulo no envía mensajes, no contacta proveedores y no incorpora tablas, migraciones, credenciales, tareas programadas ni historial de entregas.
+CLI-01, revisión 03/11/2026. Los informes pendientes siguen en pausa. El módulo prepara texto, permite copiarlo y abre un chat con el mensaje escrito; **el usuario confirma el envío dentro de WhatsApp**. No integra API oficial, envíos automáticos, masivos/programados, proveedores pagos ni registro de entregas.
 
 ## Funcionamiento
 
-Operaciones → **Envío de mensajes** reutiliza ClientSearch/SF, TextArea, AmountBox, TextBox y los estilos del sistema. Al seleccionar un cliente válido consulta el backend y genera automáticamente la vista previa. Escribir un nombre/código sin resolver el SF no genera mensajes. Permite consultar clientes inactivos, igual que el Resumen, porque pueden conservar saldo.
+**Notificaciones → Envío de mensajes** reutiliza el SF de clientes, TextArea, DropDown, AmountBox, TextBox, botones y estilos existentes. La categoría participa del mismo acordeón y solo aparece si hay alguna opción autorizada.
 
-Se muestran el saldo neto firmado, su fecha de corte y la hora de consulta. **Actualizar mensaje** vuelve a consultar la base; no copia ni envía. Cambiar, editar o limpiar el SF descarta el mensaje anterior y cancela la petición pendiente; una respuesta tardía no puede reponer el saldo de otro cliente. Un error de actualización deja la copia anterior fuera de la pantalla.
+Al ingresar se carga la plantilla del usuario autenticado. Elegir un cliente válido consulta el saldo real y muestra saldo firmado, fecha de corte, teléfono y vista previa. Escribir un código/nombre sin resolver el SF no consulta el saldo. Se admiten clientes inactivos con movimientos históricos, igual que en el Resumen.
 
-**Copiar mensaje** copia exactamente el texto visible, de solo lectura. El usuario decide después si lo pega y envía desde WhatsApp. No se abre un chat ni se registra un envío. Si el navegador no permite utilizar el portapapeles, se informa el fallo y se selecciona el texto para copiarlo manualmente; no se muestra un éxito ficticio. El portapapeles automático necesita un contexto seguro, como HTTPS del despliegue habitual.
+Cambiar/limpiar el cliente descarta el resultado anterior y cancela peticiones pendientes; una respuesta tardía no puede reponer el mensaje de otro cliente. **Actualizar mensaje** vuelve a consultar saldos y teléfono. Un error de actualización retira el resultado anterior. Editar la plantilla reemplaza variables sobre los datos ya consultados, sin repetir consultas financieras por cada tecla.
 
-## Saldo y redacción
+## Plantilla guardada por usuario
 
-La consulta `readLedgerBalance` se extrajo del Resumen sin cambiar su SQL ni criterios. El mayor y Mensajes llaman a la misma función. La vista previa usa **SaldoFinal** hasta la fecha civil actual de Argentina: incluye el saldo anterior y los asientos hasta ese día, excluye los posteriores y los anulados, y conserva originales revertidos junto con sus contrapartidas. No suma nuevamente afectaciones o medios de pago. Nombre y saldo se leen dentro del mismo snapshot REPEATABLE READ de solo lectura.
+**Texto del mensaje** es editable y admite hasta 2.000 caracteres, saltos de línea y variables. El DropDown **Variable disponible** y el botón **Insertar variable** agregan el marcador en la posición del cursor o reemplazan el texto seleccionado. No se evalúa código ni HTML; el reemplazo es literal y no recursivo.
 
-Para comparar con el KPI **Saldo total** del Resumen: elegir el mismo cliente y **Fecha hasta igual a Saldo hasta** del módulo Mensajes. El Desde del informe solo distribuye el saldo anterior y los movimientos del período; no elimina el saldo anterior del KPI. Un Resumen con un Hasta histórico puede dar otro importe legítimamente. Se utilizan los estados vigentes, igual que en el informe; no se reconstruyen estados históricos.
-
-| Saldo total | Interpretación y texto |
+| Variable | Valor |
 |---|---|
-| Positivo | Neto a pagar por el cliente: «Hola, Ana. Desde la agencia de quiniela te informamos que tu saldo pendiente de pago al 03/11/2026 es de $150.000,00. Muchas gracias.» |
-| Negativo | Saldo a favor del cliente: se informa su valor absoluto, sin llamarlo deuda ni pedirle un pago. |
-| Cero | Se informa saldo **neto** de Cuenta corriente de $0,00. No se afirma que todos los documentos estén cancelados: puede haber deudas y premios compensados en el neto. |
+| `{NombreCliente}` | Nombre del maestro, normalizando espacios. |
+| `{MontoTotal}` | Saldo total con moneda, miles, coma y dos decimales; conserva el signo: `$150.000,00`, `-$150.000,00` o `$0,00`. |
+| `{FechaSaldo}` | Fecha de corte dd/MM/yyyy. |
+| `{ResumenSaldo}` | Frase que distingue pendiente de pago por el cliente, saldo a su favor y saldo neto cero. |
 
-Se conserva el nombre completo del maestro, normalizando espacios para el saludo. El mensaje fijo agrega la fecha de corte para identificar cuándo fue calculado. Los importes se mantienen como cadenas decimales exactas y se presentan con miles/coma/dos decimales de Argentina, sin Number ni redondeo binario.
+El mensaje predeterminado es `Hola, {NombreCliente}. Desde la agencia de quiniela te informamos que {ResumenSaldo}. Muchas gracias.` Conserva la redacción original según el signo del saldo. Un texto personalizado se respeta literalmente; se recomienda `{ResumenSaldo}` para evitar llamar deuda a un saldo a favor. La pantalla muestra siempre la interpretación del neto.
 
-## Acceso y API
+**Guardar mensaje** persiste la plantilla con sus marcadores, nunca el texto ya resuelto de un cliente. Se recupera al volver a entrar o desde otro dispositivo con la misma cuenta. No cambia las plantillas de otros usuarios, claves, permisos ni sesiones. **Cargar mensaje guardado** descarta el borrador y vuelve a leerlo; **Usar mensaje predeterminado** coloca el texto base como borrador y requiere Guardar para persistir la restauración. Un aviso indica cambios sin guardar. Un conflicto entre sesiones no sobrescribe silenciosamente el texto guardado.
 
-- Nuevo permiso independiente `envio-mensajes`, en Operaciones. El Administrador accede automáticamente; para los demás, habilitar **Usuarios → Acceso al menú → Operaciones → Envío de mensajes → Consulta**. No se concede automáticamente a cuentas anteriores.
-- Solo admite Consulta. Preparar/copiar no escribe ni exige permisos de Cuenta corriente, Informes, Clientes o Caja. Su SF puede consultar únicamente la referencia de clientes con Código, Nombre y Activo si no tiene acceso al maestro.
-- `GET /api/mensajes/vista-previa?Cliente=...`: requiere sesión y permiso, devuelve `BalanceMessagePreview` y no permite aportar importes, mensajes o fechas de corte desde el navegador. Devuelve 400 por selección inválida, 404 por cliente inexistente, 401 por sesión ausente/revocada y 403 por falta de acceso. Respuestas sin caché.
-- No hay endpoint de envío ni de escritura. Los errores técnicos registran una referencia y código, sin guardar el saldo o el texto en logs. Copiar no prueba consentimiento ni entrega; esos requisitos se definirán antes de integrar un canal.
+Las variables desconocidas, las llaves incompletas y el texto vacío se señalan antes de guardar/copiar/abrir WhatsApp. Se limita también el resultado a 6.000 caracteres para evitar expansiones excesivas por variables repetidas. No se cambian importes para corregir una plantilla.
 
-## Estructura para próximas entregas
+## Saldo compartido con el Resumen
 
-Consulta financiera, composición del texto, contrato HTTP y vista están separados. Un futuro transporte WhatsApp/SMS podrá consumir el mismo contenido; lotes, programación, consentimiento, plantillas configurables y registro de entregas siguen pendientes y requerirán su propia definición. No se agregan anticipadamente servicios o tablas para esas funciones.
+Se mantiene `readLedgerBalance`, la misma consulta de totales del Resumen, sin modificar fórmulas ni SQL financieros. La vista previa usa **SaldoFinal** hasta el día actual de Argentina: incluye el saldo anterior, excluye posteriores/anulados y conserva originales revertidos junto con sus contrapartidas. No suma otra vez afectaciones ni medios de pago. Nombre, saldo, teléfono y plantilla se leen dentro del mismo snapshot de solo lectura.
 
-## Archivos de la entrega
+Para comparar con el KPI **Saldo total** del Resumen, usar el mismo cliente y **Fecha hasta igual a Saldo hasta** del módulo. Desde distribuye saldo anterior y movimientos, sin eliminar el saldo anterior del KPI. Un Hasta histórico puede dar otro importe legítimamente. Se utilizan los estados vigentes; no se reconstruyen estados históricos.
 
-- `apps/api/src/messages/{routes,store,text}.ts`: endpoint, snapshot y mensaje independiente del canal.
-- `apps/api/src/reports/ledger.ts`: función común de totales, sin cambios de fórmula/SQL.
-- `apps/api/src/{app,server}.ts`: registro del módulo.
-- `apps/api/src/{references,users}/routes.ts`: SF auxiliar y permiso de consulta.
-- `packages/shared/src/{messages,permissions,index}.ts`: contrato y catálogo de menú.
-- `apps/web/src/components/messages/{MessagesPage.tsx,messages.css}` y `services/messages.ts`: pantalla, interacción y consulta.
-- `apps/web/src/{navigation.ts,components/Workspace.tsx,components/Icon.tsx,components/users/UsersPage.tsx}`: navegación, íconos y acceso configurable.
-- `tests/messages.test.ts`, `tests/integration/account-ledger.test.ts`: signos, precisión, fecha argentina, coincidencia con el Resumen y seguridad.
-- README, roadmap y esta guía: alcance vigente, pausa de informes y pendientes futuros.
+Positivo significa neto a pagar por el cliente; negativo, neto a su favor. Cero no prueba que todos los documentos estén cancelados: pueden existir deudas y premios compensados en el neto. Los importes siguen siendo decimales exactos, sin Number ni redondeo binario. La vista previa en el navegador solo sustituye variables provistas por el backend; no calcula el saldo.
 
-## Aceptación
+## Copiar y abrir WhatsApp
 
-1. Como administrador entrar desde Operaciones. Sin cliente, no debe haber consulta de saldo ni mensaje. Resolver un cliente con SF: debe aparecer nombre, importe, fecha y mensaje. Probar búsqueda sin coincidencias y selección desde el listado base del SF.
-2. Comparar Saldo total con el Resumen usando ese cliente y el mismo Hasta. Probar cobros/pagos parciales, múltiples afectaciones y medios, anticipos, anulaciones y reversos. Los posteriores a Saldo hasta no forman parte de ese neto.
-3. Probar saldo positivo, negativo y cero; verificar que solo el positivo se describa como pendiente de pago y el negativo como saldo a favor. Incluir centavos e importes grandes.
-4. Copiar y pegar en WhatsApp o un editor: texto idéntico a la vista previa. Nada debe enviarse desde el ERP. Probar también el caso de portapapeles denegado y la copia manual.
-5. Cambiar/limpiar cliente durante una consulta, actualizar luego de un cambio de saldo y provocar un fallo de conexión: no debe quedar disponible un mensaje anterior incorrecto. Revisar escritorio y móvil, sin desplazamiento horizontal de la página.
-6. Habilitar solo Consulta de Envío de mensajes a un usuario: debe poder resolver clientes/preparar/copiar, pero no entrar a los ABM ni Informes sin sus permisos. Sin ese permiso debe bloquearse la pantalla y la API. Modificar permisos revoca las sesiones como en el circuito de Usuarios existente.
+**Copiar mensaje** copia exactamente la vista previa, incluido el borrador personalizado aunque aún no se haya guardado. Si falla el portapapeles, se informa el fallo y se selecciona el texto para copiarlo manualmente. El portapapeles automático necesita un contexto seguro, como HTTPS.
 
-La publicación usa el despliegue habitual; no requiere comandos adicionales de base de datos ni claves de WhatsApp/SMS.
+**Abrir WhatsApp** utiliza `https://wa.me/<número>?text=<mensaje codificado>`, en una pestaña nueva, sin acceso a la ventana de origen. WhatsApp decide si abre Web o la aplicación según el dispositivo. No se presiona Enviar, no se registra una entrega y no se solicita ninguna API paga.
 
-## Verificación de la entrega
+El teléfono se toma del maestro y se valida con libphonenumber-js en el backend. Para formatos locales se utiliza Argentina; no se inventa el código de área ni se toman extensiones o el primero de varios números. Ejemplos admitidos: `+54 9 11 1234-5678`, `005491112345678`, `5491112345678` y `011 15-1234-5678`. Un teléfono fijo completo puede ser válido: no se agrega un 9 indiscriminadamente. Para otros países debe incluirse el prefijo internacional con +. Se muestra el número normalizado antes de abrir el chat.
 
-- Tipos de API, web y paquete compartido correctos; 61 pruebas unitarias aprobadas.
-- Integración completa: **197 pruebas aprobadas en MySQL 8.4 y 197 en MariaDB 11.8.9**, con bases y contenedores efímeros. Incluye la coincidencia de Mensajes con el Resumen sobre circuitos reales, reglas de signos, posteriores separados, autorización/SF, revocación de sesiones y ausencia de escrituras financieras al consultar.
-- Chromium en escritorio y móvil con API simulada: SF/listado base, selección válida, importes positivo/negativo/cero, copia exacta al portapapeles y selección manual si falla, error/reintento, limpieza, respuesta tardía descartada, sesión expirada y pantalla sin permiso. Sin envíos ni peticiones de escritura.
-- No se utilizaron datos ni credenciales de Hostinger; no se incorporó una migración ni se ejecutó una compilación de producción para esta entrega.
+El dato original no se modifica. Si falta o es inválido, Abrir WhatsApp queda deshabilitado con una explicación; copiar sigue disponible. La validación del formato no confirma que exista una cuenta de WhatsApp en ese número. La titularidad/contacto y el envío final deben revisarse en WhatsApp. Las políticas del canal siguen aplicándose; no se incorpora una automatización para eludirlas.
+
+## Permisos, API y persistencia
+
+- Se conserva la clave `envio-mensajes`; solo cambia su categoría a **Notificaciones**. Los permisos existentes continúan funcionando. Administrador accede automáticamente; otros usuarios requieren **Usuarios → Acceso al menú → Notificaciones → Envío de mensajes → Consulta**.
+- Consulta habilita preparar/copiar/abrir chat y guardar **su propia preferencia**, sin conceder escrituras financieras ni acceso a otros ABM/Informes. El SF auxiliar sigue proyectando Código, Nombre y Activo si no hay permiso del maestro.
+- `GET /api/mensajes/plantilla`: devuelve la plantilla propia o null para el predeterminado, y versión.
+- `PUT /api/mensajes/plantilla`: recibe únicamente `{ Plantilla: string | null }`. Requiere sesión, permiso, petición de aplicación, CSRF e If-Match. El usuario se obtiene de la sesión; no se admite un Usuario en el cuerpo. Versión desactualizada devuelve 409.
+- `GET /api/mensajes/vista-previa?Cliente=...`: datos reales, variables, mensaje con plantilla guardada y teléfono/validación. No permite aportar saldo o fecha de corte. Respuestas sin caché. No existe endpoint de envío.
+- Única adición de esquema: **USUARIO.MensajeSaldoPlantilla**, TEXT nullable. No se agrega ninguna tabla, FK ni datos obligatorios. Los usuarios existentes conservan null y la redacción predeterminada. Los errores técnicos no registran plantillas, mensajes o saldos.
+
+## Publicación
+
+Aplicar **0010_mensaje_saldo_plantilla** antes de probar el módulo, con el procedimiento habitual y la aplicación detenida:
+
+```sh
+npm run db:migrate:prod
+npm run db:check:prod
+```
+
+La migración agrega una columna opcional sin alterar usuarios ni movimientos existentes. El check detecta si falta. No se requieren credenciales ni configuración de WhatsApp/SMS. El catálogo y el renderizado compartidos permiten añadir variables; futuros transportes, lotes y programación seguirán requiriendo su propia definición y no se implementan anticipadamente.
+
+## Archivos principales
+
+- `packages/shared/src/messages.ts`: catálogo, validación, renderizado y enlace seguro; contrato de preferencias/vista previa.
+- `apps/api/src/messages/{routes,store,text,phone}.ts`: persistencia personal, seguridad, datos reales, signo y teléfono.
+- `apps/web/src/components/messages/{MessagesPage,MessageTemplateEditor}.tsx`, `messages.css` y `services/messages.ts`: editor, vista previa, guardado y acciones.
+- `navigation.ts`, `Workspace.tsx`, `UsersPage.tsx` y catálogo de permisos: Notificaciones, misma clave de acceso.
+- `database/schema.ts`, `database/check.ts`, migración 0010, journal/snapshot: columna opcional y comprobación.
+- `apps/api/package.json` y lock: libphonenumber-js, exclusivamente en backend.
+- Pruebas unitarias/integración, README y roadmap: reglas y alcance actualizado.
+
+## Qué probar
+
+1. Entrar desde Notificaciones. Solo una categoría abierta y permisos conservados. Sin selección válida no debe consultarse saldo ni generarse un mensaje de cliente.
+2. Escribir una plantilla con NombreCliente/MontoTotal; insertar variables en el medio y sobre una selección. Verificar que la vista previa cambie sin nuevas consultas por tecla. Probar llaves incompletas, variable inexistente, vacío y límites.
+3. Guardar, recargar y entrar desde otro dispositivo: misma plantilla. Otro usuario conserva la suya. Probar Cargar guardado, restaurar predeterminado y conflicto entre dos sesiones.
+4. Comparar el saldo con el Resumen usando el mismo Hasta. Probar positivo/negativo/cero, centavos y fechas. MontoTotal mantiene el signo; ResumenSaldo adapta la frase.
+5. Copiar y abrir WhatsApp: texto y contacto idénticos, incluidos saltos, acentos, emojis y signos. El botón Enviar se presiona manualmente en WhatsApp. Probar número internacional, argentino local, ausente, inválido, sin área, con extensión y con varios números.
+6. Cambiar/limpiar cliente durante consulta y actualizar después de un movimiento; no debe quedar un mensaje previo incorrecto. Revisar escritorio/móvil y el caso de portapapeles denegado.
+7. Sin permiso, pantalla y API bloqueadas. Usuario con solo Consulta de Mensajes puede guardar su preferencia sin acceder a datos de otros usuarios ni modificar operaciones financieras.
+
+## Verificación
+
+Tipos de los workspaces y **64 pruebas unitarias** aprobados. Las suites completas pasaron con **198 pruebas en MySQL 8.4 y 198 en MariaDB 11.8.9**, sobre bases efímeras; la revisión final del manejo de plantillas extensas se volvió a comprobar con los 17 casos del mayor/mensajes en MariaDB. Se verificaron migraciones, preservación de operaciones, saldo compartido, plantillas separadas por usuario, persistencia, CSRF, versiones, permisos, valores negativos, teléfono y consultas sin escrituras financieras.
+
+Chromium en escritorio y móvil, con API y destino WhatsApp simulados: categoría/acordeón, inserción al cursor, edición, vista previa, guardado/recarga/restauración/conflicto, variables inválidas, copia y enlace con contacto/texto exactos, ausencia de teléfono, teléfono inválido y descarte de respuestas tardías. No se contactaron destinatarios ni servicios de envío, ni se usaron datos o credenciales de Hostinger.

@@ -198,6 +198,7 @@ function WorkspaceContent({
         ["Operaciones", "exchange"],
         ["Maestros", "box"],
         ["Informes", "file"],
+        ["Notificaciones", "message"],
       ] as const
     ).map(([label, icon]) => ({
       key: label,
@@ -544,7 +545,11 @@ function WorkspaceContent({
           ) : path === "/valores" ? (
             <ValuesPage key={path} session={session} onExpired={onLogout} />
           ) : path === "/envio-mensajes" ? (
-            <MessagesPage key={path} onExpired={onLogout} />
+            <MessagesPage
+              key={path}
+              csrf={session.csrfToken}
+              onExpired={onLogout}
+            />
           ) : path === "/informe-cheques-terceros" ? (
             <ThirdPartyChequesPage onExpired={onLogout} />
           ) : path === "/detalle-movimientos-caja" ? (

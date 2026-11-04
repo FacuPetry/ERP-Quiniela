@@ -10,6 +10,7 @@ import type {
   SessionResponse,
   UserDetail,
   BalanceMessagePreview,
+  MessageTemplatePreference,
 } from "@erp/shared";
 import type { RowDataPacket } from "mysql2/promise";
 import { createApp } from "../../apps/api/src/app.js";
@@ -981,6 +982,184 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
           )
         ).status,
         403,
+      );
+    },
+  );
+  await t.test(
+    "mensajes: plantilla personal persistente, CSRF, versiones, variables y teléfono sin alterar saldos",
+    async () => {
+      const input = {
+        nombre: "Plantilla personal",
+        email: "message-template@example.invalid",
+        activo: true,
+        password,
+        permisos: [{ menu: "envio-mensajes", escritura: false }],
+      };
+      const user = await json<UserDetail>(
+        await req("/usuarios", "POST", input),
+        201,
+      );
+      const who = await login(input.email);
+      const path = "/mensajes/plantilla";
+      assert.equal((await fetch(base + "/api" + path)).status, 401);
+      const before = await json<MessageTemplatePreference>(
+        await req(path, "GET", undefined, who),
+      );
+      assert.equal(before.Plantilla, null);
+      const template =
+        "Hola {NombreCliente}, tu saldo es {MontoTotal} al {FechaSaldo}. Gracias.";
+      const [identity] = await pool.execute<RowDataPacket[]>(
+        "SELECT ClaveHash,Permisos,Rol,Activo FROM USUARIO WHERE IDTabla=?",
+        [user.registro.id],
+      );
+      const csrfFailure = await fetch(base + "/api" + path, {
+        method: "PUT",
+        headers: {
+          Cookie: who.cookie,
+          "Content-Type": "application/json",
+          "X-ERP-Request": "1",
+          "If-Match": `"${before.version}"`,
+        },
+        body: JSON.stringify({ Plantilla: template }),
+      });
+      assert.equal(csrfFailure.status, 403);
+      for (const body of [
+        { Plantilla: "" },
+        { Plantilla: "{NoExiste}" },
+        { Plantilla: "{{MontoTotal}}" },
+        { Plantilla: "a".repeat(2001) },
+        { Plantilla: template, Usuario: admin.session.usuario.id },
+      ])
+        assert.equal(
+          (await req(path, "PUT", body, who, before.version)).status,
+          400,
+        );
+      assert.equal(
+        (await req(path, "PUT", { Plantilla: template }, who)).status,
+        400,
+      );
+      const saved = await json<MessageTemplatePreference>(
+        await req(path, "PUT", { Plantilla: template }, who, before.version),
+      );
+      assert.equal(saved.Plantilla, template);
+      assert.deepEqual(
+        await json(await req(path, "GET", undefined, who)),
+        saved,
+      );
+      assert.equal(
+        (
+          await req(
+            path,
+            "PUT",
+            { Plantilla: "Otro texto" },
+            who,
+            before.version,
+          )
+        ).status,
+        409,
+      );
+      assert.equal(
+        (await json<MessageTemplatePreference>(await req(path))).Plantilla,
+        null,
+      );
+      const freshLogin = await login(input.email);
+      assert.equal(
+        (
+          await json<MessageTemplatePreference>(
+            await req(path, "GET", undefined, freshLogin),
+          )
+        ).Plantilla,
+        template,
+      );
+      const preview = await json<BalanceMessagePreview>(
+        await req(
+          "/mensajes/vista-previa?Cliente=LG_MSG",
+          "GET",
+          undefined,
+          who,
+        ),
+      );
+      assert.equal(
+        preview.Mensaje,
+        `Hola Mensaje de saldo, tu saldo es $100,25 al ${preview.Variables.FechaSaldo}. Gracias.`,
+      );
+      assert.equal(
+        preview.SaldoTotal,
+        (await sameMessage("LG_MSG")).SaldoTotal,
+      );
+      assert.equal(preview.WhatsAppNumero, null);
+      assert.ok(preview.WhatsAppError);
+      const negative = await json<BalanceMessagePreview>(
+        await req(
+          "/mensajes/vista-previa?Cliente=LG_CLOSE",
+          "GET",
+          undefined,
+          who,
+        ),
+      );
+      assert.match(negative.Mensaje, /saldo es -\$/);
+      await pool.query(
+        "UPDATE CLIENTE SET Telefono='011 15-1234-5678' WHERE Codigo='LG_MSG'",
+      );
+      const phone = await message("LG_MSG");
+      assert.equal(phone.Telefono, "011 15-1234-5678");
+      assert.equal(phone.WhatsAppNumero, "5491112345678");
+      assert.equal(phone.WhatsAppError, null);
+      await pool.query(
+        "UPDATE CLIENTE SET Telefono='sin numero valido' WHERE Codigo='LG_MSG'",
+      );
+      assert.equal((await message("LG_MSG")).WhatsAppNumero, null);
+      const [after] = await pool.execute<RowDataPacket[]>(
+        "SELECT ClaveHash,Permisos,Rol,Activo FROM USUARIO WHERE IDTabla=?",
+        [user.registro.id],
+      );
+      assert.deepEqual(after, identity);
+      const expanded = await json<MessageTemplatePreference>(
+        await req(
+          path,
+          "PUT",
+          { Plantilla: "{NombreCliente}".repeat(120) },
+          who,
+          saved.version,
+        ),
+      );
+      await pool.execute("UPDATE CLIENTE SET Nombre=? WHERE Codigo='LG_MSG'", [
+        "N".repeat(100),
+      ]);
+      assert.equal(
+        (
+          await req(
+            "/mensajes/vista-previa?Cliente=LG_MSG",
+            "GET",
+            undefined,
+            who,
+          )
+        ).status,
+        400,
+      );
+      await pool.query(
+        "UPDATE CLIENTE SET Nombre='Mensaje de saldo' WHERE Codigo='LG_MSG'",
+      );
+      const restored = await json<MessageTemplatePreference>(
+        await req(path, "PUT", { Plantilla: null }, who, expanded.version),
+      );
+      assert.equal(restored.Plantilla, null);
+      const defaultPreview = await json<BalanceMessagePreview>(
+        await req(
+          "/mensajes/vista-previa?Cliente=LG_MSG",
+          "GET",
+          undefined,
+          who,
+        ),
+      );
+      assert.equal(defaultPreview.Mensaje, (await message("LG_MSG")).Mensaje);
+      assert.equal(
+        (
+          await json<{ registro: { permisos: unknown[] } }>(
+            await req("/usuarios/" + user.registro.id),
+          )
+        ).registro.permisos.length,
+        1,
       );
     },
   );

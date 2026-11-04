@@ -11,13 +11,17 @@
   flex-wrap: wrap;
   gap: 16px;
 }
-.messages-preview {
+.messages-preview,
+.messages-template {
   display: grid;
   gap: 18px;
   min-width: 0;
 }
 .messages-actions {
   align-items: center;
+}
+.messages-balance {
+  align-items: flex-start;
 }
 @media (max-width: 600px) {
   .messages-controls > .base-field,
@@ -28,4 +32,9 @@
   .messages-actions > .button {
     width: 100%;
   }
+}
+
+.messages-template {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--control-border);
 }

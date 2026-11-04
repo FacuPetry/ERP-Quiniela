@@ -1,20 +1,58 @@
-import { useEffect, useRef, useState } from "react";
-import type { BalanceMessagePreview, MasterRecord } from "@erp/shared";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  renderMessageTemplate,
+  whatsappMessageUrl,
+  type BalanceMessagePreview,
+  type MasterRecord,
+} from "@erp/shared";
 import { AmountBox, TextArea, TextBox } from "../controls";
 import { displayDate, displayDateTime } from "../controls/date-value";
 import { ClientSearch } from "../current-account/ClientSearch";
 import { Icon } from "../Icon";
 import { ApiRequestError } from "../../services/http";
 import { previewBalanceMessage } from "../../services/messages";
+import { MessageTemplateEditor } from "./MessageTemplateEditor";
 import "./messages.css";
 
-export function MessagesPage({ onExpired }: { onExpired: () => void }) {
+export function MessagesPage({
+  csrf,
+  onExpired,
+}: {
+  csrf: string;
+  onExpired: () => void;
+}) {
+  const [template, setTemplate] = useState<string | null>(null);
   const [client, setClient] = useState<MasterRecord | null>(null);
   const [preview, setPreview] = useState<BalanceMessagePreview | null>(null);
   const [loading, setLoading] = useState(false);
   const [copying, setCopying] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const changeTemplate = useCallback((value: string | null) => {
+    setTemplate(value);
+    setStatus("");
+  }, []);
+  const rendered = useMemo(() => {
+    if (!preview || template === null) return { message: "", error: undefined };
+    try {
+      return {
+        message: renderMessageTemplate(template, preview.Variables),
+        error: undefined,
+      };
+    } catch (e) {
+      return {
+        message: "",
+        error:
+          e instanceof Error ? e.message : "Revisá las variables del mensaje.",
+      };
+    }
+  }, [preview, template]);
+  const latestMessage = useRef(rendered.message);
+  latestMessage.current = rendered.message;
+  const whatsapp =
+    preview && !rendered.error
+      ? whatsappMessageUrl(preview.WhatsAppNumero, rendered.message)
+      : null;
   const request = useRef<AbortController | null>(null);
   const revision = useRef(0);
   const text = useRef<HTMLTextAreaElement>(null);
@@ -62,14 +100,16 @@ export function MessagesPage({ onExpired }: { onExpired: () => void }) {
     if (next) void load(String(next.Codigo));
   }
   async function copy() {
-    if (!preview || loading || copying) return;
+    if (!preview || !rendered.message || rendered.error || loading || copying)
+      return;
     const current = revision.current;
+    const message = rendered.message;
     setCopying(true);
     setError("");
     setStatus("");
     try {
-      await navigator.clipboard.writeText(preview.Mensaje);
-      if (current === revision.current)
+      await navigator.clipboard.writeText(message);
+      if (current === revision.current && latestMessage.current === message)
         setStatus(
           "Mensaje copiado. Pegalo en WhatsApp para enviarlo manualmente.",
         );
@@ -98,6 +138,11 @@ export function MessagesPage({ onExpired }: { onExpired: () => void }) {
           <Icon name="message" />
         </span>
       </div>
+      <MessageTemplateEditor
+        csrf={csrf}
+        onChange={changeTemplate}
+        onExpired={onExpired}
+      />
       <div className="messages-controls">
         <ClientSearch
           id="messages-client"
@@ -108,7 +153,7 @@ export function MessagesPage({ onExpired }: { onExpired: () => void }) {
           value={client}
           onChange={select}
           onExpired={onExpired}
-          disabled={copying}
+          disabled={copying || template === null}
         />
         <button
           type="button"
@@ -148,6 +193,18 @@ export function MessagesPage({ onExpired }: { onExpired: () => void }) {
               onValueChange={() => {}}
               readOnly
             />
+            <TextBox
+              label="Teléfono"
+              size="md"
+              value={preview.Telefono ?? "Sin teléfono"}
+              onValueChange={() => {}}
+              readOnly
+              hint={
+                preview.WhatsAppNumero
+                  ? `WhatsApp: +${preview.WhatsAppNumero}`
+                  : undefined
+              }
+            />
           </div>
           <p className="muted small">
             {preview.Situacion === "PENDIENTE_PAGO"
@@ -160,17 +217,23 @@ export function MessagesPage({ onExpired }: { onExpired: () => void }) {
           <TextArea
             ref={text}
             label="Vista previa del mensaje"
-            value={preview.Mensaje}
+            value={rendered.message}
+            error={rendered.error}
             onValueChange={() => {}}
             readOnly
             height="clamp(150px, 22vw, 200px)"
-            hint="El texto se prepara para copiarlo. No se envía ningún mensaje desde el sistema."
+            hint="Revisá el mensaje antes de copiarlo o abrir WhatsApp. El envío se confirma dentro de WhatsApp."
           />
+          {preview.WhatsAppError && (
+            <p className="muted small" role="status">
+              {preview.WhatsAppError}
+            </p>
+          )}
           <div className="messages-actions">
             <button
               type="button"
               className="button primary"
-              disabled={copying}
+              disabled={copying || !rendered.message || Boolean(rendered.error)}
               onClick={() => {
                 void copy();
               }}
@@ -178,6 +241,26 @@ export function MessagesPage({ onExpired }: { onExpired: () => void }) {
               <Icon name="copy" size={17} />{" "}
               {copying ? "Copiando…" : "Copiar mensaje"}
             </button>
+            {whatsapp ? (
+              <a
+                className="button secondary"
+                href={whatsapp}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Abrir chat con +${preview.WhatsAppNumero}`}
+              >
+                Abrir WhatsApp
+              </a>
+            ) : (
+              <button
+                type="button"
+                className="button secondary"
+                disabled
+                title={preview.WhatsAppError ?? "Revisá el texto del mensaje."}
+              >
+                Abrir WhatsApp
+              </button>
+            )}
             {status && (
               <p className="muted small" role="status">
                 {status}

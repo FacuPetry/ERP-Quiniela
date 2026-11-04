@@ -4,7 +4,7 @@ Revisión: **03/11/2026**. Base funcional revisada: implementación integrada ha
 
 ## Prioridad vigente
 
-**Informes pendientes en pausa hasta nuevo aviso del cliente (03/11/2026).** Sus alcances se conservan en este documento; no se desarrollan ni habilitan informes adicionales en esta entrega. La prioridad es CLI-01: primera versión de Envío de mensajes con selección individual, saldo neto del Resumen hasta hoy, vista previa y copia manual. No incluye integración WhatsApp/SMS, envíos, lotes ni programación. Ver [alcance, permisos y aceptación](envio-mensajes.md).
+**Informes pendientes en pausa hasta nuevo aviso del cliente (03/11/2026).** Sus alcances se conservan en este documento; no se desarrollan ni habilitan informes adicionales en esta entrega. La prioridad es CLI-01: primera versión de Envío de mensajes con selección individual, saldo neto del Resumen hasta hoy, plantilla personal con variables, vista previa, copia y enlace WhatsApp con confirmación manual del envío. No incluye integración WhatsApp/SMS, envíos, lotes ni programación. Ver [alcance, permisos y aceptación](envio-mensajes.md).
 
 ## Primera versión funcional
 
@@ -61,7 +61,7 @@ Estos pedidos se registraron el **02/11/2026**. Se distinguen de las propuestas 
 
 | ID | Pedido del cliente | Estado y cobertura |
 |---|---|---|
-| CLI-01 | Envío masivo personalizado de saldos pendientes de Cuenta corriente | **Primera entrega individual implementada, en revisión:** módulo Envío de mensajes, SF de cliente, saldo neto hasta hoy mediante la consulta del Resumen, mensaje con signo interpretado, vista previa y copia manual. **Masivo, programado e integraciones siguen pendientes de definición e implementación.** No se realiza ningún envío. WhatsApp es preferido; SMS y Email son alternativas sujetas a aceptación del rubro, consentimiento y costos. Ver [alcance](envio-mensajes.md) y criterios abajo. |
+| CLI-01 | Envío masivo personalizado de saldos pendientes de Cuenta corriente | **Primera entrega individual implementada, en revisión:** módulo Envío de mensajes, SF de cliente, saldo neto hasta hoy mediante la consulta del Resumen, plantillas personales guardadas con variables, vista previa, copia y enlace WhatsApp sin envío automático. Categoría Notificaciones; migración 0010, columna opcional en USUARIO sin nuevas tablas. **Masivo, programado e integraciones siguen pendientes de definición e implementación.** No se realiza ningún envío. WhatsApp es preferido; SMS y Email son alternativas sujetas a aceptación del rubro, consentimiento y costos. Ver [alcance](envio-mensajes.md) y criterios abajo. |
 | CLI-02 | Informes para controlar movimientos y saldos de caja | **Cubierto en los informes aceptados.** INF-02 muestra aperturas/cierres, flujos y diferencias; INF-09 explica cada jornada y emite su detalle en PDF al cerrar, aceptado en el PR #32. |
 
 **CLI-01: primera entrega acordada y análisis pendiente para envíos futuros:**
