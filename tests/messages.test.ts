@@ -43,6 +43,33 @@ test("Mensaje de saldo conserva centavos y sumas superiores a la precisión de N
   for (const invalid of ["NaN", "", "1.234,50", "1e3", "12.345"])
     assert.throws(() => balanceMessage("Ana", invalid, "2026-11-03"));
 });
+test("NombreFantasia usa el dato del cliente o su nombre si falta, sin reemplazos recursivos", () => {
+  const template = "Hola {NombreFantasia}, saldo: {MontoTotal}.";
+  const custom = balanceMessage(
+    "Ana Pérez",
+    "150000.25",
+    "2026-11-03",
+    template,
+    "  Local\n Sur {MontoTotal}  ",
+  );
+  assert.equal(custom.Variables.NombreCliente, "Ana Pérez");
+  assert.equal(custom.Variables.NombreFantasia, "Local Sur {MontoTotal}");
+  assert.equal(
+    custom.Mensaje,
+    "Hola Local Sur {MontoTotal}, saldo: $150.000,25.",
+  );
+  for (const empty of [null, "", "  \n "]) {
+    const result = balanceMessage(
+      " Ana  Pérez ",
+      "-25.00",
+      "2026-11-03",
+      template,
+      empty,
+    );
+    assert.equal(result.Variables.NombreFantasia, "Ana Pérez");
+    assert.equal(result.Mensaje, "Hola Ana Pérez, saldo: -$25,00.");
+  }
+});
 test("Fecha del mensaje usa el día de Argentina también en el límite de medianoche UTC", () => {
   assert.equal(
     messageBalanceDate(new Date("2026-11-03T02:59:59Z")),

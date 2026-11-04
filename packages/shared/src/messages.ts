@@ -7,6 +7,12 @@ export const messageVariables = [
     description: "Nombre del cliente seleccionado.",
   },
   {
+    key: "NombreFantasia",
+    label: "Nombre de fantasía",
+    description:
+      "Nombre de fantasía del cliente; si está vacío, se utiliza su nombre.",
+  },
+  {
     key: "MontoTotal",
     label: "Saldo total",
     description:

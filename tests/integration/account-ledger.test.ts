@@ -1153,6 +1153,55 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         ),
       );
       assert.equal(defaultPreview.Mensaje, (await message("LG_MSG")).Mensaje);
+      const fantasyTemplate = await json<MessageTemplatePreference>(
+        await req(
+          path,
+          "PUT",
+          { Plantilla: "Hola {NombreFantasia}, saldo {MontoTotal}." },
+          who,
+          restored.version,
+        ),
+      );
+      await pool.execute(
+        "UPDATE CLIENTE SET Fantasia=? WHERE Codigo='LG_MSG'",
+        ["  Local  Sur  "],
+      );
+      const fantasyPreview = await json<BalanceMessagePreview>(
+        await req(
+          "/mensajes/vista-previa?Cliente=LG_MSG",
+          "GET",
+          undefined,
+          who,
+        ),
+      );
+      assert.equal(fantasyPreview.Variables.NombreFantasia, "Local Sur");
+      assert.equal(fantasyPreview.Variables.NombreCliente, "Mensaje de saldo");
+      assert.equal(fantasyPreview.Mensaje, "Hola Local Sur, saldo $100,25.");
+      assert.equal(fantasyPreview.SaldoTotal, defaultPreview.SaldoTotal);
+      for (const empty of [null, "", "   "]) {
+        await pool.execute(
+          "UPDATE CLIENTE SET Fantasia=? WHERE Codigo='LG_MSG'",
+          [empty],
+        );
+        const fallback = await json<BalanceMessagePreview>(
+          await req(
+            "/mensajes/vista-previa?Cliente=LG_MSG",
+            "GET",
+            undefined,
+            who,
+          ),
+        );
+        assert.equal(fallback.Mensaje, "Hola Mensaje de saldo, saldo $100,25.");
+      }
+      await json(
+        await req(
+          path,
+          "PUT",
+          { Plantilla: null },
+          who,
+          fantasyTemplate.version,
+        ),
+      );
       assert.equal(
         (
           await json<{ registro: { permisos: unknown[] } }>(

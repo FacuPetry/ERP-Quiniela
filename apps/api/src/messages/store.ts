@@ -81,14 +81,20 @@ export function createMessageStore(pool: Pool, now = () => new Date()) {
         });
         const config = await preference(c, user);
         const [phones] = await c.execute<RowDataPacket[]>(
-          "SELECT Telefono FROM CLIENTE WHERE Codigo=?",
+          "SELECT Telefono,Fantasia FROM CLIENTE WHERE Codigo=?",
           [Cliente],
         );
         const Telefono =
           phones[0]?.Telefono == null ? null : String(phones[0].Telefono);
         const SaldoTotal = String(total.SaldoFinal);
         const ClienteNombre = String(client.Nombre);
-        const text = balanceMessage(ClienteNombre, SaldoTotal, FechaHasta);
+        const text = balanceMessage(
+          ClienteNombre,
+          SaldoTotal,
+          FechaHasta,
+          defaultMessageTemplate,
+          phones[0]?.Fantasia == null ? null : String(phones[0].Fantasia),
+        );
         try {
           text.Mensaje = renderMessageTemplate(
             config.Plantilla ?? defaultMessageTemplate,

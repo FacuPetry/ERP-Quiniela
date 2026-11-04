@@ -18,6 +18,7 @@ export function balanceMessage(
   balance: string,
   until: string,
   template = defaultMessageTemplate,
+  fantasy: string | null = null,
 ): Pick<BalanceMessagePreview, "Mensaje" | "Situacion" | "Variables"> {
   const match = /^(-?)(\d+)\.(\d{2})$/.exec(balance);
   if (!match) throw new Error("Saldo no válido para preparar el mensaje.");
@@ -34,6 +35,7 @@ export function balanceMessage(
         : "PENDIENTE_PAGO";
   const Variables = {
     NombreCliente: name.trim().replace(/\s+/g, " "),
+    NombreFantasia: (fantasy?.trim() || name.trim()).replace(/\s+/g, " "),
     MontoTotal: `${units !== 0n && match[1] === "-" ? "-" : ""}$${amount}`,
     FechaSaldo: date,
     ResumenSaldo:
