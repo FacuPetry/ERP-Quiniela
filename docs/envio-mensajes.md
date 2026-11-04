@@ -1,6 +1,6 @@
-# Envío de mensajes — plantillas personales y WhatsApp manual
+# Envío de mensajes — consulta individual y varios clientes
 
-CLI-01, revisión 03/11/2026. Los informes pendientes siguen en pausa. El módulo prepara texto, permite copiarlo y abre un chat con el mensaje escrito; **el usuario confirma el envío dentro de WhatsApp**. No integra API oficial, envíos automáticos, masivos/programados, proveedores pagos ni registro de entregas.
+CLI-01, revisión 04/11/2026. Los informes pendientes siguen en pausa. El módulo prepara texto, permite copiarlo y abre un chat con el mensaje escrito; **el usuario confirma el envío dentro de WhatsApp**. No integra API oficial, envíos automáticos, masivos/programados, proveedores pagos ni registro de entregas.
 
 ## Funcionamiento
 
@@ -8,11 +8,25 @@ CLI-01, revisión 03/11/2026. Los informes pendientes siguen en pausa. El módul
 
 Al ingresar se carga la plantilla del usuario autenticado. Elegir un cliente válido consulta el saldo real y muestra saldo firmado, fecha de corte, teléfono y vista previa. Escribir un código/nombre sin resolver el SF no consulta el saldo. Se admiten clientes inactivos con movimientos históricos, igual que en el Resumen.
 
-El formulario reutiliza **FormSections** con dos fichas: **Configurar mensaje** (plantilla, variables y guardado) y **Envío de mensajes** (cliente, datos, vista previa y acciones). Conserva la columna lateral, Sticky, selección automática por sección visible y navegación mediante scroll; en móvil utiliza la adaptación del componente base. Ambas secciones permanecen montadas, sin perder borradores al navegar.
+El formulario reutiliza **FormSections** con tres fichas: **Configurar mensaje** (plantilla, variables y guardado), **Envío de mensajes** (cliente, datos, vista previa y acciones) y **Varios clientes** (filtros, selección y acciones por cliente). Conserva la columna lateral, Sticky, selección automática por sección visible y navegación mediante scroll; en móvil utiliza la adaptación del componente base. Las secciones permanecen montadas, sin perder borradores al navegar.
 
 Los campos Saldo total, Saldo hasta, Teléfono y Vista previa permanecen visibles sin cliente, con valores vacíos y las acciones de copia/WhatsApp deshabilitadas. Los espacios informativos tienen altura reservada para evitar saltos al seleccionar, actualizar o limpiar. No se conserva ni se muestra el resultado del cliente anterior para completar esa estructura.
 
 Cambiar/limpiar el cliente descarta el resultado anterior y cancela peticiones pendientes; una respuesta tardía no puede reponer el mensaje de otro cliente. **Actualizar mensaje** vuelve a consultar saldos y teléfono. Un error de actualización retira el resultado anterior. Editar la plantilla reemplaza variables sobre los datos ya consultados, sin repetir consultas financieras por cada tecla.
+
+## Varios clientes: preparación conjunta, envío manual individual
+
+Se amplía el módulo existente con una tercera ficha en lugar de duplicar el menú, la configuración o los permisos. Reutiliza FormSections, DataTable con selección múltiple, ActionToolbar, FilterDialog, DropDown, Pagination y la presentación de tablas de Informes. No se agrega un informe ni se habilitan PDF/automatismos para mensajes.
+
+**Filtrar clientes** abre el modal; no se consulta ningún cliente al entrar ni antes de aplicar los filtros. Se admiten tipo de cliente (incluidos tipos inactivos), búsqueda por código/nombre/fantasía, estado de los clientes y saldo neto. Por defecto: **clientes activos con neto positivo**. Se puede consultar neto distinto de cero, a favor, cero o todos. Es saldo neto, no pendiente documental: deudas y premios pueden compensarse en este importe sin cancelar sus documentos.
+
+Cada fila muestra cliente, teléfono original, saldo firmado, vista previa y acciones individuales. La tabla tiene scroll interno, ordenamiento remoto y páginas de 20 clientes; filtros y orden se aplican sobre todos los resultados antes de paginar. El texto se acota visualmente con tooltip y puede leerse completo desde Propiedades, junto con teléfono normalizado/error. No se abre ningún chat al consultar o seleccionar filas.
+
+Los CheckBox permiten elegir clientes de distintas páginas. **Seleccionar página** agrega solo la página visible y **Limpiar selección** desmarca los elegidos. **Consultar seleccionados** vuelve a leer los clientes elegidos y muestra únicamente esos registros, con sus saldos y teléfonos actuales. No reutiliza como saldo definitivo el dato de la selección ni aplica de nuevo los filtros de saldo/estado que podrían ocultar un elegido. Se admiten hasta 1.000 seleccionados por consulta, con aviso si se supera; nunca se recortan silenciosamente. Si un cliente dejó de existir, se pide repetir la consulta. **Volver a filtros** recupera la consulta anterior. Actualizar vuelve a leer los datos y limpia los CheckBox; volver a filtrar u ordenar también los limpia. La selección no se guarda al salir.
+
+Se utiliza la misma plantilla personal que en el envío individual, incluyendo el borrador actual sin guardar. Cambiar el texto actualiza las vistas previas con las variables recibidas, sin consultar por cada tecla. Los errores de expansión se señalan por cliente y deshabilitan sus acciones; los demás clientes siguen disponibles. Un teléfono ausente/inválido impide Abrir WhatsApp pero permite Copiar mensaje. Si falla el portapapeles, se muestra el texto seleccionado para copiar manualmente. Consultas fallidas retiran los resultados anteriores y las respuestas tardías se descartan.
+
+**Copiar mensaje** y **Abrir WhatsApp** se ejecutan únicamente sobre la fila elegida. No hay botón de envío conjunto, apertura automática de múltiples ventanas, registro de «enviado» ni servicios pagos. El usuario revisa y presiona Enviar en WhatsApp en cada caso; copiar/abrir no confirma la entrega.
 
 ## Plantilla guardada por usuario
 
@@ -34,7 +48,7 @@ Las variables desconocidas, las llaves incompletas y el texto vacío se señalan
 
 ## Saldo compartido con el Resumen
 
-Se mantiene `readLedgerBalance`, la misma consulta de totales del Resumen, sin modificar fórmulas ni SQL financieros. La vista previa usa **SaldoFinal** hasta el día actual de Argentina: incluye el saldo anterior, excluye posteriores/anulados y conserva originales revertidos junto con sus contrapartidas. No suma otra vez afectaciones ni medios de pago. Nombre, saldo, teléfono y plantilla se leen dentro del mismo snapshot de solo lectura.
+La consulta individual conserva `readLedgerBalance`. El lote reutiliza su fuente `ledgerEntries`: una fila monetaria por asiento y las mismas expresiones de débito/crédito y vigencia del Resumen. Solo se expone la clave de cliente para agrupar; no cambian las fórmulas financieras. La vista previa usa **SaldoFinal** hasta el día actual de Argentina: incluye el saldo anterior, excluye posteriores/anulados y conserva originales revertidos junto con sus contrapartidas. No suma otra vez afectaciones ni medios de pago. Nombre, saldo, teléfono y plantilla se leen dentro del mismo snapshot de solo lectura. El lote suma en MySQL con DECIMAL antes de aplicar filtros de saldo y paginación; no multiplica importes por afectaciones/valores ni calcula dinero en JavaScript.
 
 Para comparar con el KPI **Saldo total** del Resumen, usar el mismo cliente y **Fecha hasta igual a Saldo hasta** del módulo. Desde distribuye saldo anterior y movimientos, sin eliminar el saldo anterior del KPI. Un Hasta histórico puede dar otro importe legítimamente. Se utilizan los estados vigentes; no se reconstruyen estados históricos.
 
@@ -114,3 +128,24 @@ Ampliación NombreFantasia: se reutiliza `CLIENTE.Fantasia`, sin migraciones adi
 Ajuste de presentación posterior al PR #34: reutilización de FormSections y campos persistentes al limpiar el cliente, sin cambios de API, tablas, variables, generación, copia o enlace de WhatsApp. No se ejecutaron compilaciones ni pruebas para este ajuste visual, según lo solicitado; las verificaciones anteriores corresponden a las entregas funcionales previas.
 
 Corrección del prefijo argentino de WhatsApp: tipos correctos y 7 pruebas unitarias de mensajes aprobadas; 17 casos de integración del mayor/mensajes en MariaDB aprobados, verificando también que el teléfono original permanece intacto en la base tras consultar la normalización. La ayuda de Clientes se configura en el catálogo de campos compartido y reutiliza el hint del formulario base. No requiere migraciones.
+
+
+## Entrega Varios clientes (04/11/2026)
+
+Sin migraciones, tablas nuevas ni cambios de registración financiera. Conserva el permiso `envio-mensajes`, incluso para usuarios de solo consulta; se agrega únicamente acceso a la referencia acotada de tipos de cliente, sin conceder acceso al maestro. GET `/api/mensajes/clientes` consulta por filtros y POST `/api/mensajes/clientes/seleccionados` prepara una selección explícita, también en transacción de solo lectura; este último exige origen de aplicación y CSRF. Ambos validan filtros/páginas y ordenan mediante lista permitida, sin aceptar saldos, fechas ni usuarios suministrados desde el navegador.
+
+Archivos de esta entrega:
+
+- API: `messages/store.ts`, `messages/routes.ts`, nuevos `messages/validation.ts` y `messages/preview.ts`; `reports/ledger.ts` expone la fuente compartida; `references/routes.ts` autoriza la referencia de tipos.
+- Web: `messages/MessagesPage.tsx`, nuevos `messages/ClientMessages.tsx` y `messages/message-preview.ts`, `messages/messages.css`, `services/messages.ts`.
+- Contratos: `packages/shared/src/messages.ts`. Verificación: `tests/integration/account-ledger.test.ts`. Documentación: esta guía, README y roadmap.
+
+Aceptación:
+
+1. Ingresar con permiso Envío de mensajes, abrir Varios clientes y comprobar que solo se consulta al aplicar filtros. Probar tipo, búsqueda, activos/inactivos, positivos/negativos/cero/todos y resultados vacíos.
+2. Elegir clientes con CheckBox de distintas páginas, Consultar seleccionados y Volver a filtros. Ordenar por saldo y comprobar que cambia el conjunto de la página según el orden global. Actualizar debe releer y limpiar selección.
+3. Comparar cada saldo con el mensaje individual y el KPI Saldo total del Resumen con el mismo Hasta. Probar cobros/pagos parciales, varias afectaciones/valores, anulados, reversiones, anticipos, rechazo, sin movimientos y movimientos futuros.
+4. Editar/guardar la plantilla y sus variables; ambos modos deben usar el mismo texto. Probar saldo a favor y cero sin anunciar una deuda por error, plantilla inválida y expansión extensa.
+5. Revisar Propiedades, copiar y abrir un chat individual; texto y teléfono deben ser exactos. Probar teléfono ausente/incorrecto y portapapeles denegado. Confirmar envío manual y revisar móvil con scroll horizontal del listado.
+
+Verificación de esta entrega: tipos correctos, 65 pruebas unitarias y suites completas con 201 pruebas en MySQL 8.4 y 201 en MariaDB 11.8.9 aprobadas. Incluyen comparación de los 113 clientes de la fixture con el mayor y la consulta individual, precisión, vigencia, fechas futuras, filtros, orden/paginación globales, relectura de elegidos, plantillas por usuario, CSRF/permisos y ausencia de escrituras financieras. Chromium en escritorio y móvil verificó selección entre páginas, consulta de elegidos, Propiedades, edición compartida sin consulta por tecla, copia/enlace exactos, negativos/cero, teléfono inválido, copia manual ante portapapeles denegado, refresco, orden remoto, resultados vacíos y scroll interno. Bases efímeras, API del navegador y destino WhatsApp simulados; sin contactar destinatarios ni utilizar datos de Hostinger.

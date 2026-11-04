@@ -94,3 +94,22 @@ export interface BalanceMessagePreview {
   WhatsAppError: string | null;
   consultadoEn: string;
 }
+export const messageBalanceFilters = [
+  { value: "POSITIVO", label: "A pagar por el cliente (neto positivo)" },
+  { value: "NO_CERO", label: "Saldo neto distinto de cero" },
+  { value: "A_FAVOR", label: "A favor del cliente (neto negativo)" },
+  { value: "CERO", label: "Saldo neto en cero" },
+  { value: "TODOS", label: "Todos los saldos" },
+] as const;
+export const maxSelectedMessageClients = 1000;
+export interface ClientMessageRow extends BalanceMessagePreview {
+  ErrorMensaje: string | null;
+}
+export interface ClientMessagesResult {
+  registros: ClientMessageRow[];
+  total: number;
+  pagina: number;
+  limite: number;
+  FechaHasta: string;
+  consultadoEn: string;
+}

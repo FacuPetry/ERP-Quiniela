@@ -10,6 +10,7 @@ import type {
   SessionResponse,
   UserDetail,
   BalanceMessagePreview,
+  ClientMessagesResult,
   MessageTemplatePreference,
 } from "@erp/shared";
 import type { RowDataPacket } from "mysql2/promise";
@@ -169,6 +170,33 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     return json<BalanceMessagePreview>(
       await req(
         "/mensajes/vista-previa?" + new URLSearchParams({ Cliente: client }),
+      ),
+    );
+  }
+  async function messages(
+    query = "q=LG_&Estado=TODOS&Saldo=TODOS&limite=100",
+    who = admin,
+  ) {
+    return json<ClientMessagesResult>(
+      await req("/mensajes/clientes?" + query, "GET", undefined, who),
+    );
+  }
+  async function allMessages(query = "q=LG_&Estado=TODOS&Saldo=TODOS") {
+    const result = await messages(query + "&limite=100");
+    for (let pagina = 2; result.registros.length < result.total; pagina++) {
+      const next = await messages(query + "&limite=100&pagina=" + pagina);
+      assert.ok(next.registros.length, "debe avanzar la paginación");
+      result.registros.push(...next.registros);
+    }
+    return result;
+  }
+  async function chosen(Clientes: string[], who = admin, options = {}) {
+    return json<ClientMessagesResult>(
+      await req(
+        "/mensajes/clientes/seleccionados",
+        "POST",
+        { Clientes, ...options },
+        who,
       ),
     );
   }
@@ -1233,6 +1261,275 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
+    "varios clientes: saldo idéntico al mayor y al mensaje individual, sin duplicar relaciones",
+    async () => {
+      const batch = await allMessages();
+      assert.ok(batch.total >= 9);
+      assert.equal(batch.registros.length, batch.total);
+      for (const row of batch.registros) {
+        const single = await sameMessage(row.Cliente);
+        const { consultadoEn: _singleTime, ...singleData } = single;
+        const { consultadoEn: _batchTime, ErrorMensaje, ...batchData } = row;
+        assert.equal(ErrorMensaje, null);
+        assert.deepEqual(batchData, singleData, row.Cliente);
+        assert.ok(row.consultadoEn);
+        assert.equal(row.FechaHasta, batch.FechaHasta);
+      }
+      assert.equal(
+        batch.registros.find((r) => r.Cliente === "LG_EMPTY")!.SaldoTotal,
+        "0.00",
+      );
+      assert.equal(
+        batch.registros.find((r) => r.Cliente === "LG_MSG")!.SaldoTotal,
+        "100.25",
+      );
+    },
+  );
+  await t.test(
+    "varios clientes: filtros de saldo neto, tipo/estado y orden global antes de paginar",
+    async () => {
+      await pool.query("UPDATE CLIENTE SET Activo=0 WHERE Codigo='LG_B'");
+      const all = (await allMessages()).registros;
+      const cents = (s: string) => BigInt(s.replace(".", ""));
+      for (const [filter, accepts] of [
+        ["POSITIVO", (s: string) => cents(s) > 0n],
+        ["A_FAVOR", (s: string) => cents(s) < 0n],
+        ["CERO", (s: string) => cents(s) === 0n],
+        ["NO_CERO", (s: string) => cents(s) !== 0n],
+        ["TODOS", (_s: string) => true],
+      ] as const) {
+        const result = await allMessages(`q=LG_&Estado=TODOS&Saldo=${filter}`);
+        assert.deepEqual(
+          result.registros.map((r) => r.Cliente),
+          all.filter((r) => accepts(r.SaldoTotal)).map((r) => r.Cliente),
+        );
+      }
+      const active = await allMessages("q=LG_&Saldo=TODOS");
+      assert.equal(active.total, all.length - 1);
+      assert.ok(!active.registros.some((r) => r.Cliente === "LG_B"));
+      assert.deepEqual(
+        (
+          await messages("ClienteTipo=LG_T2&Estado=TODOS&Saldo=TODOS")
+        ).registros.map((r) => r.Cliente),
+        ["LG_B"],
+      );
+      assert.equal((await messages("ClienteTipo=LG_T2&Saldo=TODOS")).total, 0);
+      assert.deepEqual(
+        (await messages("Estado=INACTIVOS&Saldo=TODOS&q=LG_")).registros.map(
+          (r) => r.Cliente,
+        ),
+        ["LG_B"],
+      );
+      assert.equal(
+        (await messages("q=%25&Saldo=TODOS&Estado=TODOS")).total,
+        0,
+        "LIKE trata porcentajes como texto literal",
+      );
+      await pool.query(
+        "UPDATE CLIENTE SET Fantasia='LOCAL MULTIPLE' WHERE Codigo='LG_MSG'",
+      );
+      assert.deepEqual(
+        (await messages("q=LOCAL%20MULTIPLE&Saldo=TODOS")).registros.map(
+          (r) => r.Cliente,
+        ),
+        ["LG_MSG"],
+      );
+      for (const direction of ["desc", "asc"]) {
+        const ordered = [...all].sort((a, b) => {
+          const diff = cents(a.SaldoTotal) - cents(b.SaldoTotal);
+          return diff === 0n
+            ? a.Cliente.localeCompare(b.Cliente)
+            : (diff > 0n ? 1 : -1) * (direction === "asc" ? 1 : -1);
+        });
+        const records: string[] = [];
+        for (let pagina = 1; pagina <= Math.ceil(all.length / 15); pagina++) {
+          const result = await messages(
+            `q=LG_&Estado=TODOS&Saldo=TODOS&limite=15&orden=SaldoTotal&direccion=${direction}&pagina=${pagina}`,
+          );
+          assert.equal(result.total, all.length);
+          records.push(...result.registros.map((r) => r.Cliente));
+        }
+        assert.deepEqual(
+          records,
+          ordered.map((r) => r.Cliente),
+        );
+      }
+      assert.deepEqual(
+        (await messages("q=LG_&Estado=TODOS&Saldo=TODOS&pagina=100")).registros,
+        [],
+      );
+    },
+  );
+  await t.test(
+    "varios clientes: seleccionados se reconsultan; permisos, CSRF y entradas sin saldo manipulable",
+    async () => {
+      const clients = ["LG_MSG", "LG_EMPTY", "LG_CLOSE", "LG_B"];
+      const before = await chosen(clients);
+      assert.equal(before.total, clients.length);
+      await debt("LG_D", "12.34", before.FechaHasta, "LG_EMPTY");
+      const after = await chosen(clients, admin, {
+        pagina: 1,
+        limite: 2,
+        orden: "SaldoTotal",
+        direccion: "asc",
+      });
+      assert.equal(after.total, clients.length);
+      assert.equal(after.registros.length, 2);
+      const reloaded = await chosen(["LG_EMPTY"]);
+      assert.equal(reloaded.registros[0]!.SaldoTotal, "12.34");
+      assert.equal(
+        reloaded.registros[0]!.Mensaje,
+        (await message("LG_EMPTY")).Mensaje,
+      );
+      for (const body of [
+        { Clientes: [] },
+        { Clientes: ["LG_A", "LG_A"] },
+        { Clientes: [""] },
+        { Clientes: ["LG_A"], SaldoTotal: "1.00" },
+        { Clientes: ["LG_A"], Usuario: "1" },
+        { Clientes: ["LG_A"], Hasta: "2099-01-01" },
+        { Clientes: Array.from({ length: 1001 }, (_, i) => "C" + i) },
+      ])
+        assert.equal(
+          (await req("/mensajes/clientes/seleccionados", "POST", body)).status,
+          400,
+        );
+      assert.equal(
+        (
+          await req("/mensajes/clientes/seleccionados", "POST", {
+            Clientes: ["LG_A", "NO_EXISTE"],
+          })
+        ).status,
+        409,
+      );
+      for (const query of [
+        "Saldo=INVALIDO",
+        "Estado=INVALIDO",
+        "SaldoTotal=1.00",
+        "Hasta=2099-01-01",
+        "limite=101",
+        "pagina=0",
+        "orden=Mensaje&direccion=asc",
+        "orden=SaldoTotal",
+        "direccion=desc",
+        "orden=SaldoTotal;DROP&direccion=asc",
+      ])
+        assert.equal(
+          (await req("/mensajes/clientes?" + query)).status,
+          400,
+          query,
+        );
+      const who = await login("message-template@example.invalid");
+      assert.equal((await messages("Saldo=TODOS&q=LG_MSG", who)).total, 1);
+      assert.equal((await chosen(["LG_B", "LG_MSG"], who)).total, 2);
+      const refs = await json<{ registros: { Codigo: string }[] }>(
+        await req(
+          "/referencias/tipos-cliente?q=LG_&estado=todos",
+          "GET",
+          undefined,
+          who,
+        ),
+      );
+      assert.ok(refs.registros.some((r) => r.Codigo === "LG_T"));
+      assert.equal(
+        (await req("/maestros/tipos-cliente", "GET", undefined, who)).status,
+        403,
+      );
+      const forbidden = await login("ledger-reader@example.invalid");
+      for (const path of [
+        "/mensajes/clientes",
+        "/mensajes/clientes/seleccionados",
+      ]) {
+        const method = path.endsWith("seleccionados") ? "POST" : "GET";
+        assert.equal(
+          (
+            await req(
+              path,
+              method,
+              method === "POST" ? { Clientes: ["LG_A"] } : undefined,
+              forbidden,
+            )
+          ).status,
+          403,
+        );
+        assert.equal(
+          (await fetch(base + "/api" + path, { method })).status,
+          401,
+        );
+      }
+      const unsafe = await fetch(
+        base + "/api/mensajes/clientes/seleccionados",
+        {
+          method: "POST",
+          headers: {
+            Cookie: who.cookie,
+            "Content-Type": "application/json",
+            "X-ERP-Request": "1",
+          },
+          body: JSON.stringify({ Clientes: ["LG_A"] }),
+        },
+      );
+      assert.equal(unsafe.status, 403);
+      const pref = await json<MessageTemplatePreference>(
+        await req("/mensajes/plantilla", "GET", undefined, who),
+      );
+      const saved = await json<MessageTemplatePreference>(
+        await req(
+          "/mensajes/plantilla",
+          "PUT",
+          { Plantilla: "Hola {NombreFantasia}: {MontoTotal}" },
+          who,
+          pref.version,
+        ),
+      );
+      const personal = (await messages("q=LG_MSG&Saldo=TODOS", who))
+        .registros[0]!;
+      assert.equal(personal.Mensaje, "Hola LOCAL MULTIPLE: $100,25");
+      assert.notEqual(
+        personal.Mensaje,
+        (await messages("q=LG_MSG&Saldo=TODOS")).registros[0]!.Mensaje,
+      );
+      const expanded = await json<MessageTemplatePreference>(
+        await req(
+          "/mensajes/plantilla",
+          "PUT",
+          { Plantilla: "{NombreFantasia}".repeat(100) },
+          who,
+          saved.version,
+        ),
+      );
+      await pool.execute(
+        "UPDATE CLIENTE SET Fantasia=? WHERE Codigo='LG_MSG'",
+        ["F".repeat(100)],
+      );
+      const partial = await chosen(["LG_MSG", "LG_A"], who);
+      assert.ok(
+        partial.registros.find((r) => r.Cliente === "LG_MSG")!.ErrorMensaje,
+      );
+      assert.equal(
+        partial.registros.find((r) => r.Cliente === "LG_MSG")!.Mensaje,
+        "",
+      );
+      assert.equal(
+        partial.registros.find((r) => r.Cliente === "LG_A")!.ErrorMensaje,
+        null,
+      );
+      assert.equal(
+        partial.registros.find((r) => r.Cliente === "LG_MSG")!.SaldoTotal,
+        "100.25",
+      );
+      await json(
+        await req(
+          "/mensajes/plantilla",
+          "PUT",
+          { Plantilla: null },
+          who,
+          expanded.version,
+        ),
+      );
+    },
+  );
+  await t.test(
     "consultas sin escrituras sobre importes, estados, eventos, cierres, numeración ni auditoría",
     async () => {
       const tables = [
@@ -1272,6 +1569,8 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       await message("LG_A");
       await message("LG_EMPTY");
       await message("LG_B");
+      await messages();
+      await chosen(["LG_A", "LG_EMPTY", "LG_B"]);
       assert.deepEqual(await snapshot(), before);
     },
   );

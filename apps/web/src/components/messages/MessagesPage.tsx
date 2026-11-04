@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  renderMessageTemplate,
   whatsappMessageUrl,
   type BalanceMessagePreview,
   type MasterRecord,
@@ -12,6 +11,8 @@ import { Icon } from "../Icon";
 import { FormSections } from "../ui/FormSections";
 import { ApiRequestError } from "../../services/http";
 import { previewBalanceMessage } from "../../services/messages";
+import { messagePreview } from "./message-preview";
+import { ClientMessages } from "./ClientMessages";
 import { MessageTemplateEditor } from "./MessageTemplateEditor";
 import "./messages.css";
 
@@ -33,21 +34,10 @@ export function MessagesPage({
     setTemplate(value);
     setStatus("");
   }, []);
-  const rendered = useMemo(() => {
-    if (!preview || template === null) return { message: "", error: undefined };
-    try {
-      return {
-        message: renderMessageTemplate(template, preview.Variables),
-        error: undefined,
-      };
-    } catch (e) {
-      return {
-        message: "",
-        error:
-          e instanceof Error ? e.message : "Revisá las variables del mensaje.",
-      };
-    }
-  }, [preview, template]);
+  const rendered = useMemo(
+    () => messagePreview(template, preview),
+    [preview, template],
+  );
   const latestMessage = useRef(rendered.message);
   latestMessage.current = rendered.message;
   const whatsapp =
@@ -304,6 +294,17 @@ export function MessagesPage({
                   </p>
                 </div>
               </div>
+            ),
+          },
+          {
+            key: "clients",
+            title: "Varios clientes",
+            content: (
+              <ClientMessages
+                template={template}
+                csrf={csrf}
+                onExpired={onExpired}
+              />
             ),
           },
         ]}

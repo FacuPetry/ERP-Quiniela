@@ -19,7 +19,7 @@ const isDebit =
   "((a.Cuenta='COBRAR' AND a.Naturaleza='DEUDA') OR (a.Cuenta='PAGAR' AND a.Naturaleza='CREDITO'))";
 // Una fila por asiento de Cuenta corriente. No unir afectaciones ni valores aquí:
 // esas relaciones 1:N multiplicarían los importes y el saldo de la ventana.
-const base = `SELECT a.IDTabla AS Clave,a.FechaOrigen AS FechaOrden,
+export const ledgerEntries = `SELECT a.Cliente,a.IDTabla AS Clave,a.FechaOrigen AS FechaOrden,
  DATE_FORMAT(a.FechaOrigen,'%Y-%m-%d') AS FechaOrigen,a.NumeroComprobante,
  vc.Descripcion AS ComprobanteDescripcion,co.Descripcion AS Concepto,a.Observacion,
  a.Cuenta,a.Naturaleza,a.Importe AS ImporteOriginal,a.CajaMovimiento,
@@ -44,7 +44,9 @@ const base = `SELECT a.IDTabla AS Clave,a.FechaOrigen AS FechaOrden,
  LEFT JOIN COMPROBANTE rv ON rv.Codigo=rev.Comprobante
  LEFT JOIN CHEQUEEVENTO ce ON ce.IDTabla=a.ChequeEvento
  LEFT JOIN CHEQUE ch ON ch.IDTabla=ce.Cheque
- WHERE a.Cliente=? AND a.Cuenta IN ('COBRAR','PAGAR') AND a.Naturaleza IN ('DEUDA','CREDITO') AND ${reportMovement("a")}`;
+ WHERE a.Cuenta IN ('COBRAR','PAGAR') AND a.Naturaleza IN ('DEUDA','CREDITO') AND ${reportMovement("a")}`;
+const base = `${ledgerEntries} AND a.Cliente=?`;
+
 async function associations(c: PoolConnection, rows: RowDataPacket[]) {
   const ids = rows.map((r) => String(r.Clave)),
     cashIds = [

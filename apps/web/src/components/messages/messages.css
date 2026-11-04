@@ -22,6 +22,16 @@
 .messages-balance {
   align-items: flex-start;
 }
+.messages-clients-toolbar {
+  flex-wrap: wrap;
+}
+.messages-clients-toolbar .action-toolbar {
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.messages-clients .pagination {
+  padding: 16px 18px;
+}
 .messages-query-feedback {
   min-height: calc(3em + 24px);
 }
