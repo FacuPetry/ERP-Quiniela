@@ -71,6 +71,13 @@
       "when": 1793570626622,
       "tag": "0009_permisos_usuarios",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1793755195258,
+      "tag": "0010_mensaje_saldo_plantilla",
+      "breakpoints": true
     }
   ]
 }

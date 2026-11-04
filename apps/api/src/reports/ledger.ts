@@ -127,6 +127,48 @@ async function associations(c: PoolConnection, rows: RowDataPacket[]) {
     ],
   };
 }
+/** Consulta común de saldo del mayor y de las vistas previas de mensajes.
+ * El llamador conserva el snapshot de solo lectura; no se suman afectaciones
+ * ni valores por separado, ya incluidos en sus asientos de Cuenta corriente. */
+export async function readLedgerBalance(
+  c: PoolConnection,
+  q: Pick<LedgerQuery, "Cliente" | "Desde" | "Hasta">,
+) {
+  const [clients] = await c.execute<RowDataPacket[]>(
+    "SELECT Codigo,Nombre FROM CLIENTE WHERE Codigo=?",
+    [q.Cliente],
+  );
+  if (!clients[0]) throw new MasterRequestError(404, "El cliente no existe.");
+  // Clasificar sin recortar la ventana: los anteriores alimentan el saldo;
+  // los posteriores se resumen una sola vez en la fila «Saldo a vencer».
+  const scoped = `SELECT b.*,${q.Desde ? "(b.FechaOrden < ?)" : "0"} AS Anterior,${q.Hasta ? "(b.FechaOrden > ?)" : "0"} AS Posterior FROM (${base}) b`;
+  const params = [
+    ...(q.Desde ? [q.Desde] : []),
+    ...(q.Hasta ? [q.Hasta] : []),
+    q.Cliente,
+  ];
+  const [totals] = await c.execute<RowDataPacket[]>(
+    `SELECT COALESCE(SUM(b.Anterior=0 AND b.Posterior=0),0) AS total,
+  COALESCE(SUM(CASE WHEN b.Anterior=0 AND b.Posterior=0 THEN b.Debito ELSE 0 END),0) AS Debito,
+  COALESCE(SUM(CASE WHEN b.Anterior=0 AND b.Posterior=0 THEN b.Credito ELSE 0 END),0) AS Credito,
+  COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoFinal,
+  COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.DeltaCobrar ELSE 0 END),0) AS SaldoCobrar,
+  COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.DeltaPagar ELSE 0 END),0) AS SaldoPagar,
+  COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Debito ELSE 0 END),0) AS PosteriorDebito,
+  COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Credito ELSE 0 END),0) AS PosteriorCredito,
+  COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoPosterior,
+  COALESCE(SUM(b.Debito-b.Credito),0) AS SaldoCompleto,
+  COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoAnterior,
+  COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Debito ELSE 0 END),0) AS AnteriorDebito,
+  COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Credito ELSE 0 END),0) AS AnteriorCredito,
+  COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.DeltaCobrar ELSE 0 END),0) AS AnteriorCobrar,
+  COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.DeltaPagar ELSE 0 END),0) AS AnteriorPagar
+  FROM (${scoped}) b`,
+    params,
+  );
+  return { client: clients[0]!, total: totals[0]!, scoped, params };
+}
+
 export async function accountLedger(
   pool: Pool,
   q: LedgerQuery,
@@ -135,38 +177,7 @@ export async function accountLedger(
   try {
     await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
     await c.query("START TRANSACTION READ ONLY");
-    const [clients] = await c.execute<RowDataPacket[]>(
-      "SELECT Codigo,Nombre FROM CLIENTE WHERE Codigo=?",
-      [q.Cliente],
-    );
-    if (!clients[0]) throw new MasterRequestError(404, "El cliente no existe.");
-    // Clasificar sin recortar la ventana: los anteriores alimentan el saldo;
-    // los posteriores se resumen una sola vez en la fila «Saldo a vencer».
-    const scoped = `SELECT b.*,${q.Desde ? "(b.FechaOrden < ?)" : "0"} AS Anterior,${q.Hasta ? "(b.FechaOrden > ?)" : "0"} AS Posterior FROM (${base}) b`;
-    const params = [
-      ...(q.Desde ? [q.Desde] : []),
-      ...(q.Hasta ? [q.Hasta] : []),
-      q.Cliente,
-    ];
-    const [totals] = await c.execute<RowDataPacket[]>(
-      `SELECT COALESCE(SUM(b.Anterior=0 AND b.Posterior=0),0) AS total,
-    COALESCE(SUM(CASE WHEN b.Anterior=0 AND b.Posterior=0 THEN b.Debito ELSE 0 END),0) AS Debito,
-    COALESCE(SUM(CASE WHEN b.Anterior=0 AND b.Posterior=0 THEN b.Credito ELSE 0 END),0) AS Credito,
-    COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoFinal,
-    COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.DeltaCobrar ELSE 0 END),0) AS SaldoCobrar,
-    COALESCE(SUM(CASE WHEN b.Posterior=0 THEN b.DeltaPagar ELSE 0 END),0) AS SaldoPagar,
-    COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Debito ELSE 0 END),0) AS PosteriorDebito,
-    COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Credito ELSE 0 END),0) AS PosteriorCredito,
-    COALESCE(SUM(CASE WHEN b.Posterior=1 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoPosterior,
-    COALESCE(SUM(b.Debito-b.Credito),0) AS SaldoCompleto,
-    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Debito-b.Credito ELSE 0 END),0) AS SaldoAnterior,
-    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Debito ELSE 0 END),0) AS AnteriorDebito,
-    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.Credito ELSE 0 END),0) AS AnteriorCredito,
-    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.DeltaCobrar ELSE 0 END),0) AS AnteriorCobrar,
-    COALESCE(SUM(CASE WHEN b.Anterior=1 THEN b.DeltaPagar ELSE 0 END),0) AS AnteriorPagar
-    FROM (${scoped}) b`,
-      params,
-    );
+    const { client, total, scoped, params } = await readLedgerBalance(c, q);
     const [rows] = await c.execute<RowDataPacket[]>(
       `SELECT w.* FROM (SELECT b.*,
     SUM(b.Debito-b.Credito) OVER (ORDER BY b.FechaOrden,b.Clave ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS SaldoAcumulado,
@@ -241,7 +252,6 @@ export async function accountLedger(
       );
     }
     await c.commit();
-    const total = totals[0]!;
     return {
       registros: records,
       total: Number(total.total),
@@ -262,8 +272,8 @@ export async function accountLedger(
         Saldo: String(total.SaldoPosterior),
         SaldoAcumulado: String(total.SaldoCompleto),
       },
-      Cliente: String(clients[0].Codigo),
-      ClienteNombre: String(clients[0].Nombre),
+      Cliente: String(client.Codigo),
+      ClienteNombre: String(client.Nombre),
       consultadoEn: new Date().toISOString(),
       totales: {
         Debito: String(total.Debito),

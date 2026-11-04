@@ -20,6 +20,7 @@ export const usuario = mysqlTable('USUARIO', {
   Email: varchar('Email', { length: 150 }).notNull(),
   ClaveHash: varchar('ClaveHash', { length: 255 }).notNull(),
   Permisos: json('Permisos'),
+  MensajeSaldoPlantilla: text('MensajeSaldoPlantilla'),
   Rol: code('Rol').notNull().references(() => rol.Codigo),
   Activo: boolean('Activo').notNull().default(true), CreadoEn: instant('CreadoEn').notNull(),
 }, t => [uniqueIndex('UQ_USUARIO_Email').on(t.Email)]);
