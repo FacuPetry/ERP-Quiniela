@@ -1105,6 +1105,26 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       assert.equal(phone.Telefono, "011 15-1234-5678");
       assert.equal(phone.WhatsAppNumero, "5491112345678");
       assert.equal(phone.WhatsAppError, null);
+      for (const [raw, expected] of [
+        ["(11) 1234-5678", "5491112345678"],
+        ["+54 11 1234-5678", "5491112345678"],
+        ["0341 15 2345678", "5493412345678"],
+        ["(341) 2345678", "5493412345678"],
+        ["+1 202 555 0123", "12025550123"],
+        ["11 1234567", null],
+      ]) {
+        await pool.execute(
+          "UPDATE CLIENTE SET Telefono=? WHERE Codigo='LG_MSG'",
+          [raw],
+        );
+        const normalized = await message("LG_MSG");
+        assert.equal(normalized.Telefono, raw);
+        assert.equal(normalized.WhatsAppNumero, expected);
+        const [stored] = await pool.query<RowDataPacket[]>(
+          "SELECT Telefono FROM CLIENTE WHERE Codigo='LG_MSG'",
+        );
+        assert.equal(stored[0]!.Telefono, raw);
+      }
       await pool.query(
         "UPDATE CLIENTE SET Telefono='sin numero valido' WHERE Codigo='LG_MSG'",
       );

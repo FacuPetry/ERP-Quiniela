@@ -9,6 +9,7 @@ import { AmountBox, TextArea, TextBox } from "../controls";
 import { displayDate, displayDateTime } from "../controls/date-value";
 import { ClientSearch } from "../current-account/ClientSearch";
 import { Icon } from "../Icon";
+import { FormSections } from "../ui/FormSections";
 import { ApiRequestError } from "../../services/http";
 import { previewBalanceMessage } from "../../services/messages";
 import { MessageTemplateEditor } from "./MessageTemplateEditor";
@@ -126,8 +127,11 @@ export function MessagesPage({
     }
   }
   return (
-    <section className="panel messages-panel" aria-labelledby="messages-title">
-      <div className="panel-heading">
+    <section
+      className="panel record-form messages-panel"
+      aria-labelledby="messages-title"
+    >
+      <div className="panel-heading form-heading">
         <div>
           <h2 id="messages-title">Preparar mensaje</h2>
           <p className="muted small">
@@ -138,137 +142,172 @@ export function MessagesPage({
           <Icon name="message" />
         </span>
       </div>
-      <MessageTemplateEditor
-        csrf={csrf}
-        onChange={changeTemplate}
-        onExpired={onExpired}
+      <FormSections
+        idPrefix="messages-sections"
+        sections={[
+          {
+            key: "configure",
+            title: "Configurar mensaje",
+            content: (
+              <MessageTemplateEditor
+                csrf={csrf}
+                onChange={changeTemplate}
+                onExpired={onExpired}
+              />
+            ),
+          },
+          {
+            key: "delivery",
+            title: "Envío de mensajes",
+            content: (
+              <div className="messages-delivery">
+                <div className="messages-controls">
+                  <ClientSearch
+                    id="messages-client"
+                    label="Cliente"
+                    required
+                    historical
+                    size="lg"
+                    value={client}
+                    onChange={select}
+                    onExpired={onExpired}
+                    disabled={copying || template === null}
+                  />
+                  <button
+                    type="button"
+                    className="button secondary"
+                    disabled={!client || loading || copying}
+                    onClick={() => {
+                      if (client) void load(String(client.Codigo));
+                    }}
+                  >
+                    <Icon name="refresh" size={17} /> Actualizar mensaje
+                  </button>
+                </div>
+                <div className="messages-query-feedback">
+                  {loading && (
+                    <p className="muted small" role="status">
+                      Consultando saldo y preparando mensaje…
+                    </p>
+                  )}
+                  {error && (
+                    <p className="notice error" role="alert">
+                      {error}
+                    </p>
+                  )}
+                </div>
+                <div className="messages-preview">
+                  <div className="messages-balance">
+                    <AmountBox
+                      label="Saldo total"
+                      size="md"
+                      value={preview?.SaldoTotal ?? ""}
+                      onValueChange={() => {}}
+                      readOnly
+                    />
+                    <TextBox
+                      label="Saldo hasta"
+                      size="sm"
+                      value={displayDate(preview?.FechaHasta)}
+                      onValueChange={() => {}}
+                      readOnly
+                    />
+                    <TextBox
+                      label="Teléfono"
+                      size="md"
+                      value={
+                        preview ? (preview.Telefono ?? "Sin teléfono") : ""
+                      }
+                      onValueChange={() => {}}
+                      readOnly
+                    />
+                  </div>
+                  <p className="muted small messages-summary">
+                    {preview && (
+                      <>
+                        {preview.Situacion === "PENDIENTE_PAGO"
+                          ? "Saldo neto a pagar por el cliente."
+                          : preview.Situacion === "A_FAVOR"
+                            ? "Saldo neto a favor del cliente."
+                            : "Saldo neto de Cuenta corriente en cero."}{" "}
+                        Consultado: {displayDateTime(preview.consultadoEn)}.
+                      </>
+                    )}
+                  </p>
+                  <TextArea
+                    ref={text}
+                    label="Vista previa del mensaje"
+                    value={rendered.message}
+                    error={rendered.error}
+                    onValueChange={() => {}}
+                    readOnly
+                    height="clamp(150px, 22vw, 200px)"
+                    hint="Revisá el mensaje antes de copiarlo o abrir WhatsApp. El envío se confirma dentro de WhatsApp."
+                  />
+                  <p
+                    className="muted small messages-phone-feedback"
+                    role="status"
+                  >
+                    {preview?.WhatsAppError ??
+                      (preview?.WhatsAppNumero
+                        ? `WhatsApp: +${preview.WhatsAppNumero}`
+                        : "")}
+                  </p>
+                  <div className="messages-actions">
+                    <button
+                      type="button"
+                      className="button primary"
+                      disabled={
+                        !preview ||
+                        copying ||
+                        !rendered.message ||
+                        Boolean(rendered.error)
+                      }
+                      onClick={() => {
+                        void copy();
+                      }}
+                    >
+                      <Icon name="copy" size={17} />{" "}
+                      {copying ? "Copiando…" : "Copiar mensaje"}
+                    </button>
+                    {whatsapp ? (
+                      <a
+                        className="button secondary"
+                        href={whatsapp}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`Abrir chat con +${preview?.WhatsAppNumero}`}
+                      >
+                        Abrir WhatsApp
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="button secondary"
+                        disabled
+                        title={
+                          preview?.WhatsAppError ??
+                          (preview
+                            ? "Revisá el texto del mensaje."
+                            : "Seleccioná un cliente.")
+                        }
+                      >
+                        Abrir WhatsApp
+                      </button>
+                    )}
+                  </div>
+                  <p
+                    className="muted small messages-copy-feedback"
+                    role="status"
+                  >
+                    {status}
+                  </p>
+                </div>
+              </div>
+            ),
+          },
+        ]}
       />
-      <div className="messages-controls">
-        <ClientSearch
-          id="messages-client"
-          label="Cliente"
-          required
-          historical
-          size="lg"
-          value={client}
-          onChange={select}
-          onExpired={onExpired}
-          disabled={copying || template === null}
-        />
-        <button
-          type="button"
-          className="button secondary"
-          disabled={!client || loading || copying}
-          onClick={() => {
-            if (client) void load(String(client.Codigo));
-          }}
-        >
-          <Icon name="refresh" size={17} /> Actualizar mensaje
-        </button>
-      </div>
-      {loading && (
-        <p className="muted small" role="status">
-          Consultando saldo y preparando mensaje…
-        </p>
-      )}
-      {error && (
-        <p className="notice error" role="alert">
-          {error}
-        </p>
-      )}
-      {preview && (
-        <div className="messages-preview">
-          <div className="messages-balance">
-            <AmountBox
-              label="Saldo total"
-              size="md"
-              value={preview.SaldoTotal}
-              onValueChange={() => {}}
-              readOnly
-            />
-            <TextBox
-              label="Saldo hasta"
-              size="sm"
-              value={displayDate(preview.FechaHasta)}
-              onValueChange={() => {}}
-              readOnly
-            />
-            <TextBox
-              label="Teléfono"
-              size="md"
-              value={preview.Telefono ?? "Sin teléfono"}
-              onValueChange={() => {}}
-              readOnly
-              hint={
-                preview.WhatsAppNumero
-                  ? `WhatsApp: +${preview.WhatsAppNumero}`
-                  : undefined
-              }
-            />
-          </div>
-          <p className="muted small">
-            {preview.Situacion === "PENDIENTE_PAGO"
-              ? "Saldo neto a pagar por el cliente."
-              : preview.Situacion === "A_FAVOR"
-                ? "Saldo neto a favor del cliente."
-                : "Saldo neto de Cuenta corriente en cero."}{" "}
-            Consultado: {displayDateTime(preview.consultadoEn)}.
-          </p>
-          <TextArea
-            ref={text}
-            label="Vista previa del mensaje"
-            value={rendered.message}
-            error={rendered.error}
-            onValueChange={() => {}}
-            readOnly
-            height="clamp(150px, 22vw, 200px)"
-            hint="Revisá el mensaje antes de copiarlo o abrir WhatsApp. El envío se confirma dentro de WhatsApp."
-          />
-          {preview.WhatsAppError && (
-            <p className="muted small" role="status">
-              {preview.WhatsAppError}
-            </p>
-          )}
-          <div className="messages-actions">
-            <button
-              type="button"
-              className="button primary"
-              disabled={copying || !rendered.message || Boolean(rendered.error)}
-              onClick={() => {
-                void copy();
-              }}
-            >
-              <Icon name="copy" size={17} />{" "}
-              {copying ? "Copiando…" : "Copiar mensaje"}
-            </button>
-            {whatsapp ? (
-              <a
-                className="button secondary"
-                href={whatsapp}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Abrir chat con +${preview.WhatsAppNumero}`}
-              >
-                Abrir WhatsApp
-              </a>
-            ) : (
-              <button
-                type="button"
-                className="button secondary"
-                disabled
-                title={preview.WhatsAppError ?? "Revisá el texto del mensaje."}
-              >
-                Abrir WhatsApp
-              </button>
-            )}
-            {status && (
-              <p className="muted small" role="status">
-                {status}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
     </section>
   );
 }
