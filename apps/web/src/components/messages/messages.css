@@ -1,6 +1,4 @@
 .messages-panel {
-  display: grid;
-  gap: 24px;
   min-width: 0;
 }
 .messages-controls,
@@ -12,7 +10,8 @@
   gap: 16px;
 }
 .messages-preview,
-.messages-template {
+.messages-template,
+.messages-delivery {
   display: grid;
   gap: 18px;
   min-width: 0;
@@ -23,6 +22,15 @@
 .messages-balance {
   align-items: flex-start;
 }
+.messages-query-feedback {
+  min-height: calc(3em + 24px);
+}
+.messages-summary,
+.messages-phone-feedback,
+.messages-copy-feedback {
+  line-height: 1.5;
+  min-height: 3em;
+}
 @media (max-width: 600px) {
   .messages-controls > .base-field,
   .messages-balance > .base-field {
@@ -32,9 +40,10 @@
   .messages-actions > .button {
     width: 100%;
   }
-}
-
-.messages-template {
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--control-border);
+  .messages-query-feedback {
+    min-height: calc(4.5em + 24px);
+  }
+  .messages-phone-feedback {
+    min-height: 6em;
+  }
 }

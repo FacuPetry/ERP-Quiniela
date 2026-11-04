@@ -8,6 +8,10 @@ CLI-01, revisión 03/11/2026. Los informes pendientes siguen en pausa. El módul
 
 Al ingresar se carga la plantilla del usuario autenticado. Elegir un cliente válido consulta el saldo real y muestra saldo firmado, fecha de corte, teléfono y vista previa. Escribir un código/nombre sin resolver el SF no consulta el saldo. Se admiten clientes inactivos con movimientos históricos, igual que en el Resumen.
 
+El formulario reutiliza **FormSections** con dos fichas: **Configurar mensaje** (plantilla, variables y guardado) y **Envío de mensajes** (cliente, datos, vista previa y acciones). Conserva la columna lateral, Sticky, selección automática por sección visible y navegación mediante scroll; en móvil utiliza la adaptación del componente base. Ambas secciones permanecen montadas, sin perder borradores al navegar.
+
+Los campos Saldo total, Saldo hasta, Teléfono y Vista previa permanecen visibles sin cliente, con valores vacíos y las acciones de copia/WhatsApp deshabilitadas. Los espacios informativos tienen altura reservada para evitar saltos al seleccionar, actualizar o limpiar. No se conserva ni se muestra el resultado del cliente anterior para completar esa estructura.
+
 Cambiar/limpiar el cliente descarta el resultado anterior y cancela peticiones pendientes; una respuesta tardía no puede reponer el mensaje de otro cliente. **Actualizar mensaje** vuelve a consultar saldos y teléfono. Un error de actualización retira el resultado anterior. Editar la plantilla reemplaza variables sobre los datos ya consultados, sin repetir consultas financieras por cada tecla.
 
 ## Plantilla guardada por usuario
@@ -78,7 +82,7 @@ La migración agrega una columna opcional sin alterar usuarios ni movimientos ex
 
 ## Qué probar
 
-1. Entrar desde Notificaciones. Solo una categoría abierta y permisos conservados. Sin selección válida no debe consultarse saldo ni generarse un mensaje de cliente.
+1. Entrar desde Notificaciones. Revisar Configurar mensaje y Envío de mensajes mediante Tabs y scroll, el resaltado automático y Sticky, también en móvil. Sin cliente, los campos deben estar visibles y vacíos y las acciones deshabilitadas; no debe consultarse saldo. Seleccionar y limpiar debe conservar la distribución sin retener datos previos.
 2. Escribir una plantilla con NombreCliente/MontoTotal; insertar variables en el medio y sobre una selección. Verificar que la vista previa cambie sin nuevas consultas por tecla. Probar llaves incompletas, variable inexistente, vacío y límites.
 3. Guardar, recargar y entrar desde otro dispositivo: misma plantilla. Otro usuario conserva la suya. Probar Cargar guardado, restaurar predeterminado y conflicto entre dos sesiones.
 4. Comparar el saldo con el Resumen usando el mismo Hasta. Probar positivo/negativo/cero, centavos y fechas. MontoTotal mantiene el signo; ResumenSaldo adapta la frase.
@@ -93,3 +97,5 @@ Tipos de los workspaces y **64 pruebas unitarias** aprobados. Las suites complet
 Chromium en escritorio y móvil, con API y destino WhatsApp simulados: categoría/acordeón, inserción al cursor, edición, vista previa, guardado/recarga/restauración/conflicto, variables inválidas, copia y enlace con contacto/texto exactos, ausencia de teléfono, teléfono inválido y descarte de respuestas tardías. No se contactaron destinatarios ni servicios de envío, ni se usaron datos o credenciales de Hostinger.
 
 Ampliación NombreFantasia: se reutiliza `CLIENTE.Fantasia`, sin migraciones adicionales. Tipos correctos, 7 pruebas unitarias de mensajes y 17 casos del mayor/mensajes en MariaDB aprobados; se comprobaron el dato real, su uso en una plantilla guardada y el nombre alternativo para null, vacío o espacios.
+
+Ajuste de presentación posterior al PR #34: reutilización de FormSections y campos persistentes al limpiar el cliente, sin cambios de API, tablas, variables, generación, copia o enlace de WhatsApp. No se ejecutaron compilaciones ni pruebas para este ajuste visual, según lo solicitado; las verificaciones anteriores corresponden a las entregas funcionales previas.
