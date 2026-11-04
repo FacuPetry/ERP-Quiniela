@@ -46,7 +46,20 @@ Positivo significa neto a pagar por el cliente; negativo, neto a su favor. Cero 
 
 **Abrir WhatsApp** utiliza `https://wa.me/<número>?text=<mensaje codificado>`, en una pestaña nueva, sin acceso a la ventana de origen. WhatsApp decide si abre Web o la aplicación según el dispositivo. No se presiona Enviar, no se registra una entrega y no se solicita ninguna API paga.
 
-El teléfono se toma del maestro y se valida con libphonenumber-js en el backend. Para formatos locales se utiliza Argentina; no se inventa el código de área ni se toman extensiones o el primero de varios números. Ejemplos admitidos: `+54 9 11 1234-5678`, `005491112345678`, `5491112345678` y `011 15-1234-5678`. Un teléfono fijo completo puede ser válido: no se agrega un 9 indiscriminadamente. Para otros países debe incluirse el prefijo internacional con +. Se muestra el número normalizado antes de abrir el chat.
+El teléfono se toma del maestro y se valida con libphonenumber-js en el backend. Para formatos locales se utiliza Argentina; no se inventa el código de área ni se toman extensiones o el primero de varios números. Se adapta específicamente la salida argentina al formato de WhatsApp: **54 + 9 + código de área + número**, sin el 0 de acceso nacional ni el 15. Si el 9 ya existe, no se duplica. Para otros países se conserva el formato internacional validado con su código de país.
+
+La causa de la omisión del 9 era que libphonenumber interpreta `11 1234-5678`, sin 15, como una línea fija y genera +54 11. Esa interpretación general no se utiliza directamente como identificador de WhatsApp: se normaliza la salida argentina y se vuelve a validar. Este ajuste solo corresponde al enlace; no redefine el tipo de teléfono ni modifica el maestro.
+
+WhatsApp lo especifica en [Formato internacional de número de teléfono](https://faq.whatsapp.com/1294841057948784): Argentina requiere el 9 entre país y área y quitar el 15. Su [guía de clic para chatear](https://faq.whatsapp.com/5913398998672934) pide el número internacional sin +, guiones ni paréntesis en la ruta wa.me.
+
+| Teléfono guardado | Número del enlace |
+|---|---|
+| `(11) 1234-5678`, `011 1234-5678`, `011 15-1234-5678` | `5491112345678` |
+| `+54 11 1234-5678`, `+54 9 11 1234-5678`, `005491112345678` | `5491112345678` |
+| `(341) 2345678`, `0341 15 2345678` | `5493412345678` |
+| `+1 202 555 0123` | `12025550123` |
+
+Se muestra el número normalizado antes de abrir el chat. En Clientes se agrega una ayuda al campo Teléfono recomendando código de área sin 0, sin 15 y número; por ejemplo `(11) 1234-5678`. Los formatos anteriores con 0/15 se siguen aceptando al generar el enlace. Un número incompleto, como `11 1234567` (siete cifras después del área 11), sigue siendo inválido: no se completan dígitos automáticamente.
 
 El dato original no se modifica. Si falta o es inválido, Abrir WhatsApp queda deshabilitado con una explicación; copiar sigue disponible. La validación del formato no confirma que exista una cuenta de WhatsApp en ese número. La titularidad/contacto y el envío final deben revisarse en WhatsApp. Las políticas del canal siguen aplicándose; no se incorpora una automatización para eludirlas.
 
@@ -99,3 +112,5 @@ Chromium en escritorio y móvil, con API y destino WhatsApp simulados: categorí
 Ampliación NombreFantasia: se reutiliza `CLIENTE.Fantasia`, sin migraciones adicionales. Tipos correctos, 7 pruebas unitarias de mensajes y 17 casos del mayor/mensajes en MariaDB aprobados; se comprobaron el dato real, su uso en una plantilla guardada y el nombre alternativo para null, vacío o espacios.
 
 Ajuste de presentación posterior al PR #34: reutilización de FormSections y campos persistentes al limpiar el cliente, sin cambios de API, tablas, variables, generación, copia o enlace de WhatsApp. No se ejecutaron compilaciones ni pruebas para este ajuste visual, según lo solicitado; las verificaciones anteriores corresponden a las entregas funcionales previas.
+
+Corrección del prefijo argentino de WhatsApp: tipos correctos y 7 pruebas unitarias de mensajes aprobadas; 17 casos de integración del mayor/mensajes en MariaDB aprobados, verificando también que el teléfono original permanece intacto en la base tras consultar la normalización. La ayuda de Clientes se configura en el catálogo de campos compartido y reutiliza el hint del formulario base. No requiere migraciones.

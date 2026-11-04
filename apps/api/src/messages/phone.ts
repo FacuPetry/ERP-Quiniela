@@ -13,10 +13,21 @@ export function whatsappPhone(raw: string | null) {
   if (text.startsWith("00")) text = "+" + text.slice(2);
   // Un internacional argentino sin '+' también es habitual en los maestros.
   const digits = text.replace(/[\s().-]/g, "");
-  if (/^54\d{10,11}$/.test(digits)) text = "+" + digits;
-  const phone = /^\+?[\d\s().-]+$/.test(text)
+  if (/^54\d{10,13}$/.test(digits)) text = "+" + digits;
+  let phone = /^\+?[\d\s().-]+$/.test(text)
     ? parsePhoneNumberFromString(text, { defaultCountry: "AR", extract: false })
     : undefined;
+  // WhatsApp exige 54 + 9 + área + número para Argentina. Sin el 15,
+  // libphonenumber interpreta el nacional de diez dígitos como línea fija;
+  // se adapta solo la salida de WhatsApp, nunca el dato del maestro.
+  if (
+    phone?.isValid() &&
+    phone.country === "AR" &&
+    phone.nationalNumber.length === 10
+  )
+    phone = parsePhoneNumberFromString("+549" + phone.nationalNumber, {
+      extract: false,
+    });
   if (!phone?.isValid() || phone.ext)
     return {
       WhatsAppNumero: null,

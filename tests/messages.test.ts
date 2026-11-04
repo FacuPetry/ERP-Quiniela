@@ -123,15 +123,34 @@ test("Teléfonos de WhatsApp se validan sin inventar área ni tomar extensiones 
     "5491112345678",
     "54 9 11 1234-5678",
     "011 15-1234-5678",
+    "(11) 1234-5678",
+    "11 1234-5678",
+    "(011) 1234-5678",
+    "+54 11 1234-5678",
+    "0054 11 1234-5678",
+    "54 (011) 15-1234-5678",
+    "9 11 1234-5678",
   ])
     assert.equal(whatsappPhone(raw).WhatsAppNumero, "5491112345678", raw);
-  assert.equal(whatsappPhone("11 1234-5678").WhatsAppNumero, "541112345678");
+  for (const raw of [
+    "(341) 234-5678",
+    "0341 15 2345678",
+    "+54 341 2345678",
+    "+54 9 341 2345678",
+  ])
+    assert.equal(whatsappPhone(raw).WhatsAppNumero, "5493412345678", raw);
+  assert.equal(
+    whatsappPhone("0376 15 4123456").WhatsAppNumero,
+    "5493764123456",
+  );
   assert.equal(whatsappPhone("+1 202 555 0123").WhatsAppNumero, "12025550123");
   for (const raw of [
     null,
     "",
     "   ",
     "123",
+    "11 1234567",
+    "+54 11 1234567",
     "15-1234-5678",
     "abc",
     "+54 9 11 1234-5678 int 2",

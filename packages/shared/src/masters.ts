@@ -242,7 +242,12 @@ export const masterDefinitions: Record<MasterKey, MasterDefinition> = {
       { name: "Fantasia", label: "Nombre de fantasía", maxLength: 150 },
       { name: "DocumentoTipo", label: "Tipo de documento", maxLength: 10 },
       { name: "Documento", label: "Documento", maxLength: 20 },
-      { name: "Telefono", label: "Teléfono", maxLength: 40 },
+      {
+        name: "Telefono",
+        label: "Teléfono",
+        maxLength: 40,
+        hint: "Argentina: código de área sin 0, sin 15 y número. Ej.: (11) 1234-5678. WhatsApp agrega +54 9 al abrir el chat. Para otros países, incluí + y el código de país.",
+      },
       {
         name: "Email",
         label: "Correo electrónico",
