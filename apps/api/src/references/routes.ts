@@ -26,7 +26,7 @@ const dependencies: Partial<Record<MasterKey, readonly MenuKey[]>> = {
     "informe-cheques-terceros",
     "envio-mensajes",
   ],
-  "tipos-cliente": ["clientes", "informes-cuenta-corriente"],
+  "tipos-cliente": ["clientes", "informes-cuenta-corriente", "envio-mensajes"],
   bancos: ["cuentas-bancarias", "valores", "informe-cheques-terceros"],
   "cuentas-bancarias": ["valores"],
   cajas: [

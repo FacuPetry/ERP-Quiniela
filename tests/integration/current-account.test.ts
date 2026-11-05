@@ -631,8 +631,8 @@ test("Cuenta corriente: circuito financiero real en base aislada", async (t) => 
       const [rows] = await pool.query<RowDataPacket[]>("SHOW TABLES");
       assert.equal(
         rows.length,
-        22,
-        "Tablas de negocio e historial de migraciones, sin consumos de numeradores",
+        23,
+        "Tablas de negocio, avisos e historial de migraciones, sin consumos de numeradores",
       );
     },
   );

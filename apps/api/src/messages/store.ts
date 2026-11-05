@@ -1,15 +1,17 @@
 import { createHash } from "node:crypto";
 import type { Pool, PoolConnection, RowDataPacket } from "mysql2/promise";
 import {
-  defaultMessageTemplate,
-  renderMessageTemplate,
   type BalanceMessagePreview,
   type MessageTemplatePreference,
+  type ClientMessagesResult,
 } from "@erp/shared";
-import { readLedgerBalance } from "../reports/ledger.js";
+import { ledgerEntries, readLedgerBalance } from "../reports/ledger.js";
 import { MasterRequestError } from "../masters/validation.js";
-import { balanceMessage, messageBalanceDate } from "./text.js";
-import { whatsappPhone } from "./phone.js";
+import { messageBalanceDate } from "./text.js";
+import { prepareClientMessage } from "./preview.js";
+import { createNoticeStore, lastMessageNotices } from "./notices.js";
+import { listOrder } from "../database/list-order.js";
+import type { MessageClientsQuery } from "./validation.js";
 
 async function preference(
   c: Pool | PoolConnection,
@@ -34,8 +36,108 @@ async function preference(
       .digest("hex"),
   };
 }
+async function clientMessages(
+  pool: Pool,
+  q: MessageClientsQuery,
+  user: string,
+  now: Date,
+): Promise<ClientMessagesResult> {
+  const FechaHasta = messageBalanceDate(now),
+    consultadoEn = now.toISOString();
+  const order = listOrder(
+    q,
+    {
+      Cliente: "cl.Codigo",
+      ClienteNombre: "cl.Nombre",
+      Telefono: "cl.Telefono",
+      SaldoTotal: "COALESCE(s.SaldoTotal,0)",
+    },
+    "cl.Codigo",
+  );
+  const conditions: string[] = [],
+    params: string[] = [FechaHasta];
+  if (q.Estado !== "TODOS")
+    conditions.push(q.Estado === "ACTIVOS" ? "cl.Activo=1" : "cl.Activo=0");
+  if (q.ClienteTipo) {
+    conditions.push("cl.ClienteTipo=?");
+    params.push(q.ClienteTipo);
+  }
+  if (q.q) {
+    conditions.push(
+      "(cl.Codigo LIKE ? ESCAPE '!' OR cl.Nombre LIKE ? ESCAPE '!' OR cl.Fantasia LIKE ? ESCAPE '!')",
+    );
+    params.push(
+      ...Array<string>(3).fill("%" + q.q.replace(/[!%_]/g, "!$&") + "%"),
+    );
+  }
+  const balance = {
+    POSITIVO: ">0",
+    A_FAVOR: "<0",
+    CERO: "=0",
+    NO_CERO: "<>0",
+    TODOS: "",
+  }[q.Saldo];
+  if (balance) conditions.push("COALESCE(s.SaldoTotal,0)" + balance);
+  // La misma fuente monetaria del Resumen; una fila por asiento, sin sumar
+  // afectaciones/valores otra vez. Agregar antes de paginar o filtrar por saldo.
+  const from = `FROM CLIENTE cl LEFT JOIN (
+    SELECT l.Cliente,SUM(l.Debito-l.Credito) AS SaldoTotal FROM (${ledgerEntries}) l
+    WHERE l.FechaOrden<=? GROUP BY l.Cliente
+  ) s ON s.Cliente=cl.Codigo${conditions.length ? " WHERE " + conditions.join(" AND ") : ""}`;
+  const c = await pool.getConnection();
+  try {
+    await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+    await c.query("START TRANSACTION READ ONLY");
+    const config = await preference(c, user);
+    const [totals] = await c.execute<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total ${from}`,
+      params,
+    );
+    const total = Number(totals[0]!.total);
+    const [rows] = await c.execute<RowDataPacket[]>(
+      `SELECT cl.Codigo,cl.Nombre,cl.Fantasia,cl.Telefono,COALESCE(s.SaldoTotal,0) AS SaldoTotal ${from} ORDER BY ${order} LIMIT ? OFFSET ?`,
+      [...params, q.limite, (q.pagina - 1) * q.limite],
+    );
+    const latest = await lastMessageNotices(
+      c,
+      rows.map((r) => String(r.Codigo)),
+    );
+    const registros = rows.map((r) => ({
+      ...prepareClientMessage(
+        {
+          Codigo: String(r.Codigo),
+          Nombre: String(r.Nombre),
+          Fantasia: r.Fantasia == null ? null : String(r.Fantasia),
+          Telefono: r.Telefono == null ? null : String(r.Telefono),
+          SaldoTotal: String(r.SaldoTotal),
+        },
+        FechaHasta,
+        consultadoEn,
+        config.Plantilla,
+      ),
+      UltimoAviso: latest.get(String(r.Codigo)) ?? null,
+    }));
+    await c.commit();
+    return {
+      registros,
+      total,
+      pagina: q.pagina,
+      limite: q.limite,
+      FechaHasta,
+      consultadoEn,
+    };
+  } catch (error) {
+    await c.rollback();
+    throw error;
+  } finally {
+    c.release();
+  }
+}
 export function createMessageStore(pool: Pool, now = () => new Date()) {
   return {
+    ...createNoticeStore(pool, now),
+    clients: (q: MessageClientsQuery, user: string) =>
+      clientMessages(pool, q, user, now()),
     template: (user: string) => preference(pool, user),
     async saveTemplate(
       user: string,
@@ -88,37 +190,24 @@ export function createMessageStore(pool: Pool, now = () => new Date()) {
           phones[0]?.Telefono == null ? null : String(phones[0].Telefono);
         const SaldoTotal = String(total.SaldoFinal);
         const ClienteNombre = String(client.Nombre);
-        const text = balanceMessage(
-          ClienteNombre,
-          SaldoTotal,
+        const { ErrorMensaje, ...record } = prepareClientMessage(
+          {
+            Codigo: String(client.Codigo),
+            Nombre: ClienteNombre,
+            SaldoTotal,
+            Fantasia:
+              phones[0]?.Fantasia == null ? null : String(phones[0].Fantasia),
+            Telefono,
+          },
           FechaHasta,
-          defaultMessageTemplate,
-          phones[0]?.Fantasia == null ? null : String(phones[0].Fantasia),
+          consulted.toISOString(),
+          config.Plantilla,
         );
-        try {
-          text.Mensaje = renderMessageTemplate(
-            config.Plantilla ?? defaultMessageTemplate,
-            text.Variables,
-          );
-        } catch (error) {
-          throw new MasterRequestError(
-            400,
-            error instanceof Error
-              ? error.message
-              : "Revisá el mensaje guardado.",
-          );
-        }
+        if (ErrorMensaje) throw new MasterRequestError(400, ErrorMensaje);
+        const latest = await lastMessageNotices(c, [record.Cliente]);
+        record.UltimoAviso = latest.get(record.Cliente) ?? null;
         await c.commit();
-        return {
-          Cliente: String(client.Codigo),
-          ClienteNombre,
-          FechaHasta,
-          SaldoTotal,
-          ...text,
-          Telefono,
-          ...whatsappPhone(Telefono),
-          consultadoEn: consulted.toISOString(),
-        };
+        return record;
       } catch (error) {
         await c.rollback();
         throw error;

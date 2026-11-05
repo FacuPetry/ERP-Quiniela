@@ -4,9 +4,9 @@ Aplicación de cuenta corriente y tesorería. Desarrollo incremental: cada etapa
 
 Ver [alcance de la primera versión y mejoras pendientes](docs/entregas-y-pendientes.md): operatoria básica implementada, límites actuales, comprobación de aceptación y próximas entregas de estética e informes. Los cheques propios quedan fuera del alcance inicial del cliente.
 
-## Entrega en revisión — Envío de mensajes
+## Entrega en revisión — Mensajes y registro manual de avisos
 
-Notificaciones → Envío de mensajes permite seleccionar un cliente mediante SF, consultar su saldo neto hasta hoy con la misma consulta del Resumen, personalizar y guardar una plantilla por usuario e insertar variables. Ofrece Copiar mensaje y Abrir WhatsApp con teléfono validado y texto preparado; el envío se confirma dentro de WhatsApp. Conserva el permiso independiente de consulta. Requiere la migración **0010_mensaje_saldo_plantilla** (columna opcional en USUARIO; sin tablas nuevas). Los informes pendientes quedan en pausa. Ver [alcance y pruebas](docs/envio-mensajes.md).
+Notificaciones → Envío de mensajes agrega la ficha **Varios clientes**, con filtros de tipo/estado/búsqueda y acciones individuales Copiar/Abrir WhatsApp. La ficha muestra saldos distintos de cero, incluidos los saldos a favor, sin CheckBox ni pasos de selección adicionales. Reutiliza plantilla, saldo del mayor y permisos actuales. Agrega **Registrar envío**, **Último aviso** e historial compartido con confirmación manual; requiere la migración **0011_mensaje_aviso_manual** (MENSAJEAVISO). No envía automáticamente ni verifica la entrega de WhatsApp. Conserva la consulta individual mediante SF y la configuración de la plantilla personal con variables. Ofrece Copiar mensaje y Abrir WhatsApp con teléfono validado y texto preparado; el envío se confirma dentro de WhatsApp. Conserva el permiso independiente de consulta. La plantilla personal utiliza la migración **0010_mensaje_saldo_plantilla**, ya integrada. Los informes pendientes quedan en pausa. Ver [alcance y pruebas](docs/envio-mensajes.md).
 
 ## Importes y panel de Cajas
 

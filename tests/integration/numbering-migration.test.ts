@@ -263,7 +263,7 @@ test("Migraciones financieras: conservan datos y detienen conversiones ambiguas 
         ),
       );
       const [tables] = await connection.query<RowDataPacket[]>("SHOW TABLES");
-      assert.equal(tables.length, 22);
+      assert.equal(tables.length, 23);
     },
   );
   await t.test(

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  renderMessageTemplate,
   whatsappMessageUrl,
+  newestMessageNotice,
+  type MessageNotice,
   type BalanceMessagePreview,
   type MasterRecord,
 } from "@erp/shared";
@@ -12,6 +13,14 @@ import { Icon } from "../Icon";
 import { FormSections } from "../ui/FormSections";
 import { ApiRequestError } from "../../services/http";
 import { previewBalanceMessage } from "../../services/messages";
+import { messagePreview } from "./message-preview";
+import {
+  LastMessageNotice,
+  RegisterMessageNotice,
+  MessageNoticeHistory,
+  type NoticeTarget,
+} from "./MessageNotices";
+import { ClientMessages } from "./ClientMessages";
 import { MessageTemplateEditor } from "./MessageTemplateEditor";
 import "./messages.css";
 
@@ -22,6 +31,17 @@ export function MessagesPage({
   csrf: string;
   onExpired: () => void;
 }) {
+  const [noticeUpdates, setNoticeUpdates] = useState<
+    Record<string, MessageNotice>
+  >({});
+  const [noticeTarget, setNoticeTarget] = useState<NoticeTarget | null>(null);
+  const [historyClient, setHistoryClient] = useState<{
+    Cliente: string;
+    ClienteNombre: string;
+  } | null>(null);
+  function registerNotice(row: BalanceMessagePreview, template: string) {
+    setNoticeTarget({ preview: row, template, key: crypto.randomUUID() });
+  }
   const [template, setTemplate] = useState<string | null>(null);
   const [client, setClient] = useState<MasterRecord | null>(null);
   const [preview, setPreview] = useState<BalanceMessagePreview | null>(null);
@@ -33,21 +53,10 @@ export function MessagesPage({
     setTemplate(value);
     setStatus("");
   }, []);
-  const rendered = useMemo(() => {
-    if (!preview || template === null) return { message: "", error: undefined };
-    try {
-      return {
-        message: renderMessageTemplate(template, preview.Variables),
-        error: undefined,
-      };
-    } catch (e) {
-      return {
-        message: "",
-        error:
-          e instanceof Error ? e.message : "Revisá las variables del mensaje.",
-      };
-    }
-  }, [preview, template]);
+  const rendered = useMemo(
+    () => messagePreview(template, preview),
+    [preview, template],
+  );
   const latestMessage = useRef(rendered.message);
   latestMessage.current = rendered.message;
   const whatsapp =
@@ -126,6 +135,10 @@ export function MessagesPage({
       if (current === revision.current) setCopying(false);
     }
   }
+  const lastNotice = newestMessageNotice(
+    preview?.UltimoAviso,
+    preview ? noticeUpdates[preview.Cliente] : null,
+  );
   return (
     <section
       className="panel record-form messages-panel"
@@ -253,6 +266,15 @@ export function MessagesPage({
                         ? `WhatsApp: +${preview.WhatsAppNumero}`
                         : "")}
                   </p>
+                  <p className="muted small">
+                    Último aviso:{" "}
+                    <LastMessageNotice
+                      notice={lastNotice}
+                      onHistory={() => {
+                        if (preview) setHistoryClient(preview);
+                      }}
+                    />
+                  </p>
                   <div className="messages-actions">
                     <button
                       type="button"
@@ -295,6 +317,27 @@ export function MessagesPage({
                         Abrir WhatsApp
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className="button secondary"
+                      disabled={
+                        !preview?.RegistroToken ||
+                        !rendered.message ||
+                        Boolean(rendered.error) ||
+                        loading ||
+                        copying ||
+                        template === null
+                      }
+                      onClick={() => {
+                        if (preview && template !== null)
+                          registerNotice(
+                            { ...preview, UltimoAviso: lastNotice },
+                            template,
+                          );
+                      }}
+                    >
+                      <Icon name="check" size={17} /> Registrar envío
+                    </button>
                   </div>
                   <p
                     className="muted small messages-copy-feedback"
@@ -306,8 +349,47 @@ export function MessagesPage({
               </div>
             ),
           },
+          {
+            key: "clients",
+            title: "Varios clientes",
+            content: (
+              <ClientMessages
+                template={template}
+                onExpired={onExpired}
+                onRegister={registerNotice}
+                onHistory={setHistoryClient}
+                noticeUpdates={noticeUpdates}
+              />
+            ),
+          },
         ]}
       />
+      {noticeTarget && (
+        <RegisterMessageNotice
+          target={noticeTarget}
+          csrf={csrf}
+          onExpired={onExpired}
+          onClose={() => setNoticeTarget(null)}
+          onSaved={(notice) => {
+            setNoticeUpdates((values) => ({
+              ...values,
+              [notice.Cliente]: newestMessageNotice(
+                values[notice.Cliente],
+                notice,
+              )!,
+            }));
+            setNoticeTarget(null);
+          }}
+        />
+      )}
+      {historyClient && (
+        <MessageNoticeHistory
+          key={historyClient.Cliente}
+          client={historyClient}
+          onExpired={onExpired}
+          onClose={() => setHistoryClient(null)}
+        />
+      )}
     </section>
   );
 }

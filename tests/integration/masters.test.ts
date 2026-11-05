@@ -726,6 +726,10 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
   await t.test(
     "99999 detiene la numeración sin escribir ni agregar tablas",
     async () => {
+      const countTables =
+        "SELECT COUNT(*) AS total FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> '__drizzle_migrations'";
+      const [tablesBefore] = await pool.query<RowDataPacket[]>(countTables);
+
       await pool.execute(
         "INSERT INTO CLIENTE (Codigo, Nombre, ClienteTipo) VALUES (?, ?, ?)",
         ["99999", "Límite de prueba", "CORR"],
@@ -754,7 +758,7 @@ test("Maestros: API autenticada y persistencia en base aislada", async (t) => {
       const [tables] = await pool.query<RowDataPacket[]>(
         "SELECT COUNT(*) AS total FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME <> '__drizzle_migrations'",
       );
-      assert.equal(Number(tables[0]?.total), 21);
+      assert.deepEqual(tables, tablesBefore);
       await pool.execute("DELETE FROM CLIENTE WHERE Codigo = ?", ["99999"]);
     },
   );

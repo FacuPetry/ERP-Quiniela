@@ -78,6 +78,13 @@
       "when": 1793755195258,
       "tag": "0010_mensaje_saldo_plantilla",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1793841539512,
+      "tag": "0011_mensaje_aviso_manual",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,6 @@
-# Envío de mensajes — plantillas personales y WhatsApp manual
+# Envío de mensajes — consulta individual y varios clientes
 
-CLI-01, revisión 03/11/2026. Los informes pendientes siguen en pausa. El módulo prepara texto, permite copiarlo y abre un chat con el mensaje escrito; **el usuario confirma el envío dentro de WhatsApp**. No integra API oficial, envíos automáticos, masivos/programados, proveedores pagos ni registro de entregas.
+CLI-01, revisión 04/11/2026. Los informes pendientes siguen en pausa. El módulo prepara texto, permite copiarlo y abre un chat con el mensaje escrito; **el usuario confirma el envío dentro de WhatsApp**. No integra API oficial, envíos automáticos, masivos/programados, proveedores pagos ni verificación de entrega/lectura. Permite registrar confirmaciones manuales de avisos.
 
 ## Funcionamiento
 
@@ -8,11 +8,37 @@ CLI-01, revisión 03/11/2026. Los informes pendientes siguen en pausa. El módul
 
 Al ingresar se carga la plantilla del usuario autenticado. Elegir un cliente válido consulta el saldo real y muestra saldo firmado, fecha de corte, teléfono y vista previa. Escribir un código/nombre sin resolver el SF no consulta el saldo. Se admiten clientes inactivos con movimientos históricos, igual que en el Resumen.
 
-El formulario reutiliza **FormSections** con dos fichas: **Configurar mensaje** (plantilla, variables y guardado) y **Envío de mensajes** (cliente, datos, vista previa y acciones). Conserva la columna lateral, Sticky, selección automática por sección visible y navegación mediante scroll; en móvil utiliza la adaptación del componente base. Ambas secciones permanecen montadas, sin perder borradores al navegar.
+El formulario reutiliza **FormSections** con tres fichas: **Configurar mensaje** (plantilla, variables y guardado), **Envío de mensajes** (cliente, datos, vista previa y acciones) y **Varios clientes** (consulta por filtros y acciones por cliente). Conserva la columna lateral, Sticky, selección automática por sección visible y navegación mediante scroll; en móvil utiliza la adaptación del componente base. Las secciones permanecen montadas, sin perder borradores al navegar.
 
 Los campos Saldo total, Saldo hasta, Teléfono y Vista previa permanecen visibles sin cliente, con valores vacíos y las acciones de copia/WhatsApp deshabilitadas. Los espacios informativos tienen altura reservada para evitar saltos al seleccionar, actualizar o limpiar. No se conserva ni se muestra el resultado del cliente anterior para completar esa estructura.
 
 Cambiar/limpiar el cliente descarta el resultado anterior y cancela peticiones pendientes; una respuesta tardía no puede reponer el mensaje de otro cliente. **Actualizar mensaje** vuelve a consultar saldos y teléfono. Un error de actualización retira el resultado anterior. Editar la plantilla reemplaza variables sobre los datos ya consultados, sin repetir consultas financieras por cada tecla.
+
+## Varios clientes: consulta simple y envío manual individual
+
+Se amplía el módulo existente con una tercera ficha, compartiendo menú, configuración y permisos. Reutiliza FormSections, DataTable con selección simple para Propiedades, ActionToolbar, FilterDialog, DropDown, Pagination y la presentación de tablas de Informes.
+
+**Filtrar clientes** abre el modal; no se consulta ningún cliente al entrar ni antes de aplicar los filtros. Se admiten tipo de cliente (incluidos tipos inactivos), búsqueda por código/nombre/fantasía y estado de los clientes, por defecto activos. No se muestra un selector de saldo: la consulta utiliza saldo neto distinto de cero, incluyendo a favor, siempre con su signo y texto correspondiente. Es el neto del Resumen, no pendiente documental: deudas y premios pueden compensarse sin cancelar sus documentos. La consulta individual sigue permitiendo clientes sin saldo.
+
+Cada fila muestra cliente, teléfono original, saldo firmado, vista previa y las acciones individuales **Copiar mensaje** y **Abrir WhatsApp**. No hay CheckBox, selección de página, consulta de elegidos ni limpieza de selección. La fila se puede seleccionar únicamente para consultar Propiedades. La tabla tiene scroll interno, ordenamiento remoto y páginas de 20; filtros y orden se aplican antes de paginar. El texto completo se consulta desde Propiedades o su tooltip.
+
+Se utiliza la misma plantilla personal que en el envío individual, incluido el borrador sin guardar. Editarla actualiza las vistas previas sin consultar saldos por cada tecla. Los errores se indican por cliente; un teléfono inválido impide WhatsApp pero permite copiar. Si falla el portapapeles, se muestra el texto para copia manual. Actualizar relee saldos y teléfonos; un fallo retira los resultados anteriores y una respuesta tardía se descarta.
+
+Cada mensaje se copia o abre mediante una acción explícita en su fila. El usuario revisa y presiona Enviar dentro de WhatsApp. No se abren múltiples chats automáticamente ni se registra «enviado» al copiar o abrir un enlace. El registro manual se realiza con una acción independiente y confirmación explícita.
+
+## Registrar envío y Último aviso
+
+La tabla agrega **Último aviso** (fecha del negocio e importe informado) y una columna con encabezado **Registrar envío**. Su botón de tilde es una acción, nunca un CheckBox ni una marca permanente. Sin antecedentes muestra «Sin avisos registrados».
+
+Después de enviar manualmente en WhatsApp o copiar/pegar, el operador presiona la tilde. El modal muestra cliente, teléfono registrado, saldo y fecha de corte, texto preparado y último aviso, si existe. **Cancelar** no guarda nada. **Confirmar envío** registra una declaración manual del usuario. El sistema no conoce el envío, entrega o lectura reales de WhatsApp. El operador debe revisar que el texto coincida con el que envió, porque WhatsApp permite editarlo.
+
+Cada confirmación nueva conserva el aviso anterior: no hay reinicios diarios, bloqueos permanentes ni frecuencia impuesta. Si el aviso es repetido, el modal informa el último registro y permite confirmar uno nuevo. La misma funcionalidad está disponible en la consulta individual. Ambos modos se actualizan al registrar y conservan los datos tras refrescar, cambiar filtros o volver a entrar.
+
+Al presionar la fecha de **Último aviso**, un OffCanvas reutiliza DataTable, toolbar estándar, paginación y Propiedades para consultar el historial, más reciente primero: fecha/hora, saldo informado, fecha del saldo, usuario, teléfono, texto y «WhatsApp · Manual». Es compartido por los usuarios con acceso a Mensajes; las plantillas siguen siendo personales.
+
+Se guarda exactamente la versión preparada: nombre y teléfono originales de esa consulta, fecha de corte, saldo y texto resultante de la plantilla que el usuario confirmó, aunque sea un borrador sin guardar. Si cambian los datos o se registra un cobro mientras está en WhatsApp, no se reemplaza lo informado por el nuevo saldo. La API firma los datos de preparación ligados a la sesión y reconstruye el texto con sus variables; no acepta un importe/cliente/usuario arbitrario. Cambiar de sesión requiere volver a consultar. El recibo de preparación no crea borradores ni filas en la base.
+
+Cada modal usa una clave de confirmación propia, con unicidad en la base por usuario. El doble clic o reintento con esa misma clave devuelve el registro existente. Una confirmación nueva usa otra clave y registra otro aviso. Esta protección evita duplicados de registro por reintentos, no verifica ni impide envíos reales repetidos desde WhatsApp.
 
 ## Plantilla guardada por usuario
 
@@ -34,7 +60,7 @@ Las variables desconocidas, las llaves incompletas y el texto vacío se señalan
 
 ## Saldo compartido con el Resumen
 
-Se mantiene `readLedgerBalance`, la misma consulta de totales del Resumen, sin modificar fórmulas ni SQL financieros. La vista previa usa **SaldoFinal** hasta el día actual de Argentina: incluye el saldo anterior, excluye posteriores/anulados y conserva originales revertidos junto con sus contrapartidas. No suma otra vez afectaciones ni medios de pago. Nombre, saldo, teléfono y plantilla se leen dentro del mismo snapshot de solo lectura.
+La consulta individual conserva `readLedgerBalance`. El lote reutiliza su fuente `ledgerEntries`: una fila monetaria por asiento y las mismas expresiones de débito/crédito y vigencia del Resumen. Solo se expone la clave de cliente para agrupar; no cambian las fórmulas financieras. La vista previa usa **SaldoFinal** hasta el día actual de Argentina: incluye el saldo anterior, excluye posteriores/anulados y conserva originales revertidos junto con sus contrapartidas. No suma otra vez afectaciones ni medios de pago. Nombre, saldo, teléfono y plantilla se leen dentro del mismo snapshot de solo lectura. El lote suma en MySQL con DECIMAL antes de aplicar filtros de saldo y paginación; no multiplica importes por afectaciones/valores ni calcula dinero en JavaScript.
 
 Para comparar con el KPI **Saldo total** del Resumen, usar el mismo cliente y **Fecha hasta igual a Saldo hasta** del módulo. Desde distribuye saldo anterior y movimientos, sin eliminar el saldo anterior del KPI. Un Hasta histórico puede dar otro importe legítimamente. Se utilizan los estados vigentes; no se reconstruyen estados históricos.
 
@@ -66,22 +92,24 @@ El dato original no se modifica. Si falta o es inválido, Abrir WhatsApp queda d
 ## Permisos, API y persistencia
 
 - Se conserva la clave `envio-mensajes`; solo cambia su categoría a **Notificaciones**. Los permisos existentes continúan funcionando. Administrador accede automáticamente; otros usuarios requieren **Usuarios → Acceso al menú → Notificaciones → Envío de mensajes → Consulta**.
-- Consulta habilita preparar/copiar/abrir chat y guardar **su propia preferencia**, sin conceder escrituras financieras ni acceso a otros ABM/Informes. El SF auxiliar sigue proyectando Código, Nombre y Activo si no hay permiso del maestro.
+- Acceso a Mensajes habilita preparar/copiar/abrir chat, guardar **su propia preferencia**, registrar avisos manuales y consultar su historial compartido, sin conceder escrituras financieras ni acceso a otros ABM/Informes. El SF auxiliar sigue proyectando Código, Nombre y Activo si no hay permiso del maestro.
 - `GET /api/mensajes/plantilla`: devuelve la plantilla propia o null para el predeterminado, y versión.
 - `PUT /api/mensajes/plantilla`: recibe únicamente `{ Plantilla: string | null }`. Requiere sesión, permiso, petición de aplicación, CSRF e If-Match. El usuario se obtiene de la sesión; no se admite un Usuario en el cuerpo. Versión desactualizada devuelve 409.
 - `GET /api/mensajes/vista-previa?Cliente=...`: datos reales, variables, mensaje con plantilla guardada y teléfono/validación. No permite aportar saldo o fecha de corte. Respuestas sin caché. No existe endpoint de envío.
-- Única adición de esquema: **USUARIO.MensajeSaldoPlantilla**, TEXT nullable. No se agrega ninguna tabla, FK ni datos obligatorios. Los usuarios existentes conservan null y la redacción predeterminada. Los errores técnicos no registran plantillas, mensajes o saldos.
+- `POST /api/mensajes/avisos`: exige permiso Mensajes, origen de aplicación, CSRF, clave UUID de idempotencia, preparación firmada, plantilla válida y confirmación true. Graba usuario y fecha en servidor. No recalcula el saldo ya informado ni afecta operaciones financieras.
+- `GET /api/mensajes/avisos?Cliente=...`: historial compartido, paginado y de solo lectura; cliente obligatorio.
+- Persistencia: **USUARIO.MensajeSaldoPlantilla** (0010) y nueva tabla **MENSAJEAVISO** (0011), con FK a Cliente/Usuario, copia de los datos informados, índice de consulta por cliente/fecha y clave única de confirmación. Saldo DECIMAL exacto, sin Number. No se borran ni sobrescriben avisos al registrar otro. Los errores técnicos no escriben mensajes, teléfonos ni saldos en logs.
 
 ## Publicación
 
-Aplicar **0010_mensaje_saldo_plantilla** antes de probar el módulo, con el procedimiento habitual y la aplicación detenida:
+Aplicar las migraciones pendientes, incluida **0011_mensaje_aviso_manual**, antes de probar el registro de avisos, con el procedimiento habitual y la aplicación detenida:
 
 ```sh
 npm run db:migrate:prod
 npm run db:check:prod
 ```
 
-La migración agrega una columna opcional sin alterar usuarios ni movimientos existentes. El check detecta si falta. No se requieren credenciales ni configuración de WhatsApp/SMS. El catálogo y el renderizado compartidos permiten añadir variables; futuros transportes, lotes y programación seguirán requiriendo su propia definición y no se implementan anticipadamente.
+0010 agregó la plantilla opcional. 0011 crea MENSAJEAVISO con sus FKs e índices, conservando clientes, usuarios y movimientos existentes. `db:check:prod` debe informar **22/22 tablas**, además del historial técnico de migraciones. No se requieren credenciales ni configuración de WhatsApp/SMS. El catálogo y el renderizado compartidos permiten añadir variables; futuros transportes, lotes y programación seguirán requiriendo su propia definición y no se implementan anticipadamente.
 
 ## Archivos principales
 
@@ -114,3 +142,35 @@ Ampliación NombreFantasia: se reutiliza `CLIENTE.Fantasia`, sin migraciones adi
 Ajuste de presentación posterior al PR #34: reutilización de FormSections y campos persistentes al limpiar el cliente, sin cambios de API, tablas, variables, generación, copia o enlace de WhatsApp. No se ejecutaron compilaciones ni pruebas para este ajuste visual, según lo solicitado; las verificaciones anteriores corresponden a las entregas funcionales previas.
 
 Corrección del prefijo argentino de WhatsApp: tipos correctos y 7 pruebas unitarias de mensajes aprobadas; 17 casos de integración del mayor/mensajes en MariaDB aprobados, verificando también que el teléfono original permanece intacto en la base tras consultar la normalización. La ayuda de Clientes se configura en el catálogo de campos compartido y reutiliza el hint del formulario base. No requiere migraciones.
+
+
+## Entrega Varios clientes (04/11/2026)
+
+La consulta de varios clientes no altera la registración financiera. El registro manual de avisos requiere la migración 0011. Conserva el permiso `envio-mensajes` y agrega acceso a la referencia acotada de tipos, sin conceder el maestro. GET `/api/mensajes/clientes` consulta en un snapshot de solo lectura, con filtros/paginación y orden validado. No acepta saldos, fechas ni usuarios aportados desde el navegador. Se retiró la ruta de consulta de seleccionados que ya no utiliza la ficha simplificada.
+
+Archivos: API `messages/store.ts`, `messages/routes.ts`, `messages/validation.ts`, `messages/preview.ts`, `reports/ledger.ts` y `references/routes.ts`; web `messages/MessagesPage.tsx`, `messages/ClientMessages.tsx`, `messages/message-preview.ts`, `messages/messages.css` y `services/messages.ts`; contratos `packages/shared/src/messages.ts`; pruebas `tests/integration/account-ledger.test.ts`; esta guía, README y roadmap.
+
+Aceptación:
+
+1. Aplicar tipo, búsqueda y estado en Varios clientes. Solo se consulta al aceptar los filtros. No deben aparecer CheckBox, acciones de selección ni filtro de saldo neto.
+2. Comparar saldos con el modo individual y el KPI Saldo total del Resumen con el mismo Hasta. Incluir deudas, premios, afectaciones, anulaciones y reversiones. El lote omite netos cero; un saldo negativo debe conservar su signo y mensaje a favor.
+3. Revisar paginación, orden global y Actualizar. Seleccionar una fila debe habilitar Propiedades sin generar mensajes ni abrir chats adicionales.
+4. Editar la plantilla y revisar vistas previas, Copiar y WhatsApp por cliente; probar teléfono inválido, portapapeles denegado, resultados vacíos y móvil.
+
+Las verificaciones de la entrega original incluyeron tipos, 65 pruebas unitarias y 201 pruebas de integración por motor. La revisión simplificada pasó tipos, los 20 casos de mayor/mensajes en MySQL 8.4 y MariaDB 11.8.9, y Chromium de escritorio/móvil: filtros sin selector de saldo, ausencia de CheckBox/acciones de selección, Propiedades, copia/WhatsApp, plantilla compartida, negativos, teléfono inválido, copia manual, actualización, orden, paginación, vacío y scroll interno. Las suites completas anteriores corresponden a la revisión original. Se utilizan bases efímeras y WhatsApp simulado, sin contactar destinatarios ni usar datos de Hostinger.
+
+
+## Aceptación del registro manual
+
+1. Aplicar migración 0011 y verificar 22/22. Abrir Varios clientes: los encabezados **Último aviso** y **Registrar envío** deben ser visibles; todavía sin avisos para clientes sin antecedentes.
+2. Copiar o abrir WhatsApp y volver: no debe registrarse un aviso. Presionar tilde y Cancelar: tampoco.
+3. Confirmar: fecha e importe aparecen inmediatamente. Refrescar, cambiar filtros o recargar: persisten. Revisar sincronización con la consulta individual.
+4. Abrir la fecha para consultar Historial/Propiedades. Registrar otro aviso posteriormente: último aviso se actualiza y el anterior se conserva, con su texto y saldo.
+5. Consultar un saldo, registrar después un cobro/cambiar teléfono en otra sesión y confirmar el aviso preparado: debe conservar lo informado originalmente. No modifica el saldo actual de Cuenta corriente.
+6. Simular fallo de red al confirmar y reintentar: una misma confirmación no se duplica. Una confirmación nueva puede registrar otro aviso sin imponer frecuencia.
+7. Revisar móvil, saldos a favor y permisos. El historial está compartido entre usuarios autorizados; sin acceso a Mensajes, su API está bloqueada.
+
+
+Verificación del registro manual: tipos correctos, **66 pruebas unitarias**, suites completas con **202 pruebas en MySQL 8.4 y 202 en MariaDB 11.8.9**, todas aprobadas. Incluyen migración y repetición sin pérdida de datos, FK/collation compatibles, firma ligada a sesión, rechazo de datos adulterados/CSRF/permisos, snapshot anterior a cambios de saldo/teléfono, reintentos concurrentes con una sola fila, nuevos avisos, historial compartido/paginado, signos/cero y ausencia de escrituras financieras. Se actualizaron los conteos de esquema en pruebas anteriores para incluir MENSAJEAVISO.
+
+Chromium escritorio/móvil, con API y WhatsApp simulados: encabezados Registrar envío/Último aviso, cancelar/confirmar, error y reintento con la misma clave, historial, aviso nuevo, sincronización individual/listado y persistencia al recargar. Copiar y abrir WhatsApp no generaron registros. Sin contactos reales ni datos de Hostinger.

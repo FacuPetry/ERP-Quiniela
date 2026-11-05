@@ -82,6 +82,9 @@ export interface MessageTemplatePreference {
 }
 /** Preparar, copiar o abrir un chat no constituye confirmación de envío. */
 export interface BalanceMessagePreview {
+  /** Recibo de preparación firmado por la API, ligado a la sesión. */
+  RegistroToken?: string;
+  UltimoAviso: MessageNotice | null;
   Cliente: string;
   ClienteNombre: string;
   FechaHasta: string;
@@ -93,4 +96,55 @@ export interface BalanceMessagePreview {
   WhatsAppNumero: string | null;
   WhatsAppError: string | null;
   consultadoEn: string;
+}
+export const messageBalanceFilters = [
+  { value: "POSITIVO", label: "A pagar por el cliente (neto positivo)" },
+  { value: "NO_CERO", label: "Saldo neto distinto de cero" },
+  { value: "A_FAVOR", label: "A favor del cliente (neto negativo)" },
+  { value: "CERO", label: "Saldo neto en cero" },
+  { value: "TODOS", label: "Todos los saldos" },
+] as const;
+export interface ClientMessageRow extends BalanceMessagePreview {
+  ErrorMensaje: string | null;
+}
+export interface ClientMessagesResult {
+  registros: ClientMessageRow[];
+  total: number;
+  pagina: number;
+  limite: number;
+  FechaHasta: string;
+  consultadoEn: string;
+}
+
+/** Declaración del operador; no es una entrega verificada por WhatsApp. */
+export interface MessageNotice {
+  IDTabla: string;
+  Cliente: string;
+  ClienteNombre: string;
+  UsuarioNombre: string;
+  RegistradoEn: string;
+  FechaSaldo: string;
+  SaldoTotal: string;
+  Telefono: string | null;
+  WhatsAppNumero: string | null;
+  Mensaje: string;
+  Canal: "WHATSAPP_MANUAL";
+}
+export interface MessageNoticesResult {
+  registros: MessageNotice[];
+  total: number;
+  pagina: number;
+  limite: number;
+}
+export function newestMessageNotice(
+  a: MessageNotice | null | undefined,
+  b: MessageNotice | null | undefined,
+): MessageNotice | null {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return a.RegistradoEn > b.RegistradoEn ||
+    (a.RegistradoEn === b.RegistradoEn &&
+      BigInt(a.IDTabla) >= BigInt(b.IDTabla))
+    ? a
+    : b;
 }

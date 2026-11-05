@@ -22,6 +22,16 @@
 .messages-balance {
   align-items: flex-start;
 }
+.messages-clients-toolbar {
+  flex-wrap: wrap;
+}
+.messages-clients-toolbar .action-toolbar {
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.messages-clients .pagination {
+  padding: 16px 18px;
+}
 .messages-query-feedback {
   min-height: calc(3em + 24px);
 }
@@ -46,4 +56,26 @@
   .messages-phone-feedback {
     min-height: 6em;
   }
+}
+
+.message-notice-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.message-notice-link:focus-visible {
+  outline: 2px solid #6c8b55;
+  outline-offset: 3px;
+}
+.messages-notice-confirm {
+  display: grid;
+  gap: 14px;
+}
+.messages-notice-history {
+  gap: 20px;
 }
