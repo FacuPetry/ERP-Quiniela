@@ -367,7 +367,7 @@ export function ClientMessages({
                     title={`Abrir WhatsApp de ${row.ClienteNombre}`}
                     aria-label={`Abrir WhatsApp de ${row.ClienteNombre}`}
                   >
-                    <Icon name="message" size={17} />
+                    <Icon name="whatsapp" size={17} />
                   </a>
                 ) : (
                   <button
@@ -381,7 +381,7 @@ export function ClientMessages({
                     }
                     aria-label={`Abrir WhatsApp de ${row.ClienteNombre}`}
                   >
-                    <Icon name="message" size={17} />
+                    <Icon name="whatsapp" size={17} />
                   </button>
                 )}
               </>

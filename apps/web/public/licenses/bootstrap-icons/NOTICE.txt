@@ -1,0 +1,3 @@
+El ícono de WhatsApp utilizado en Icon.tsx procede de Bootstrap Icons, bajo licencia MIT.
+Fuente: https://github.com/twbs/icons/blob/main/icons/whatsapp.svg
+Copyright y licencia completa en LICENSE.txt de este directorio.

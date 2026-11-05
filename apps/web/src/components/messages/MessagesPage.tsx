@@ -300,7 +300,7 @@ export function MessagesPage({
                         rel="noopener noreferrer"
                         title={`Abrir chat con +${preview?.WhatsAppNumero}`}
                       >
-                        Abrir WhatsApp
+                        <Icon name="whatsapp" size={17} /> Abrir WhatsApp
                       </a>
                     ) : (
                       <button
@@ -314,7 +314,7 @@ export function MessagesPage({
                             : "Seleccioná un cliente.")
                         }
                       >
-                        Abrir WhatsApp
+                        <Icon name="whatsapp" size={17} /> Abrir WhatsApp
                       </button>
                     )}
                     <button
