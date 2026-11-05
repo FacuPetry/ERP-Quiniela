@@ -20,23 +20,6 @@ export function listClientMessages(
     { signal },
   );
 }
-export function selectedClientMessages(
-  Clientes: string[],
-  parameters: Record<string, string>,
-  csrf: string,
-  signal: AbortSignal,
-) {
-  return apiRequest<ClientMessagesResult>("/mensajes/clientes/seleccionados", {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      "X-ERP-Request": "1",
-      "X-CSRF-Token": csrf,
-    },
-    body: JSON.stringify({ Clientes, ...parameters }),
-  });
-}
 export function getMessageTemplate(signal: AbortSignal) {
   return apiRequest<MessageTemplatePreference>("/mensajes/plantilla", {
     signal,

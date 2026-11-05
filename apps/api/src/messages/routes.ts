@@ -12,7 +12,7 @@ import { requireApplicationRequest } from "../auth/routes.js";
 import { equalToken } from "../auth/crypto.js";
 import { MasterRequestError } from "../masters/validation.js";
 import type { MessageStore } from "./store.js";
-import { messageClientsQuery, selectedMessageClients } from "./validation.js";
+import { messageClientsQuery } from "./validation.js";
 
 const query = z.object({ Cliente: z.string().trim().min(1).max(20) }).strict();
 const templateInput = z
@@ -41,26 +41,6 @@ export function messagesRouter(auth: AuthService, store: MessageStore) {
       ),
     );
   });
-  // Preparar seleccionados es una consulta: no envía ni registra operaciones.
-  r.post(
-    "/clientes/seleccionados",
-    requireApplicationRequest,
-    async (req, res) => {
-      const session = res.locals.session as SessionResponse;
-      if (!equalToken(req.get("X-CSRF-Token") ?? "", session.csrfToken))
-        throw new MasterRequestError(
-          403,
-          "Actualizá la página antes de consultar los clientes.",
-        );
-      const parsed = selectedMessageClients.safeParse(req.body);
-      if (!parsed.success)
-        throw new MasterRequestError(
-          400,
-          "Revisá los clientes seleccionados y la página solicitada.",
-        );
-      res.json(await store.selectedClients(parsed.data, session.usuario.id));
-    },
-  );
   r.get("/plantilla", async (_req, res) => {
     const session = res.locals.session as SessionResponse;
     res.json(await store.template(session.usuario.id));

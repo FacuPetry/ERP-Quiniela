@@ -101,7 +101,6 @@ export const messageBalanceFilters = [
   { value: "CERO", label: "Saldo neto en cero" },
   { value: "TODOS", label: "Todos los saldos" },
 ] as const;
-export const maxSelectedMessageClients = 1000;
 export interface ClientMessageRow extends BalanceMessagePreview {
   ErrorMensaje: string | null;
 }

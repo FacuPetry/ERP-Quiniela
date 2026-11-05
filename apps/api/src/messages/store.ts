@@ -10,10 +10,7 @@ import { MasterRequestError } from "../masters/validation.js";
 import { messageBalanceDate } from "./text.js";
 import { prepareClientMessage } from "./preview.js";
 import { listOrder } from "../database/list-order.js";
-import type {
-  MessageClientsQuery,
-  SelectedMessageClients,
-} from "./validation.js";
+import type { MessageClientsQuery } from "./validation.js";
 
 async function preference(
   c: Pool | PoolConnection,
@@ -43,7 +40,6 @@ async function clientMessages(
   q: MessageClientsQuery,
   user: string,
   now: Date,
-  selected?: string[],
 ): Promise<ClientMessagesResult> {
   const FechaHasta = messageBalanceDate(now),
     consultadoEn = now.toISOString();
@@ -59,33 +55,28 @@ async function clientMessages(
   );
   const conditions: string[] = [],
     params: string[] = [FechaHasta];
-  if (selected) {
-    conditions.push(`cl.Codigo IN (${selected.map(() => "?").join(",")})`);
-    params.push(...selected);
-  } else {
-    if (q.Estado !== "TODOS")
-      conditions.push(q.Estado === "ACTIVOS" ? "cl.Activo=1" : "cl.Activo=0");
-    if (q.ClienteTipo) {
-      conditions.push("cl.ClienteTipo=?");
-      params.push(q.ClienteTipo);
-    }
-    if (q.q) {
-      conditions.push(
-        "(cl.Codigo LIKE ? ESCAPE '!' OR cl.Nombre LIKE ? ESCAPE '!' OR cl.Fantasia LIKE ? ESCAPE '!')",
-      );
-      params.push(
-        ...Array<string>(3).fill("%" + q.q.replace(/[!%_]/g, "!$&") + "%"),
-      );
-    }
-    const balance = {
-      POSITIVO: ">0",
-      A_FAVOR: "<0",
-      CERO: "=0",
-      NO_CERO: "<>0",
-      TODOS: "",
-    }[q.Saldo];
-    if (balance) conditions.push("COALESCE(s.SaldoTotal,0)" + balance);
+  if (q.Estado !== "TODOS")
+    conditions.push(q.Estado === "ACTIVOS" ? "cl.Activo=1" : "cl.Activo=0");
+  if (q.ClienteTipo) {
+    conditions.push("cl.ClienteTipo=?");
+    params.push(q.ClienteTipo);
   }
+  if (q.q) {
+    conditions.push(
+      "(cl.Codigo LIKE ? ESCAPE '!' OR cl.Nombre LIKE ? ESCAPE '!' OR cl.Fantasia LIKE ? ESCAPE '!')",
+    );
+    params.push(
+      ...Array<string>(3).fill("%" + q.q.replace(/[!%_]/g, "!$&") + "%"),
+    );
+  }
+  const balance = {
+    POSITIVO: ">0",
+    A_FAVOR: "<0",
+    CERO: "=0",
+    NO_CERO: "<>0",
+    TODOS: "",
+  }[q.Saldo];
+  if (balance) conditions.push("COALESCE(s.SaldoTotal,0)" + balance);
   // La misma fuente monetaria del Resumen; una fila por asiento, sin sumar
   // afectaciones/valores otra vez. Agregar antes de paginar o filtrar por saldo.
   const from = `FROM CLIENTE cl LEFT JOIN (
@@ -102,11 +93,6 @@ async function clientMessages(
       params,
     );
     const total = Number(totals[0]!.total);
-    if (selected && total !== selected.length)
-      throw new MasterRequestError(
-        409,
-        "Algún cliente seleccionado ya no existe. Volvé a consultar la lista.",
-      );
     const [rows] = await c.execute<RowDataPacket[]>(
       `SELECT cl.Codigo,cl.Nombre,cl.Fantasia,cl.Telefono,COALESCE(s.SaldoTotal,0) AS SaldoTotal ${from} ORDER BY ${order} LIMIT ? OFFSET ?`,
       [...params, q.limite, (q.pagina - 1) * q.limite],
@@ -145,14 +131,6 @@ export function createMessageStore(pool: Pool, now = () => new Date()) {
   return {
     clients: (q: MessageClientsQuery, user: string) =>
       clientMessages(pool, q, user, now()),
-    selectedClients: (q: SelectedMessageClients, user: string) =>
-      clientMessages(
-        pool,
-        { ...q, q: "", Estado: "TODOS", Saldo: "TODOS" },
-        user,
-        now(),
-        q.Clientes,
-      ),
     template: (user: string) => preference(pool, user),
     async saveTemplate(
       user: string,

@@ -1,17 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  maxSelectedMessageClients,
-  messageBalanceFilters,
-  type ClientMessageRow,
-  type ClientMessagesResult,
-} from "@erp/shared";
-import {
-  listClientMessages,
-  selectedClientMessages,
-} from "../../services/messages";
+import { type ClientMessageRow, type ClientMessagesResult } from "@erp/shared";
+import { listClientMessages } from "../../services/messages";
 import { ApiRequestError } from "../../services/http";
 import { DataTable, type TableColumn } from "../ui/DataTable";
-import { ActionToolbar, type ToolbarAction } from "../ui/ActionToolbar";
+import { ActionToolbar } from "../ui/ActionToolbar";
 import { FilterDialog, type FilterField } from "../ui/FilterDialog";
 import { Pagination } from "../ui/Pagination";
 import { useListSorting } from "../ui/useListSorting";
@@ -26,7 +18,6 @@ import "../reports/reports.css";
 const defaults = {
   q: "",
   ClienteTipo: "",
-  Saldo: "POSITIVO",
   Estado: "ACTIVOS",
 };
 const fields: readonly FilterField[] = [
@@ -43,12 +34,6 @@ const fields: readonly FilterField[] = [
       relation: "tipos-cliente",
       relationLabelField: "Descripcion",
     },
-  },
-  {
-    key: "Saldo",
-    label: "Saldo neto",
-    kind: "select",
-    options: messageBalanceFilters,
   },
   {
     key: "Estado",
@@ -104,18 +89,14 @@ const columns: TableColumn<ClientMessageRow>[] = [
 ];
 export function ClientMessages({
   template,
-  csrf,
   onExpired,
 }: {
   template: string | null;
-  csrf: string;
   onExpired: () => void;
 }) {
   const [filters, setFilters] = useState<Record<string, string>>(defaults);
   const [filtering, setFiltering] = useState(false);
   const [requested, setRequested] = useState(false);
-  const [sourceIds, setSourceIds] = useState<string[] | null>(null);
-  const [selected, setSelected] = useState<string[]>([]);
   const [data, setData] = useState<ClientMessagesResult | null>(null);
   const [page, setPage] = useState(1),
     [revision, setRevision] = useState(0);
@@ -152,18 +133,15 @@ export function ClientMessages({
     setStatus("");
     setFallback(null);
     const parameters = { pagina: String(page), limite: "20", ...sorting.query };
-    const task = sourceIds
-      ? selectedClientMessages(sourceIds, parameters, csrf, controller.signal)
-      : listClientMessages(
-          {
-            ...Object.fromEntries(
-              Object.entries(filters).filter(([, value]) => value !== ""),
-            ),
-            ...parameters,
-          },
-          controller.signal,
-        );
-    void task
+    void listClientMessages(
+      {
+        ...Object.fromEntries(
+          Object.entries(filters).filter(([, value]) => value !== ""),
+        ),
+        ...parameters,
+      },
+      controller.signal,
+    )
       .then((result) => {
         if (controller.signal.aborted || current !== run.current) return;
         if (page > 1 && !result.registros.length) {
@@ -190,30 +168,11 @@ export function ClientMessages({
       controller.abort();
       run.current++;
     };
-  }, [
-    requested,
-    filters,
-    sourceIds,
-    page,
-    revision,
-    sorting.value,
-    csrf,
-    onExpired,
-  ]);
+  }, [requested, filters, page, revision, sorting.value, onExpired]);
   useEffect(() => {
     setStatus("");
     setFallback(null);
   }, [template]);
-  function choose(keys: string[]) {
-    if (keys.length > maxSelectedMessageClients) {
-      setError(
-        `Podés seleccionar hasta ${maxSelectedMessageClients} clientes por consulta.`,
-      );
-      return;
-    }
-    setSelected(keys);
-    setStatus("");
-  }
   async function copy(row: ClientMessageRow) {
     if (loading || copying || row.ErrorMensaje || !row.Mensaje) return;
     const current = run.current;
@@ -255,61 +214,14 @@ export function ClientMessages({
       setFiltering(true);
       return;
     }
-    setSelected([]);
     setRevision((v) => v + 1);
   }
-  const startActions: ToolbarAction[] = [
-    {
-      key: "prepare",
-      label: "Consultar seleccionados",
-      icon: "check",
-      showLabel: true,
-      disabled: !selected.length || template === null,
-      onClick: () => {
-        setSourceIds([...selected]);
-        setSelected([]);
-        setPage(1);
-        setRequested(true);
-        setRevision((v) => v + 1);
-      },
-    },
-    {
-      key: "select-page",
-      label: "Seleccionar página",
-      icon: "plus",
-      disabled: !rows.length,
-      onClick: () =>
-        choose([...new Set([...selected, ...rows.map((r) => r.Cliente)])]),
-    },
-    {
-      key: "clear",
-      label: "Limpiar selección",
-      icon: "eraser",
-      disabled: !selected.length,
-      onClick: () => setSelected([]),
-    },
-    ...(sourceIds
-      ? [
-          {
-            key: "back",
-            label: "Volver a filtros",
-            icon: "arrow" as const,
-            showLabel: true,
-            onClick: () => {
-              setSourceIds(null);
-              setSelected([]);
-              setPage(1);
-            },
-          },
-        ]
-      : []),
-  ];
   return (
     <div className="report-layout messages-clients">
       <p className="muted small">
-        Filtrá clientes o seleccioná varios con los CheckBox. Cada mensaje se
-        copia o abre individualmente; no hay envíos automáticos. Se utiliza el
-        texto de Configurar mensaje, incluidos los cambios sin guardar.
+        Aplicá filtros para consultar clientes con saldo distinto de cero. Cada
+        mensaje se copia o abre individualmente. Se utiliza el texto de
+        Configurar mensaje, incluidos los cambios sin guardar.
       </p>
       {error && (
         <p className="notice error" role="alert">
@@ -332,15 +244,9 @@ export function ClientMessages({
           rowKey={(r) => r.Cliente}
           rowLabel={(r) => `${r.Cliente} - ${r.ClienteNombre}`}
           loading={loading}
-          selectionMode="multiple"
-          selectedKeys={selected}
-          onMultipleSelectionChange={choose}
           selectionDisabled={loading || Boolean(copying)}
           sort={sorting.value}
-          onSortChange={(sort) => {
-            setSelected([]);
-            sorting.onChange(sort);
-          }}
+          onSortChange={sorting.onChange}
           sortingDisabled={loading || Boolean(copying)}
           showEmptyMessage={false}
           bordered={false}
@@ -349,13 +255,9 @@ export function ClientMessages({
               <div>
                 <h4>Mensajes por clientes</h4>
                 <p className="muted small">
-                  {selected.length} seleccionados
-                  {sourceIds
-                    ? ` · Consulta de ${sourceIds.length} clientes elegidos`
-                    : ""}
                   {data
-                    ? ` · Saldo hasta ${displayDate(data.FechaHasta)} · Consultado ${displayDateTime(data.consultadoEn)}`
-                    : " · Aplicá filtros para consultar"}
+                    ? `Saldo hasta ${displayDate(data.FechaHasta)} · Consultado ${displayDateTime(data.consultadoEn)}`
+                    : "Aplicá filtros para consultar"}
                 </p>
               </div>
               <ActionToolbar
@@ -365,15 +267,12 @@ export function ClientMessages({
                 busy={loading || Boolean(copying) || template === null}
                 filtersActive={
                   requested &&
-                  !sourceIds &&
-                  (filters.Saldo !== "TODOS" ||
-                    filters.Estado !== "TODOS" ||
+                  (filters.Estado !== "TODOS" ||
                     Boolean(filters.ClienteTipo || filters.q))
                 }
                 onProperties={onProperties}
                 onFilter={() => setFiltering(true)}
                 onRefresh={refresh}
-                startActions={startActions}
               />
             </div>
           )}
@@ -450,10 +349,10 @@ export function ClientMessages({
         />
       )}
       <p className="muted small">
-        Saldo total neto hasta hoy, con los mismos criterios del Resumen de
-        Cuenta corriente. Positivo: a pagar por el cliente; negativo: a su
-        favor. El texto completo puede consultarse desde Propiedades. Copiar o
-        abrir un chat no confirma el envío.
+        Se muestran clientes con saldo total distinto de cero hasta hoy, con los
+        mismos criterios del Resumen de Cuenta corriente. Positivo: a pagar por
+        el cliente; negativo: a su favor. El texto completo puede consultarse
+        desde Propiedades. Copiar o abrir un chat no confirma el envío.
       </p>
       {filtering && (
         <FilterDialog
@@ -464,8 +363,6 @@ export function ClientMessages({
           onClose={() => setFiltering(false)}
           onApply={(next) => {
             setFilters(next);
-            setSourceIds(null);
-            setSelected([]);
             setPage(1);
             setRequested(true);
             setRevision((v) => v + 1);

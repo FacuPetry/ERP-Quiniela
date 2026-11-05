@@ -300,11 +300,7 @@ export function MessagesPage({
             key: "clients",
             title: "Varios clientes",
             content: (
-              <ClientMessages
-                template={template}
-                csrf={csrf}
-                onExpired={onExpired}
-              />
+              <ClientMessages template={template} onExpired={onExpired} />
             ),
           },
         ]}

@@ -190,16 +190,6 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     }
     return result;
   }
-  async function chosen(Clientes: string[], who = admin, options = {}) {
-    return json<ClientMessagesResult>(
-      await req(
-        "/mensajes/clientes/seleccionados",
-        "POST",
-        { Clientes, ...options },
-        who,
-      ),
-    );
-  }
   async function sameMessage(client = "LG_A") {
     const preview = await message(client);
     const report = await ledger(
@@ -1361,46 +1351,26 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
-    "varios clientes: seleccionados se reconsultan; permisos, CSRF y entradas sin saldo manipulable",
+    "varios clientes: consulta directa actualizada, permisos y sin saldo manipulable",
     async () => {
-      const clients = ["LG_MSG", "LG_EMPTY", "LG_CLOSE", "LG_B"];
-      const before = await chosen(clients);
-      assert.equal(before.total, clients.length);
+      const before = await messages("q=LG_EMPTY");
+      assert.equal(before.total, 0, "no mostrar saldos cero por defecto");
       await debt("LG_D", "12.34", before.FechaHasta, "LG_EMPTY");
-      const after = await chosen(clients, admin, {
-        pagina: 1,
-        limite: 2,
-        orden: "SaldoTotal",
-        direccion: "asc",
-      });
-      assert.equal(after.total, clients.length);
-      assert.equal(after.registros.length, 2);
-      const reloaded = await chosen(["LG_EMPTY"]);
+      const reloaded = await messages("q=LG_EMPTY");
       assert.equal(reloaded.registros[0]!.SaldoTotal, "12.34");
       assert.equal(
         reloaded.registros[0]!.Mensaje,
         (await message("LG_EMPTY")).Mensaje,
       );
-      for (const body of [
-        { Clientes: [] },
-        { Clientes: ["LG_A", "LG_A"] },
-        { Clientes: [""] },
-        { Clientes: ["LG_A"], SaldoTotal: "1.00" },
-        { Clientes: ["LG_A"], Usuario: "1" },
-        { Clientes: ["LG_A"], Hasta: "2099-01-01" },
-        { Clientes: Array.from({ length: 1001 }, (_, i) => "C" + i) },
-      ])
-        assert.equal(
-          (await req("/mensajes/clientes/seleccionados", "POST", body)).status,
-          400,
-        );
-      assert.equal(
-        (
-          await req("/mensajes/clientes/seleccionados", "POST", {
-            Clientes: ["LG_A", "NO_EXISTE"],
-          })
-        ).status,
-        409,
+      const defaults = await allMessages("q=LG_");
+      assert.ok(
+        defaults.registros.every(
+          (r) => BigInt(r.SaldoTotal.replace(".", "")) !== 0n,
+        ),
+      );
+      assert.ok(
+        defaults.registros.some((r) => r.Situacion === "A_FAVOR"),
+        "incluir saldos a favor con su mensaje correcto",
       );
       for (const query of [
         "Saldo=INVALIDO",
@@ -1419,9 +1389,16 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
           400,
           query,
         );
+      assert.equal(
+        (
+          await req("/mensajes/clientes/seleccionados", "POST", {
+            Clientes: ["LG_MSG"],
+          })
+        ).status,
+        404,
+      );
       const who = await login("message-template@example.invalid");
-      assert.equal((await messages("Saldo=TODOS&q=LG_MSG", who)).total, 1);
-      assert.equal((await chosen(["LG_B", "LG_MSG"], who)).total, 2);
+      assert.equal((await messages("q=LG_MSG", who)).total, 1);
       const refs = await json<{ registros: { Codigo: string }[] }>(
         await req(
           "/referencias/tipos-cliente?q=LG_&estado=todos",
@@ -1436,40 +1413,11 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         403,
       );
       const forbidden = await login("ledger-reader@example.invalid");
-      for (const path of [
-        "/mensajes/clientes",
-        "/mensajes/clientes/seleccionados",
-      ]) {
-        const method = path.endsWith("seleccionados") ? "POST" : "GET";
-        assert.equal(
-          (
-            await req(
-              path,
-              method,
-              method === "POST" ? { Clientes: ["LG_A"] } : undefined,
-              forbidden,
-            )
-          ).status,
-          403,
-        );
-        assert.equal(
-          (await fetch(base + "/api" + path, { method })).status,
-          401,
-        );
-      }
-      const unsafe = await fetch(
-        base + "/api/mensajes/clientes/seleccionados",
-        {
-          method: "POST",
-          headers: {
-            Cookie: who.cookie,
-            "Content-Type": "application/json",
-            "X-ERP-Request": "1",
-          },
-          body: JSON.stringify({ Clientes: ["LG_A"] }),
-        },
+      assert.equal(
+        (await req("/mensajes/clientes", "GET", undefined, forbidden)).status,
+        403,
       );
-      assert.equal(unsafe.status, 403);
+      assert.equal((await fetch(base + "/api/mensajes/clientes")).status, 401);
       const pref = await json<MessageTemplatePreference>(
         await req("/mensajes/plantilla", "GET", undefined, who),
       );
@@ -1482,12 +1430,11 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
           pref.version,
         ),
       );
-      const personal = (await messages("q=LG_MSG&Saldo=TODOS", who))
-        .registros[0]!;
+      const personal = (await messages("q=LG_MSG", who)).registros[0]!;
       assert.equal(personal.Mensaje, "Hola LOCAL MULTIPLE: $100,25");
       assert.notEqual(
         personal.Mensaje,
-        (await messages("q=LG_MSG&Saldo=TODOS")).registros[0]!.Mensaje,
+        (await messages("q=LG_MSG")).registros[0]!.Mensaje,
       );
       const expanded = await json<MessageTemplatePreference>(
         await req(
@@ -1502,7 +1449,10 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         "UPDATE CLIENTE SET Fantasia=? WHERE Codigo='LG_MSG'",
         ["F".repeat(100)],
       );
-      const partial = await chosen(["LG_MSG", "LG_A"], who);
+      const partial = await messages(
+        "q=LG_&limite=100&orden=Cliente&direccion=desc",
+        who,
+      );
       assert.ok(
         partial.registros.find((r) => r.Cliente === "LG_MSG")!.ErrorMensaje,
       );
@@ -1510,9 +1460,10 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         partial.registros.find((r) => r.Cliente === "LG_MSG")!.Mensaje,
         "",
       );
-      assert.equal(
-        partial.registros.find((r) => r.Cliente === "LG_A")!.ErrorMensaje,
-        null,
+      assert.ok(
+        partial.registros.some(
+          (r) => r.Cliente !== "LG_MSG" && r.ErrorMensaje === null,
+        ),
       );
       assert.equal(
         partial.registros.find((r) => r.Cliente === "LG_MSG")!.SaldoTotal,
@@ -1570,7 +1521,6 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       await message("LG_EMPTY");
       await message("LG_B");
       await messages();
-      await chosen(["LG_A", "LG_EMPTY", "LG_B"]);
       assert.deepEqual(await snapshot(), before);
     },
   );
