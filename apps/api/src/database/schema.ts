@@ -180,3 +180,16 @@ export const solicitud = mysqlTable('SOLICITUD', {
   Huella: char('Huella', { length: 64 }).notNull(), Estado: varchar('Estado', { length: 15 }).notNull(),
   CodigoRespuesta: smallint('CodigoRespuesta'), Resultado: json('Resultado'), CreadoEn: instant('CreadoEn').notNull(),
 }, t => [uniqueIndex('UQ_SOLICITUD_Usuario_Accion_Clave').on(t.Usuario, t.Accion, t.Clave)]);
+
+// Confirmaciones manuales de avisos; no intervienen en los saldos financieros.
+export const mensajeAviso = mysqlTable('MENSAJEAVISO', {
+  IDTabla: id(), Cliente: code('Cliente').notNull().references(() => cliente.Codigo),
+  Usuario: fk('Usuario').notNull().references(() => usuario.IDTabla),
+  Clave: char('Clave', { length: 36 }).notNull(), Huella: char('Huella', { length: 64 }).notNull(),
+  RegistradoEn: instant('RegistradoEn').notNull(), FechaSaldo: day('FechaSaldo').notNull(),
+  SaldoTotal: decimal('SaldoTotal', { precision: 65, scale: 2 }).notNull(),
+  ClienteNombre: varchar('ClienteNombre', { length: 150 }).notNull(),
+  Telefono: varchar('Telefono', { length: 40 }), WhatsAppNumero: varchar('WhatsAppNumero', { length: 20 }),
+  Mensaje: text('Mensaje').notNull(), Canal: varchar('Canal', { length: 20 }).notNull(),
+}, t => [uniqueIndex('UQ_MENSAJEAVISO_Usuario_Clave').on(t.Usuario, t.Clave),
+  index('IX_MENSAJEAVISO_Cliente_Fecha').on(t.Cliente, t.RegistradoEn, t.IDTabla)]);

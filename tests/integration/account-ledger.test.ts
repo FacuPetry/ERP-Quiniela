@@ -12,6 +12,8 @@ import type {
   BalanceMessagePreview,
   ClientMessagesResult,
   MessageTemplatePreference,
+  MessageNotice,
+  MessageNoticesResult,
 } from "@erp/shared";
 import type { RowDataPacket } from "mysql2/promise";
 import { createApp } from "../../apps/api/src/app.js";
@@ -116,6 +118,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     body?: unknown,
     who = admin,
     version?: string,
+    requestKey = randomUUID(),
   ) {
     return fetch(base + "/api" + path, {
       method,
@@ -124,7 +127,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         "Content-Type": "application/json",
         "X-ERP-Request": "1",
         "X-CSRF-Token": who.session.csrfToken,
-        "Idempotency-Key": randomUUID(),
+        "Idempotency-Key": requestKey,
         ...(version ? { "If-Match": `"${version}"` } : {}),
       },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -1258,8 +1261,17 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       assert.equal(batch.registros.length, batch.total);
       for (const row of batch.registros) {
         const single = await sameMessage(row.Cliente);
-        const { consultadoEn: _singleTime, ...singleData } = single;
-        const { consultadoEn: _batchTime, ErrorMensaje, ...batchData } = row;
+        const {
+          consultadoEn: _singleTime,
+          RegistroToken: _singleToken,
+          ...singleData
+        } = single;
+        const {
+          consultadoEn: _batchTime,
+          RegistroToken: _batchToken,
+          ErrorMensaje,
+          ...batchData
+        } = row;
         assert.equal(ErrorMensaje, null);
         assert.deepEqual(batchData, singleData, row.Cliente);
         assert.ok(row.consultadoEn);
@@ -1481,6 +1493,250 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
     },
   );
   await t.test(
+    "avisos manuales: snapshot real, persistencia compartida, reintentos y nuevos avisos sin alterar finanzas",
+    async () => {
+      const preview = await message("LG_MSG");
+      assert.equal(preview.UltimoAviso, null);
+      assert.ok(preview.RegistroToken);
+      const history = async (query = "Cliente=LG_MSG", who = admin) =>
+        json<MessageNoticesResult>(
+          await req("/mensajes/avisos?" + query, "GET", undefined, who),
+        );
+      assert.equal(
+        (await history()).total,
+        0,
+        "consultar/preparar no registra avisos",
+      );
+      const input = {
+        RegistroToken: preview.RegistroToken,
+        Plantilla: "Hola {NombreCliente}, saldo {MontoTotal} al {FechaSaldo}.",
+        Confirmado: true,
+      };
+      for (const body of [
+        { ...input, Confirmado: false },
+        { ...input, SaldoTotal: "1.00" },
+        { ...input, Cliente: "LG_A" },
+        { ...input, Plantilla: "{VariableInexistente}" },
+        { ...input, Usuario: "1" },
+      ])
+        assert.equal((await req("/mensajes/avisos", "POST", body)).status, 400);
+      const [encoded, signature] = preview.RegistroToken!.split(".");
+      const forged = JSON.parse(
+        Buffer.from(encoded!, "base64url").toString("utf8"),
+      );
+      forged.SaldoTotal = "1.00";
+      assert.equal(
+        (
+          await req("/mensajes/avisos", "POST", {
+            ...input,
+            RegistroToken:
+              Buffer.from(JSON.stringify(forged)).toString("base64url") +
+              "." +
+              signature,
+          })
+        ).status,
+        409,
+      );
+      const reader = await login("message-template@example.invalid");
+      assert.equal(
+        (await req("/mensajes/avisos", "POST", input, reader)).status,
+        409,
+        "un recibo no se transfiere entre sesiones",
+      );
+      const forbidden = await login("ledger-reader@example.invalid");
+      assert.equal(
+        (await req("/mensajes/avisos", "POST", input, forbidden)).status,
+        403,
+      );
+      assert.equal(
+        (
+          await req(
+            "/mensajes/avisos?Cliente=LG_MSG",
+            "GET",
+            undefined,
+            forbidden,
+          )
+        ).status,
+        403,
+      );
+      assert.equal(
+        (await fetch(base + "/api/mensajes/avisos?Cliente=LG_MSG")).status,
+        401,
+      );
+      assert.equal(
+        (
+          await fetch(base + "/api/mensajes/avisos", {
+            method: "POST",
+            headers: {
+              Cookie: admin.cookie,
+              "Content-Type": "application/json",
+              "X-ERP-Request": "1",
+            },
+            body: JSON.stringify(input),
+          })
+        ).status,
+        403,
+      );
+      const beforeWrite = await history();
+      assert.equal(beforeWrite.total, 0);
+      // El importe y el destinatario informados se conservan, aunque ya hayan
+      // cambiado mientras el operador estaba en WhatsApp.
+      await debt("LG_D", "10.00", preview.FechaHasta, "LG_MSG");
+      await pool.query(
+        "UPDATE CLIENTE SET Telefono='011 15-1234-5678' WHERE Codigo='LG_MSG'",
+      );
+      const tables = [
+        "CUENTACORRIENTE",
+        "CAJAMOVIMIENTO",
+        "CAJAMOVIMIENTOAFECTACION",
+        "CAJASALDO",
+        "BANCOMOVIMIENTO",
+        "CHEQUE",
+        "CHEQUEEVENTO",
+        "TRANSFERENCIA",
+        "NUMERACION",
+        "AUDITORIA",
+        "SOLICITUD",
+      ];
+      const financialSnapshot = () =>
+        Promise.all(
+          tables.map(
+            async (table) =>
+              (
+                await pool.query(
+                  "SELECT * FROM " +
+                    table +
+                    " ORDER BY " +
+                    (table === "NUMERACION" ? "Codigo" : "IDTabla"),
+                )
+              )[0],
+          ),
+        );
+      const before = await financialSnapshot();
+      const key = randomUUID();
+      const results = await Promise.all(
+        Array.from({ length: 4 }, () =>
+          req("/mensajes/avisos", "POST", input, admin, undefined, key).then(
+            (r) => json<MessageNotice>(r, 201),
+          ),
+        ),
+      );
+      const saved = results[0]!;
+      assert.ok(results.every((r) => r.IDTabla === saved.IDTabla));
+      assert.equal(saved.SaldoTotal, "100.25");
+      assert.equal(saved.FechaSaldo, preview.FechaHasta);
+      assert.equal(saved.Telefono, preview.Telefono);
+      assert.equal(saved.WhatsAppNumero, preview.WhatsAppNumero);
+      assert.equal(
+        saved.Mensaje,
+        `Hola Mensaje de saldo, saldo $100,25 al ${preview.Variables.FechaSaldo}.`,
+      );
+      assert.equal(saved.Canal, "WHATSAPP_MANUAL");
+      assert.equal((await history()).total, 1);
+      assert.equal(
+        (
+          await req(
+            "/mensajes/avisos",
+            "POST",
+            { ...input, Plantilla: "Otro texto" },
+            admin,
+            undefined,
+            key,
+          )
+        ).status,
+        409,
+      );
+      const reloaded = await message("LG_MSG");
+      assert.equal(reloaded.SaldoTotal, "110.25");
+      assert.deepEqual(reloaded.UltimoAviso, saved);
+      assert.deepEqual((await message("lg_msg")).UltimoAviso, saved);
+      assert.deepEqual(
+        (await messages("q=LG_MSG")).registros[0]!.UltimoAviso,
+        saved,
+      );
+      assert.deepEqual(
+        (await history("Cliente=LG_MSG", reader)).registros[0],
+        saved,
+      );
+      assert.deepEqual(await financialSnapshot(), before);
+      const second = await json<MessageNotice>(
+        await req(
+          "/mensajes/avisos",
+          "POST",
+          { ...input, RegistroToken: reloaded.RegistroToken },
+          admin,
+        ),
+        201,
+      );
+      assert.notEqual(second.IDTabla, saved.IDTabla);
+      assert.equal(second.SaldoTotal, "110.25");
+      assert.equal((await history()).total, 2);
+      assert.deepEqual((await history("Cliente=LG_MSG&limite=1")).registros, [
+        second,
+      ]);
+      assert.deepEqual(
+        (await history("Cliente=LG_MSG&limite=1&pagina=2")).registros,
+        [saved],
+      );
+      assert.deepEqual((await message("LG_MSG")).UltimoAviso, second);
+      assert.deepEqual(
+        (await messages("q=LG_MSG", reader)).registros[0]!.UltimoAviso,
+        second,
+      );
+      assert.deepEqual(await financialSnapshot(), before);
+      const current = await json<BalanceMessagePreview>(
+        await req(
+          "/mensajes/vista-previa?Cliente=LG_MSG",
+          "GET",
+          undefined,
+          reader,
+        ),
+      );
+      await json(
+        await req(
+          "/mensajes/avisos",
+          "POST",
+          { ...input, RegistroToken: current.RegistroToken },
+          reader,
+        ),
+        201,
+      );
+      assert.equal(
+        (await history()).total,
+        3,
+        "un usuario autorizado puede registrar desde su sesión",
+      );
+      for (const client of ["LG_CLOSE", "LG_BATCH000"]) {
+        const source = await message(client);
+        const recorded = await json<MessageNotice>(
+          await req("/mensajes/avisos", "POST", {
+            ...input,
+            RegistroToken: source.RegistroToken,
+          }),
+          201,
+        );
+        assert.equal(
+          recorded.SaldoTotal,
+          source.SaldoTotal,
+          "conserva el signo y el cero",
+        );
+        assert.ok(recorded.Mensaje.includes(source.Variables.MontoTotal));
+      }
+      assert.deepEqual(await financialSnapshot(), before);
+      for (const query of [
+        "",
+        "Cliente=LG_MSG&pagina=0",
+        "Cliente=LG_MSG&limite=101",
+        "Cliente=LG_MSG&Usuario=1",
+      ])
+        assert.equal((await req("/mensajes/avisos?" + query)).status, 400);
+      assert.equal(
+        (await req("/mensajes/avisos?Cliente=NO_EXISTE")).status,
+        404,
+      );
+    },
+  );
+  await t.test(
     "consultas sin escrituras sobre importes, estados, eventos, cierres, numeración ni auditoría",
     async () => {
       const tables = [
@@ -1495,6 +1751,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
         "NUMERACION",
         "AUDITORIA",
         "SOLICITUD",
+        "MENSAJEAVISO",
       ];
       async function snapshot() {
         return Promise.all(
@@ -1521,6 +1778,7 @@ test("Mayor de Cuenta corriente: secuencia, asociaciones informativas y saldo vi
       await message("LG_EMPTY");
       await message("LG_B");
       await messages();
+      await json(await req("/mensajes/avisos?Cliente=LG_MSG"));
       assert.deepEqual(await snapshot(), before);
     },
   );

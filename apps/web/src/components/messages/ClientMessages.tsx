@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { type ClientMessageRow, type ClientMessagesResult } from "@erp/shared";
+import {
+  newestMessageNotice,
+  type MessageNotice,
+  type BalanceMessagePreview,
+  type ClientMessageRow,
+  type ClientMessagesResult,
+} from "@erp/shared";
 import { listClientMessages } from "../../services/messages";
 import { ApiRequestError } from "../../services/http";
 import { DataTable, type TableColumn } from "../ui/DataTable";
@@ -12,6 +18,7 @@ import { amountFormat, formatAmount } from "../controls/amount-value";
 import { displayDate, displayDateTime } from "../controls/date-value";
 import { Icon } from "../Icon";
 import { whatsappMessageUrl } from "@erp/shared";
+import { LastMessageNotice } from "./MessageNotices";
 import { messagePreview } from "./message-preview";
 import "../reports/reports.css";
 
@@ -90,7 +97,13 @@ const columns: TableColumn<ClientMessageRow>[] = [
 export function ClientMessages({
   template,
   onExpired,
+  onRegister,
+  onHistory,
+  noticeUpdates,
 }: {
+  onRegister: (row: BalanceMessagePreview, template: string) => void;
+  onHistory: (row: BalanceMessagePreview) => void;
+  noticeUpdates: Record<string, MessageNotice>;
   template: string | null;
   onExpired: () => void;
 }) {
@@ -116,9 +129,13 @@ export function ClientMessages({
           ...row,
           Mensaje: rendered.message,
           ErrorMensaje: rendered.error ?? null,
+          UltimoAviso: newestMessageNotice(
+            row.UltimoAviso,
+            noticeUpdates[row.Cliente],
+          ),
         };
       }),
-    [data, template],
+    [data, template, noticeUpdates],
   );
   const latestRows = useRef(rows);
   latestRows.current = rows;
@@ -240,7 +257,50 @@ export function ClientMessages({
         <DataTable
           caption="Mensajes por clientes"
           rows={rows}
-          columns={columns}
+          columns={[
+            ...columns,
+            {
+              key: "UltimoAviso",
+              label: "Último aviso",
+              property: (r) =>
+                r.UltimoAviso
+                  ? `${displayDateTime(r.UltimoAviso.RegistradoEn)} · ${money(r.UltimoAviso.SaldoTotal)} · ${r.UltimoAviso.UsuarioNombre} · Confirmación manual`
+                  : "Sin avisos registrados",
+              render: (r) => (
+                <LastMessageNotice
+                  notice={r.UltimoAviso}
+                  onHistory={() => onHistory(r)}
+                />
+              ),
+            },
+            {
+              key: "RegistrarEnvio",
+              label: "Registrar envío",
+              align: "center",
+              property: () => "Confirmación manual",
+              render: (r) => (
+                <button
+                  type="button"
+                  className="icon-button"
+                  title="Registrar envío"
+                  aria-label={`Registrar envío a ${r.ClienteNombre}`}
+                  disabled={
+                    loading ||
+                    Boolean(copying) ||
+                    Boolean(r.ErrorMensaje) ||
+                    !r.Mensaje ||
+                    !r.RegistroToken ||
+                    template === null
+                  }
+                  onClick={() => {
+                    if (template !== null) onRegister(r, template);
+                  }}
+                >
+                  <Icon name="check" size={17} />
+                </button>
+              ),
+            },
+          ]}
           rowKey={(r) => r.Cliente}
           rowLabel={(r) => `${r.Cliente} - ${r.ClienteNombre}`}
           loading={loading}

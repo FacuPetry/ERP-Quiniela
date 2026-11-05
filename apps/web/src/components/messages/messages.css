@@ -57,3 +57,25 @@
     min-height: 6em;
   }
 }
+
+.message-notice-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.message-notice-link:focus-visible {
+  outline: 2px solid #6c8b55;
+  outline-offset: 3px;
+}
+.messages-notice-confirm {
+  display: grid;
+  gap: 14px;
+}
+.messages-notice-history {
+  gap: 20px;
+}

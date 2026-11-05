@@ -9,6 +9,7 @@ import { ledgerEntries, readLedgerBalance } from "../reports/ledger.js";
 import { MasterRequestError } from "../masters/validation.js";
 import { messageBalanceDate } from "./text.js";
 import { prepareClientMessage } from "./preview.js";
+import { createNoticeStore, lastMessageNotices } from "./notices.js";
 import { listOrder } from "../database/list-order.js";
 import type { MessageClientsQuery } from "./validation.js";
 
@@ -97,8 +98,12 @@ async function clientMessages(
       `SELECT cl.Codigo,cl.Nombre,cl.Fantasia,cl.Telefono,COALESCE(s.SaldoTotal,0) AS SaldoTotal ${from} ORDER BY ${order} LIMIT ? OFFSET ?`,
       [...params, q.limite, (q.pagina - 1) * q.limite],
     );
-    const registros = rows.map((r) =>
-      prepareClientMessage(
+    const latest = await lastMessageNotices(
+      c,
+      rows.map((r) => String(r.Codigo)),
+    );
+    const registros = rows.map((r) => ({
+      ...prepareClientMessage(
         {
           Codigo: String(r.Codigo),
           Nombre: String(r.Nombre),
@@ -110,7 +115,8 @@ async function clientMessages(
         consultadoEn,
         config.Plantilla,
       ),
-    );
+      UltimoAviso: latest.get(String(r.Codigo)) ?? null,
+    }));
     await c.commit();
     return {
       registros,
@@ -129,6 +135,7 @@ async function clientMessages(
 }
 export function createMessageStore(pool: Pool, now = () => new Date()) {
   return {
+    ...createNoticeStore(pool, now),
     clients: (q: MessageClientsQuery, user: string) =>
       clientMessages(pool, q, user, now()),
     template: (user: string) => preference(pool, user),
@@ -197,6 +204,8 @@ export function createMessageStore(pool: Pool, now = () => new Date()) {
           config.Plantilla,
         );
         if (ErrorMensaje) throw new MasterRequestError(400, ErrorMensaje);
+        const latest = await lastMessageNotices(c, [record.Cliente]);
+        record.UltimoAviso = latest.get(record.Cliente) ?? null;
         await c.commit();
         return record;
       } catch (error) {

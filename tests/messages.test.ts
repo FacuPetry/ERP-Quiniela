@@ -179,3 +179,40 @@ test("El enlace wa.me incluye contacto y mensaje exactos, sin permitir cambiar s
   ])
     assert.equal(whatsappMessageUrl(number, message), null);
 });
+
+test("Recibo de aviso firmado conserva la versión y rechaza cambios o sesiones distintas", async () => {
+  const { signMessageSnapshot, readMessageSnapshot } = await import(
+    "../apps/api/src/messages/receipt.js"
+  );
+  const row = {
+    Cliente: "C1",
+    ClienteNombre: "Ana",
+    SaldoTotal: "-123.45",
+    FechaHasta: "2026-11-04",
+    consultadoEn: "2026-11-04T12:00:00Z",
+    Telefono: "11 1234-5678",
+    WhatsAppNumero: "5491112345678",
+    UltimoAviso: null,
+    ...balanceMessage("Ana", "-123.45", "2026-11-04"),
+  };
+  const token = signMessageSnapshot(row, "session-only-key");
+  assert.equal(
+    readMessageSnapshot(token, "session-only-key").SaldoTotal,
+    "-123.45",
+  );
+  assert.throws(() => readMessageSnapshot(token, "other-session"));
+  const [payload, sig] = token.split(".");
+  const changed = JSON.parse(
+    Buffer.from(payload!, "base64url").toString("utf8"),
+  );
+  changed.Cliente = "C2";
+  assert.throws(() =>
+    readMessageSnapshot(
+      Buffer.from(JSON.stringify(changed)).toString("base64url") + "." + sig,
+      "session-only-key",
+    ),
+  );
+  assert.throws(() =>
+    readMessageSnapshot(token + ".extra", "session-only-key"),
+  );
+});

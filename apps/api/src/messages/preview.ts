@@ -38,6 +38,7 @@ export function prepareClientMessage(
       error instanceof Error ? error.message : "Revisá el mensaje guardado.";
   }
   return {
+    UltimoAviso: null,
     Cliente: client.Codigo,
     ClienteNombre: client.Nombre,
     SaldoTotal: client.SaldoTotal,

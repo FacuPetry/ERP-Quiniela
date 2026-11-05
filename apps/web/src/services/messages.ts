@@ -43,3 +43,32 @@ export function saveMessageTemplate(
     body: JSON.stringify({ Plantilla }),
   });
 }
+
+export function registerMessageNotice(
+  RegistroToken: string,
+  Plantilla: string,
+  csrf: string,
+  key: string,
+) {
+  return apiRequest<import("@erp/shared").MessageNotice>("/mensajes/avisos", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-ERP-Request": "1",
+      "X-CSRF-Token": csrf,
+      "Idempotency-Key": key,
+    },
+    body: JSON.stringify({ RegistroToken, Plantilla, Confirmado: true }),
+  });
+}
+export function listMessageNotices(
+  Cliente: string,
+  pagina: number,
+  signal: AbortSignal,
+) {
+  return apiRequest<import("@erp/shared").MessageNoticesResult>(
+    "/mensajes/avisos?" +
+      new URLSearchParams({ Cliente, pagina: String(pagina) }),
+    { signal },
+  );
+}
