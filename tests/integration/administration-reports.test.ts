@@ -561,6 +561,58 @@ test("Usuarios por menú e informe actual sobre circuitos financieros reales", a
       );
     },
   );
+  await t.test("clasifica el saldo neto antes de paginar y totalizar", async () => {
+    await pool.query(
+      "INSERT INTO CLIENTE (Codigo,Nombre,ClienteTipo) VALUES ('RS_CERO','Neto cero','RS_T'),('RS_ACR','Acreedor neto','RS_T')",
+    );
+    await cc("RS_D", "100.00", "RS_CERO");
+    await cc("RS_PR", "100.00", "RS_CERO");
+    await cc("RS_D", "100.00", "RS_ACR");
+    await cc("RS_PR", "120.00", "RS_ACR");
+
+    const query = "ClienteTipo=RS_T";
+    const all = await summary(query + "&TipoSaldo=TODOS");
+    assert.equal(all.total, 4);
+    const zero = all.registros.find((r) => r.Cliente === "RS_CERO");
+    assert.equal(zero?.SaldoNeto, "0.00");
+    assert.equal(zero?.PendienteCobrar, "100.00");
+    assert.equal(zero?.PendientePagar, "100.00");
+
+    const debtorsQuery =
+      query + "&TipoSaldo=DEUDOR&orden=SaldoNeto&direccion=desc";
+    const first = await summary(debtorsQuery + "&limite=1");
+    const second = await summary(debtorsQuery + "&limite=1&pagina=2");
+    const continuous = await summary(debtorsQuery + "&continuo=1&limite=1");
+    assert.equal(first.total, 2);
+    assert.equal(first.registros[0]?.Cliente, "RS_B");
+    assert.equal(second.registros[0]?.Cliente, "RS_A");
+    assert.deepEqual(continuous.registros, [
+      ...first.registros,
+      ...second.registros,
+    ]);
+    assert.equal(first.totales.SaldoNeto, "90071992548309.91");
+    assert.deepEqual(second.totales, first.totales);
+    assert.deepEqual(continuous.totales, first.totales);
+
+    const creditors = await summary(query + "&TipoSaldo=ACREEDOR");
+    assert.equal(creditors.total, 1);
+    assert.equal(creditors.registros[0]?.Cliente, "RS_ACR");
+    assert.equal(creditors.totales.SaldoNeto, "-20.00");
+    const empty = await summary("Cliente=RS_CERO&TipoSaldo=ACREEDOR");
+    assert.equal(empty.total, 0);
+    assert.deepEqual(empty.registros, []);
+    assert.equal(
+      (
+        await req(
+          "/informes/cuenta-corriente?TipoSaldo=INVALIDO",
+          "GET",
+          undefined,
+          operator,
+        )
+      ).status,
+      400,
+    );
+  });
   await t.test("el informe no modifica ninguna tabla financiera", async () => {
     const tables = [
       "CUENTACORRIENTE",

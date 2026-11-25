@@ -9,6 +9,7 @@ import type { TableColumn } from "../ui/DataTable";
 import { ClientSearch } from "../current-account/ClientSearch";
 import { amountFormat, formatAmount } from "../controls/amount-value";
 import { displayDateTime } from "../controls/date-value";
+import { DropDown } from "../controls";
 import { ReferenceSelect } from "../masters/ReferenceSelect";
 import { ReportView, type ReportQuery } from "./ReportView";
 const format = amountFormat();
@@ -71,15 +72,22 @@ const extraFields = [
     render: (r: AccountSummaryRow) => money(r.CreditoSinAplicarPagar),
   },
 ];
+const balanceTypes = [
+  { value: "TODOS", label: "Todos" },
+  { value: "DEUDOR", label: "Deudor" },
+  { value: "ACREEDOR", label: "Acreedor" },
+];
 interface SummaryFilters {
   client: MasterRecord | null;
   text: string;
   clientType: string;
+  balanceType: string;
 }
 const initialFilters: SummaryFilters = {
   client: null,
   text: "",
   clientType: "",
+  balanceType: "TODOS",
 };
 async function loadSummary({
   filters,
@@ -90,6 +98,7 @@ async function loadSummary({
   const params = new URLSearchParams({
     ...listSortQuery(sort),
     ...parameters,
+    TipoSaldo: filters.balanceType,
     ...(filters.clientType ? { ClienteTipo: filters.clientType } : {}),
     ...(filters.client ? { Cliente: String(filters.client.Codigo) } : {}),
   });
@@ -121,14 +130,18 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
           SaldoNeto: money(data.totales.SaldoNeto),
         },
       })}
-      filtersActive={(f) => Boolean(f.client || f.clientType)}
-      filterSummary={(f) =>
-        f.client
+      filtersActive={(f) =>
+        Boolean(f.client || f.clientType || f.balanceType !== "TODOS")
+      }
+      filterSummary={(f) => {
+        const client = f.client
           ? `Cliente: ${String(f.client.Codigo)} - ${String(f.client.Nombre)}`
           : f.clientType
             ? `Tipo de cliente: ${f.clientType}`
-            : "Todos los clientes con movimientos confirmados."
-      }
+            : "Todos los clientes con movimientos confirmados";
+        const balance = balanceTypes.find((type) => type.value === f.balanceType);
+        return `${client} · Tipo de saldo: ${balance?.label ?? "Todos"}`;
+      }}
       validateFilters={(f) =>
         !f.client && f.text.trim()
           ? "Buscá y seleccioná un cliente con la lupa, o limpiá el campo para consultar todos."
@@ -150,7 +163,12 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
             filter
             includeInactive
             onChange={(clientType) =>
-              onChange(() => ({ clientType, client: null, text: "" }))
+              onChange((current) => ({
+                ...current,
+                clientType,
+                client: null,
+                text: "",
+              }))
             }
             onExpired={onExpired}
           />
@@ -169,6 +187,15 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
               onChange((current) => ({ ...current, text }))
             }
             onExpired={onExpired}
+          />
+          <DropDown
+            id="report-balance-type"
+            label="Tipo de saldo"
+            value={value.balanceType}
+            options={balanceTypes}
+            onValueChange={(balanceType) =>
+              onChange((current) => ({ ...current, balanceType }))
+            }
           />
           <p className="muted small">
             Tipo y Cliente son opcionales. El SF busca dentro del tipo elegido;
