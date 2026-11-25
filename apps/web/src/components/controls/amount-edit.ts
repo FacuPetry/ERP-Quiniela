@@ -16,7 +16,13 @@ export function draftAmountEdit(
   config: AmountFormat,
   maxIntegerDigits?: number,
 ): AmountEdit {
-  const parsed = parseAmountInput(text, config, maxIntegerDigits);
+  // Una inserción puede alargar un grupo de miles antes de salir del campo.
+  const localized = config.decimal === "," && config.group === "."
+    ? text.trim().replace(/^([+-]?\d{1,3}(?:\.\d{3,})+)(?=,|$)/, (whole) =>
+        whole.replaceAll(".", ""),
+      )
+    : text;
+  const parsed = parseAmountInput(localized, config, maxIntegerDigits);
   const value =
     parsed.error || !parsed.value
       ? parseAmountInput("0", config).value

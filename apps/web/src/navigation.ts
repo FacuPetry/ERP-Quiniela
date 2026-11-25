@@ -55,7 +55,7 @@ export const modules: {
   },
   {
     path: "/informes-cuenta-corriente",
-    title: "Listado de Cuenta corriente",
+    title: "Listado de Cuenta corriente pendiente",
     group: "Informes",
     icon: "account",
     description: "Saldos actuales por cliente de apuestas y premios.",

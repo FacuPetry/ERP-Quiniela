@@ -30,7 +30,7 @@ La revisión del código encuentra implementado el circuito solicitado. No se id
 
 ### Límites que debe conocer el usuario
 
-- **Consulta de saldos:** el listado operativo de Cuenta corriente conserva su presentación. La opción Informes → Listado de Cuenta corriente muestra saldos actuales por cliente y separa, en Propiedades, el pendiente documental y los créditos sin aplicar. La consulta histórica a una fecha todavía no está implementada. El nuevo Resumen incorpora el mayor cronológico del saldo vigente.
+- **Consulta de saldos:** el listado operativo de Cuenta corriente conserva su presentación. La opción Informes → Listado de Cuenta corriente pendiente muestra saldos actuales por cliente y separa, en Propiedades, el pendiente documental y los créditos sin aplicar. La consulta histórica a una fecha todavía no está implementada. El nuevo Resumen incorpora el mayor cronológico del saldo vigente.
 - **Anticipos:** se pueden registrar importes a cuenta y consultar su remanente. Todavía no existe una acción general para aplicarlos a documentos futuros o compensar créditos independientes. Para el circuito básico de esta versión, trabajar con medios de pago iguales al total afectado y dejar el importe a cuenta en cero. Esto es una pauta de uso; no se agregó una restricción al sistema. Las compensaciones automáticas de reversión y rechazo tienen un alcance específico.
 - **Bancos:** se registran los efectos bancarios de transferencias y eventos de cheque. No existe saldo inicial bancario, control de disponibilidad/descubierto ni conciliación. Los fondos reales se verifican en el banco; no presentar el historial registrado como saldo disponible completo.
 - **Correcciones de Valores:** no hay una acción general para deshacer depósitos, acreditaciones o rechazos. Tampoco se resuelve todavía el rechazo de un cheque endosado. Las restricciones actuales evitan corregir automáticamente una operación con dependencias posteriores.
@@ -87,6 +87,17 @@ Las tablas siguientes reúnen mejoras funcionales y técnicas surgidas durante e
 | FUN-04 | Disponibilidad bancaria y conciliación | Pendiente de definición. Depende de FUN-03; definir fondos registrados/disponibles, descubierto y tratamiento de instrumentos pendientes. |
 | FUN-05 | Banco → Caja y Caja → Banco | Pendiente de definición. Opcional y postergado expresamente; incorporar con contrapartidas cuando se desarrolle el circuito bancario, sin complicar los ingresos/retiros de efectivo actuales. |
 | FUN-06 | Débito efectivo de cheques propios y circuito posterior | Pendiente de definición. Ya existe emisión, pero no confirmación del débito real ni su circuito completo. Fuera de la primera versión porque el cliente no los utiliza. |
+| FUN-07 | Apertura y reserva de efectivo para premios pendientes | Pendiente de definición con el cliente. Ver el caso debajo. |
+
+### FUN-07 — Apertura y reserva de efectivo para premios
+
+La dueña deja físicamente $220.000 al cierre. En el relato, $100.000 corresponden a efectivo y la máquina indica $120.000 de premios. Durante la noche pueden aparecer más premios. Al día siguiente las empleadas consultan el importe definitivo y mencionan un registro negativo al abrir.
+
+Si el efectivo contado es $220.000 y los premios pendientes suman $150.000, el efectivo libre estimado es $70.000. Si se pagan $50.000 en efectivo, quedan $170.000 físicos y $100.000 de premios pendientes. El efectivo libre estimado sigue siendo $70.000. La reserva por sí sola es informativa y el pago produce una sola salida de caja.
+
+Para definir el circuito, confirmar qué representan los $100.000, de dónde salen los $120.000 y cuándo se incorporan. Pedir un ejemplo real con los importes del cierre, la apertura, el registro negativo y el pago. Confirmar si la máquina incluye premios ya pagados y si los pendientes se identifican por cliente o ya figuran en Cuenta corriente.
+
+Si hubo un aporte real, su registro depende del momento del ingreso. Si ya integra el efectivo contado al abrir, volver a sumarlo duplicaría el saldo. Hasta aclarar el caso queda en análisis, sin cambios en Caja, Cuenta corriente ni cierres históricos.
 
 ### Mejoras funcionales de módulos existentes
 

@@ -100,7 +100,7 @@ async function loadSummary({
 export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
   return (
     <ReportView<AccountSummaryRow, SummaryFilters, AccountSummary>
-      title="Listado de Cuenta corriente"
+      title="Listado de Cuenta corriente pendiente"
       caption="Saldos por cliente"
       initialFilters={initialFilters}
       load={loadSummary}
@@ -109,7 +109,7 @@ export function AccountSummaryPage({ onExpired }: { onExpired: () => void }) {
       rowKey={(r) => r.Cliente}
       rowLabel={(r) => r.Cliente + " - " + r.ClienteNombre}
       properties={{
-        title: "Propiedades · Listado de Cuenta corriente",
+        title: "Propiedades · Listado de Cuenta corriente pendiente",
         fields: extraFields,
       }}
       totals={(data) => ({
