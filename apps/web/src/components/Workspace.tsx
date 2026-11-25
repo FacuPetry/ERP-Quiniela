@@ -113,7 +113,7 @@ function WorkspaceContent({
   const group = module?.group ?? (isHome ? "General" : "Sistema");
 
   useEffect(() => {
-    document.title = `${title} · ERP Quiniela`;
+    document.title = `${title} · QuinGest`;
     heading.current?.focus();
   }, [path, title]);
   useEffect(() => {
@@ -595,7 +595,7 @@ function WorkspaceContent({
             </section>
           )}
           <footer className="main-footer">
-            <span>ERP Quiniela</span>
+            <span>QuinGest · ERP Quiniela</span>
             <span>Espacio de trabajo</span>
           </footer>
         </main>

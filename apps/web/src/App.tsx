@@ -36,7 +36,7 @@ export function App() {
   // La API es la autoridad. No persistir credenciales ni sesiones en localStorage.
   useEffect(() => {
     if (!session) {
-      document.title = "Ingresar · ERP Quiniela";
+      document.title = "Ingresar · QuinGest";
       return;
     }
     let cancelled = false;

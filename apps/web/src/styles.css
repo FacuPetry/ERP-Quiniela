@@ -119,36 +119,14 @@ h1:focus {
   color: #244e3b;
 }
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 11px;
+  display: block;
+  width: 156px;
+  max-width: 100%;
+  height: auto;
   min-width: 0;
 }
-.brand-mark {
+.brand-compact {
   width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  border-radius: 12px;
-  background: #204b3b;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 750;
-  letter-spacing: -0.5px;
-}
-.brand strong {
-  display: block;
-  font-size: 15px;
-  letter-spacing: -0.4px;
-  white-space: nowrap;
-}
-.brand div > span {
-  display: block;
-  color: #819086;
-  font-size: 10px;
-  margin-top: 3px;
-  white-space: nowrap;
 }
 .section-icon {
   display: inline-flex;

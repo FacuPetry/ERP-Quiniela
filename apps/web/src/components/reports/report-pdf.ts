@@ -48,16 +48,27 @@ async function loadFonts(): Promise<PdfFonts> {
       });
   return fonts;
 }
+async function loadLogo() {
+  const response = await fetch(
+    new URL("../../assets/brand/quingest-logo-fondo-claro.png", import.meta.url),
+    { signal: AbortSignal.timeout(15000) },
+  );
+  if (!response.ok)
+    throw new Error("No se pudo cargar el logo del PDF. Volvé a intentar.");
+  return new Uint8Array(await response.arrayBuffer());
+}
 /** PDF vectorial con texto seleccionable, cabeceras repetidas y paginado.
  * Solo consume un documento aceptado; no vuelve a consultar ni calcula dinero. */
 export async function createReportPdf(
   model: ReportDocument,
   providedFonts?: PdfFonts,
+  providedLogo?: Uint8Array,
 ): Promise<ReportPdfFile> {
-  const [{ jsPDF }, { autoTable }, font] = await Promise.all([
+  const [{ jsPDF }, { autoTable }, font, logo] = await Promise.all([
     import("jspdf"),
     import("jspdf-autotable"),
     providedFonts ?? loadFonts(),
+    providedLogo ?? loadLogo(),
   ]);
   const wide = model.columns.length >= 9;
   const pdf = new jsPDF({
@@ -74,7 +85,7 @@ export async function createReportPdf(
   pdf.setProperties({
     title: model.title,
     subject: model.filters,
-    creator: "ERP Quiniela",
+    creator: "QuinGest",
   });
   const width = pdf.internal.pageSize.getWidth(),
     height = pdf.internal.pageSize.getHeight(),
@@ -82,7 +93,13 @@ export async function createReportPdf(
   pdf.setFont("Report", "bold");
   pdf.setFontSize(15);
   pdf.setTextColor(38, 62, 48);
-  const titleLines = pdf.splitTextToSize(model.title, width - 2 * margin);
+  const logoWidth = 42;
+  const logoHeight = (logoWidth * 535) / 1910;
+  pdf.addImage(logo, "PNG", width - margin - logoWidth, 10, logoWidth, logoHeight);
+  const titleLines = pdf.splitTextToSize(
+    model.title,
+    width - 2 * margin - logoWidth - 5,
+  );
   pdf.text(titleLines, margin, 16);
   pdf.setFont("Report", "normal");
   pdf.setFontSize(8);
@@ -187,7 +204,7 @@ export async function createReportPdf(
         10,
       );
     pdf.text(
-      "ERP Quiniela · Emitido " + displayDateTime(model.generatedAt),
+      "QuinGest · ERP Quiniela · Emitido " + displayDateTime(model.generatedAt),
       margin,
       height - 7,
     );

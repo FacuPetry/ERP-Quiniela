@@ -30,7 +30,7 @@ export function Login({
   }
   return (
     <main className="login-page">
-      <section className="login-story" aria-label="ERP Quiniela">
+      <section className="login-story" aria-label="QuinGest · ERP Quiniela">
         <Brand />
         <div className="login-story-content">
           <span className="eyebrow">ADMINISTRACIÓN Y TESORERÍA</span>
@@ -49,7 +49,7 @@ export function Login({
             <span>Tesorería</span>
           </div>
         </div>
-        <p className="login-caption">ERP Quiniela · Espacio de trabajo</p>
+        <p className="login-caption">QuinGest · Espacio de trabajo</p>
       </section>
       <section className="login-form-section" aria-labelledby="login-title">
         <div className="login-form-wrap">

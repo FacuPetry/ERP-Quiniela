@@ -149,14 +149,19 @@ test("El motor genera un PDF real de varias páginas con fuentes Unicode incrust
     ],
     totals: { label: "Total general", values: { amount: "0,00" } },
   });
-  const file = await createReportPdf(d, {
-    regular: regular.toString("base64"),
-    bold: bold.toString("base64"),
-  });
+  const logo = await readFile(
+    new URL("../apps/web/src/assets/brand/quingest-logo-fondo-claro.png", import.meta.url),
+  );
+  const file = await createReportPdf(
+    d,
+    { regular: regular.toString("base64"), bold: bold.toString("base64") },
+    logo,
+  );
   const raw = Buffer.from(await file.blob.arrayBuffer()).toString("latin1");
   assert.equal(file.blob.type, "application/pdf");
   assert.ok(file.name.startsWith("resumen-jose-nandu-"));
   assert.ok(raw.startsWith("%PDF-"));
   assert.ok((raw.match(/\/Type \/Page\b/g) ?? []).length > 1);
   assert.match(raw, /\/FontFile2/);
+  assert.match(raw, /\/Subtype \/Image/);
 });
