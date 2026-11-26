@@ -97,8 +97,10 @@ function WorkspaceContent({
   const isStatus = path === "/sistema";
   const isAccount = path === "/mi-cuenta";
   const isUsers = path === "/usuarios";
+  const canOpenModule = (item: (typeof modules)[number]) =>
+    canAccessMenu(session.usuario, item.permission ?? item.path.slice(1));
   const allowed =
-    (!module || canAccessMenu(session.usuario, module.path.slice(1))) &&
+    (!module || canOpenModule(module)) &&
     (!isUsers || session.usuario.rol.codigo === "ADMIN") &&
     (!isStatus || canAccessMenu(session.usuario, "sistema"));
   const title = isHome
@@ -208,7 +210,7 @@ function WorkspaceContent({
         .filter(
           (item) =>
             item.group === label &&
-            canAccessMenu(session.usuario, item.path.slice(1)),
+            canOpenModule(item),
         )
         .map((item) => ({
           path: item.path,
@@ -422,7 +424,7 @@ function WorkspaceContent({
                       (item) =>
                         (item.group === "Operaciones" ||
                           item.group === "Informes") &&
-                        canAccessMenu(session.usuario, item.path.slice(1)),
+                        canOpenModule(item),
                     )
                     .map((item) => (
                       <AppLink
@@ -442,6 +444,7 @@ function WorkspaceContent({
                             "/tesoreria",
                             "/valores",
                             "/envio-mensajes",
+                            "/mensajes-varios-clientes",
                           ].includes(item.path)
                             ? "Abrir módulo"
                             : "Ver alcance"}{" "}
@@ -544,9 +547,9 @@ function WorkspaceContent({
             />
           ) : path === "/valores" ? (
             <ValuesPage key={path} session={session} onExpired={onLogout} />
-          ) : path === "/envio-mensajes" ? (
+          ) : path === "/envio-mensajes" || path === "/mensajes-varios-clientes" ? (
             <MessagesPage
-              key={path}
+              multiple={path === "/mensajes-varios-clientes"}
               csrf={session.csrfToken}
               onExpired={onLogout}
             />

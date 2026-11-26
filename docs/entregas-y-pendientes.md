@@ -193,4 +193,6 @@ Entrega de detalle por jornada y PDF: INF-09 permite explicar una apertura real 
 
 Ampliación CLI-01 (04/11/2026): Varios clientes dentro de Envío de mensajes, con filtros simples, plantillas compartidas con la sección individual, saldos distintos de cero del mayor y acciones manuales por fila. Se retiran los CheckBox, las acciones de selección y el filtro visible de saldo neto. La consulta conserva los permisos y no realiza envíos automáticos; el registro manual requiere la tabla MENSAJEAVISO (0011). Los informes permanecen en pausa. Ver [guía y aceptación](envio-mensajes.md).
 
+Navegación CLI-01: Notificaciones tiene accesos separados para Mensaje a un cliente y Mensajes a varios clientes. Editar mensaje abre la plantilla personal desde ambos. Se conserva el permiso `envio-mensajes` y la ruta individual anterior.
+
 Registro manual CLI-01: acción de tilde con encabezado Registrar envío y confirmación explícita; Último aviso muestra fecha e importe. Historial compartido por cliente, sin periodicidad ni marca permanente. Copiar/abrir WhatsApp no registra nada. Migración 0011; no afecta Cuenta corriente ni envía mensajes.
