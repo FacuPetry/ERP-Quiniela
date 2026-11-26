@@ -8,6 +8,7 @@ import {
 } from "@erp/shared";
 import { DropDown, TextArea } from "../controls";
 import { Icon } from "../Icon";
+import { OffCanvas } from "../ui/OffCanvas";
 import {
   getMessageTemplate,
   saveMessageTemplate,
@@ -15,10 +16,14 @@ import {
 import { ApiRequestError } from "../../services/http";
 
 export function MessageTemplateEditor({
+  open,
+  onClose,
   csrf,
   onChange,
   onExpired,
 }: {
+  open: boolean;
+  onClose: () => void;
   csrf: string;
   onChange: (template: string | null) => void;
   onExpired: () => void;
@@ -118,103 +123,105 @@ export function MessageTemplateEditor({
     }
   }
   return (
-    <section
-      className="messages-template"
-      aria-labelledby="message-template-title"
-      aria-busy={busy}
-    >
-      <h3 id="message-template-title">Mensaje personalizado</h3>
-      <TextArea
-        ref={editor}
-        label="Texto del mensaje"
-        value={draft}
-        onValueChange={change}
-        disabled={busy || !saved}
-        maxLength={maxMessageTemplateLength}
-        height={140}
-        error={saved ? problem : undefined}
-        hint="Guardá el texto con sus variables para reutilizarlo desde tu usuario, incluso en otro dispositivo."
-      />
-      <div className="messages-controls">
-        <DropDown
-          label="Variable disponible"
-          size="md"
-          value={variable}
-          onValueChange={setVariable}
+    <OffCanvas open={open} title="Editar mensaje" size="lg" onClose={onClose}>
+      <section
+        className="messages-template"
+        aria-labelledby="message-template-title"
+        aria-busy={busy}
+      >
+        <h3 id="message-template-title">Mensaje personalizado</h3>
+        <TextArea
+          ref={editor}
+          label="Texto del mensaje"
+          value={draft}
+          onValueChange={change}
           disabled={busy || !saved}
-          options={messageVariables.map((v) => ({
-            value: v.key,
-            label: `${v.label} · {${v.key}}`,
-          }))}
+          maxLength={maxMessageTemplateLength}
+          height={140}
+          error={saved ? problem : undefined}
+          hint="Guardá el texto con sus variables para reutilizarlo desde tu usuario, incluso en otro dispositivo."
         />
-        <button
-          type="button"
-          className="button secondary"
-          disabled={busy || !saved}
-          onClick={insert}
-        >
-          <Icon name="plus" size={17} /> Insertar variable
-        </button>
-      </div>
-      <p className="muted small">
-        {messageVariables.find((v) => v.key === variable)?.description}
-      </p>
-      <div className="messages-actions">
-        <button
-          type="button"
-          className="button primary"
-          disabled={
-            busy ||
-            !saved ||
-            Boolean(problem) ||
-            draft === (saved.Plantilla ?? defaultMessageTemplate)
-          }
-          onClick={() => {
-            void save();
-          }}
-        >
-          Guardar mensaje
-        </button>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={busy || !saved || draft === defaultMessageTemplate}
-          onClick={() => change(defaultMessageTemplate)}
-        >
-          Usar mensaje predeterminado
-        </button>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={busy}
-          onClick={() => {
-            void load();
-          }}
-        >
-          Cargar mensaje guardado
-        </button>
-      </div>
-      {busy && (
-        <p className="muted small" role="status">
-          Procesando mensaje personalizado…
+        <div className="messages-controls">
+          <DropDown
+            label="Variable disponible"
+            size="md"
+            value={variable}
+            onValueChange={setVariable}
+            disabled={busy || !saved}
+            options={messageVariables.map((v) => ({
+              value: v.key,
+              label: `${v.label} · {${v.key}}`,
+            }))}
+          />
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy || !saved}
+            onClick={insert}
+          >
+            <Icon name="plus" size={17} /> Insertar variable
+          </button>
+        </div>
+        <p className="muted small">
+          {messageVariables.find((v) => v.key === variable)?.description}
         </p>
-      )}
-      {error && (
-        <p className="notice error" role="alert">
-          {error}
-        </p>
-      )}
-      {status && (
-        <p className="muted small" role="status">
-          {status}
-        </p>
-      )}
-      {!busy &&
-        saved &&
-        !status &&
-        draft !== (saved.Plantilla ?? defaultMessageTemplate) && (
-          <p className="muted small">Tenés cambios sin guardar.</p>
+        <div className="messages-actions">
+          <button
+            type="button"
+            className="button primary"
+            disabled={
+              busy ||
+              !saved ||
+              Boolean(problem) ||
+              draft === (saved.Plantilla ?? defaultMessageTemplate)
+            }
+            onClick={() => {
+              void save();
+            }}
+          >
+            Guardar mensaje
+          </button>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy || !saved || draft === defaultMessageTemplate}
+            onClick={() => change(defaultMessageTemplate)}
+          >
+            Usar mensaje predeterminado
+          </button>
+          <button
+            type="button"
+            className="button secondary"
+            disabled={busy}
+            onClick={() => {
+              void load();
+            }}
+          >
+            Cargar mensaje guardado
+          </button>
+        </div>
+        {busy && (
+          <p className="muted small" role="status">
+            Procesando mensaje personalizado…
+          </p>
         )}
-    </section>
+        {error && (
+          <p className="notice error" role="alert">
+            {error}
+          </p>
+        )}
+        {status && (
+          <p className="muted small" role="status">
+            {status}
+          </p>
+        )}
+        {!busy &&
+          saved &&
+          !status &&
+          draft !== (saved.Plantilla ?? defaultMessageTemplate) && (
+            <p className="muted small">Tenés cambios sin guardar.</p>
+          )}
+      </section>
+    </OffCanvas>
   );
 }

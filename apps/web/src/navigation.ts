@@ -3,6 +3,7 @@ import type { IconName } from "./components/Icon";
 
 export const modules: {
   path: string;
+  permission?: string;
   title: string;
   group: string;
   icon: IconName;
@@ -47,11 +48,20 @@ export const modules: {
   },
   {
     path: "/envio-mensajes",
-    title: "Envío de mensajes",
+    title: "Mensaje a un cliente",
     group: "Notificaciones",
     icon: "message",
     description: "Mensajes personalizados con el saldo de Cuenta corriente.",
     detail: "Prepará y copiá el mensaje para enviarlo manualmente.",
+  },
+  {
+    path: "/mensajes-varios-clientes",
+    permission: "envio-mensajes",
+    title: "Mensajes a varios clientes",
+    group: "Notificaciones",
+    icon: "message",
+    description: "Consultá clientes por filtros y prepará sus mensajes de saldo.",
+    detail: "",
   },
   {
     path: "/informes-cuenta-corriente",

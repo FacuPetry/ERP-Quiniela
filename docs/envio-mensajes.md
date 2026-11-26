@@ -4,11 +4,11 @@ CLI-01, revisión 04/11/2026. Los informes pendientes siguen en pausa. El módul
 
 ## Funcionamiento
 
-**Notificaciones → Envío de mensajes** reutiliza el SF de clientes, TextArea, DropDown, AmountBox, TextBox, botones y estilos existentes. La categoría participa del mismo acordeón y solo aparece si hay alguna opción autorizada.
+**Notificaciones** ofrece **Mensaje a un cliente** y **Mensajes a varios clientes**. El módulo reutiliza el SF de clientes, TextArea, DropDown, AmountBox, TextBox, botones y estilos existentes. La categoría participa del mismo acordeón y solo aparece si hay alguna opción autorizada.
 
 Al ingresar se carga la plantilla del usuario autenticado. Elegir un cliente válido consulta el saldo real y muestra saldo firmado, fecha de corte, teléfono y vista previa. Escribir un código/nombre sin resolver el SF no consulta el saldo. Se admiten clientes inactivos con movimientos históricos, igual que en el Resumen.
 
-El formulario reutiliza **FormSections** con tres fichas: **Configurar mensaje** (plantilla, variables y guardado), **Envío de mensajes** (cliente, datos, vista previa y acciones) y **Varios clientes** (consulta por filtros y acciones por cliente). Conserva la columna lateral, Sticky, selección automática por sección visible y navegación mediante scroll; en móvil utiliza la adaptación del componente base. Las secciones permanecen montadas, sin perder borradores al navegar.
+**Editar mensaje** abre un OffCanvas desde ambos accesos con la plantilla personal, las variables y el guardado. El borrador y las consultas se conservan al alternar entre los dos accesos. Los enlaces existentes a `/envio-mensajes` abren la consulta individual.
 
 Los campos Saldo total, Saldo hasta, Teléfono y Vista previa permanecen visibles sin cliente, con valores vacíos y las acciones de copia/WhatsApp deshabilitadas. Los espacios informativos tienen altura reservada para evitar saltos al seleccionar, actualizar o limpiar. No se conserva ni se muestra el resultado del cliente anterior para completar esa estructura.
 
@@ -16,7 +16,7 @@ Cambiar/limpiar el cliente descarta el resultado anterior y cancela peticiones p
 
 ## Varios clientes: consulta simple y envío manual individual
 
-Se amplía el módulo existente con una tercera ficha, compartiendo menú, configuración y permisos. Reutiliza FormSections, DataTable con selección simple para Propiedades, ActionToolbar, FilterDialog, DropDown, Pagination y la presentación de tablas de Informes.
+La consulta de varios clientes comparte plantilla y permiso con la individual. Reutiliza DataTable con selección simple para Propiedades, ActionToolbar, FilterDialog, DropDown, Pagination y la presentación de tablas de Informes.
 
 **Filtrar clientes** abre el modal; no se consulta ningún cliente al entrar ni antes de aplicar los filtros. Se admiten tipo de cliente (incluidos tipos inactivos), búsqueda por código/nombre/fantasía y estado de los clientes, por defecto activos. No se muestra un selector de saldo: la consulta utiliza saldo neto distinto de cero, incluyendo a favor, siempre con su signo y texto correspondiente. Es el neto del Resumen, no pendiente documental: deudas y premios pueden compensarse sin cancelar sus documentos. La consulta individual sigue permitiendo clientes sin saldo.
 
@@ -91,7 +91,7 @@ El dato original no se modifica. Si falta o es inválido, Abrir WhatsApp queda d
 
 ## Permisos, API y persistencia
 
-- Se conserva la clave `envio-mensajes`; solo cambia su categoría a **Notificaciones**. Los permisos existentes continúan funcionando. Administrador accede automáticamente; otros usuarios requieren **Usuarios → Acceso al menú → Notificaciones → Envío de mensajes → Consulta**.
+- Ambos accesos conservan la clave `envio-mensajes`. Administrador accede automáticamente; otros usuarios requieren **Usuarios → Acceso al menú → Notificaciones → Mensajes a uno o varios clientes → Consulta**.
 - Acceso a Mensajes habilita preparar/copiar/abrir chat, guardar **su propia preferencia**, registrar avisos manuales y consultar su historial compartido, sin conceder escrituras financieras ni acceso a otros ABM/Informes. El SF auxiliar sigue proyectando Código, Nombre y Activo si no hay permiso del maestro.
 - `GET /api/mensajes/plantilla`: devuelve la plantilla propia o null para el predeterminado, y versión.
 - `PUT /api/mensajes/plantilla`: recibe únicamente `{ Plantilla: string | null }`. Requiere sesión, permiso, petición de aplicación, CSRF e If-Match. El usuario se obtiene de la sesión; no se admite un Usuario en el cuerpo. Versión desactualizada devuelve 409.
@@ -123,7 +123,7 @@ npm run db:check:prod
 
 ## Qué probar
 
-1. Entrar desde Notificaciones. Revisar Configurar mensaje y Envío de mensajes mediante Tabs y scroll, el resaltado automático y Sticky, también en móvil. Sin cliente, los campos deben estar visibles y vacíos y las acciones deshabilitadas; no debe consultarse saldo. Seleccionar y limpiar debe conservar la distribución sin retener datos previos.
+1. Entrar a cada acceso desde Notificaciones y abrir Editar mensaje. Probar el borrador compartido, cerrar el OffCanvas y cambiar de acceso. Repetir en móvil. Sin cliente, los campos deben estar visibles y vacíos y las acciones deshabilitadas; no debe consultarse saldo. Seleccionar y limpiar debe conservar la distribución sin retener datos previos.
 2. Escribir una plantilla con NombreCliente/MontoTotal; insertar variables en el medio y sobre una selección. Verificar que la vista previa cambie sin nuevas consultas por tecla. Probar llaves incompletas, variable inexistente, vacío y límites.
 3. Guardar, recargar y entrar desde otro dispositivo: misma plantilla. Otro usuario conserva la suya. Probar Cargar guardado, restaurar predeterminado y conflicto entre dos sesiones.
 4. Comparar el saldo con el Resumen usando el mismo Hasta. Probar positivo/negativo/cero, centavos y fechas. MontoTotal mantiene el signo; ResumenSaldo adapta la frase.

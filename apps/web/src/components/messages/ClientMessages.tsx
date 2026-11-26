@@ -238,7 +238,7 @@ export function ClientMessages({
       <p className="muted small">
         Aplicá filtros para consultar clientes con saldo distinto de cero. Cada
         mensaje se copia o abre individualmente. Se utiliza el texto de
-        Configurar mensaje, incluidos los cambios sin guardar.
+        Editar mensaje, incluidos los cambios sin guardar.
       </p>
       {error && (
         <p className="notice error" role="alert">
