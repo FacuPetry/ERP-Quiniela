@@ -65,18 +65,23 @@ export function createReportStore(pool: Pool) {
         LEFT JOIN (SELECT f.CuentaCorriente,SUM(f.Importe) AS Aplicado FROM CAJAMOVIMIENTOAFECTACION f
           JOIN CAJAMOVIMIENTO m ON m.IDTabla=f.CajaMovimiento WHERE ${reportMovement("m")} GROUP BY f.CuentaCorriente) x ON x.CuentaCorriente=a.IDTabla
         WHERE ${filters.join(" AND ")} GROUP BY a.Cliente,cl.Nombre`;
+      const balanceFilter = {
+        TODOS: "",
+        DEUDOR: " WHERE s.SaldoCobrar - s.SaldoPagar > 0",
+        ACREEDOR: " WHERE s.SaldoCobrar - s.SaldoPagar < 0",
+      }[q.TipoSaldo];
       const c = await pool.getConnection();
       try {
         await c.query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
         await c.query("START TRANSACTION READ ONLY");
         const [totals] = await c.execute<RowDataPacket[]>(
-          `SELECT COUNT(*) AS total,COALESCE(SUM(s.SaldoCobrar),0) AS SaldoCobrar,COALESCE(SUM(s.SaldoPagar),0) AS SaldoPagar,COALESCE(SUM(s.SaldoCobrar-s.SaldoPagar),0) AS SaldoNeto FROM (${grouped}) s`,
+          `SELECT COUNT(*) AS total,COALESCE(SUM(s.SaldoCobrar),0) AS SaldoCobrar,COALESCE(SUM(s.SaldoPagar),0) AS SaldoPagar,COALESCE(SUM(s.SaldoCobrar-s.SaldoPagar),0) AS SaldoNeto FROM (${grouped}) s${balanceFilter}`,
           params,
         );
         const [rows] = await c.execute<RowDataPacket[]>(
           `SELECT s.*,s.SaldoCobrar-s.SaldoPagar AS SaldoNeto,
           s.PendienteCobrar-s.SaldoCobrar AS CreditoSinAplicarCobrar,s.PendientePagar-s.SaldoPagar AS CreditoSinAplicarPagar
-          FROM (${grouped}) s ORDER BY ${order}${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
+          FROM (${grouped}) s${balanceFilter} ORDER BY ${order}${q.continuo ? "" : " LIMIT ? OFFSET ?"}`,
           [
             ...params,
             ...(q.continuo ? [] : [q.limite, (q.pagina - 1) * q.limite]),

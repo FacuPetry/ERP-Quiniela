@@ -15,6 +15,9 @@ test("El borrador conserva el texto escrito o pegado; solo Blur aplica miles y d
     ["10000", "10000.00", "10.000,00"],
     ["1250,5", "1250.50", "1.250,50"],
     ["1.000,25", "1000.25", "1.000,25"],
+    ["10.0000", "100000.00", "100.000,00"],
+    ["10.0000,50", "100000.50", "100.000,50"],
+    ["-1.0000.000,50", "-10000000.50", "-10.000.000,50"],
     ["1000.5", "1000.50", "1.000,50"],
     ["-25,75", "-25.75", "-25,75"],
   ] as const) {
@@ -65,9 +68,9 @@ test("Vacío y estados intermedios no se reescriben hasta Blur ni conservan un v
   assert.equal(finishAmountEdit("12,", config).text, "12,00");
 });
 
-test("Blur conserva la validación estricta de separadores y precisión sin redondear", () => {
+test("Blur conserva la validación de separadores inválidos y precisión sin redondear", () => {
   const config = amountFormat();
-  for (const text of ["1.23.45", "1.0000,00", "1..000", "12,345"]) {
+  for (const text of ["1.23.45", "1..000", "12,345"]) {
     assert.equal(draftAmountEdit(text, config).text, text);
     assert.equal(finishAmountEdit(text, config).value, "0.00");
   }

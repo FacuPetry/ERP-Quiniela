@@ -11,13 +11,13 @@ import {
   formatAmount,
 } from "../apps/web/src/components/controls/amount-value.js";
 
-test("Los filtros sugieren los últimos 30 días civiles y Confirmado sin sobrescribir filtros aplicados ni Limpiar", () => {
+test("Los filtros operativos sugieren hoy y Confirmado sin sobrescribir filtros aplicados ni Limpiar", () => {
   const empty = { Desde: "", Hasta: "", Estado: "TODOS", q: "" };
   assert.equal(todayISO(new Date("2026-10-27T01:30:00Z")), "2026-10-26");
   assert.deepEqual(
     initialListFilters(empty, ["Desde", "Hasta"], "Estado", "2026-10-26"),
     {
-      Desde: "2026-09-26",
+      Desde: "2026-10-26",
       Hasta: "2026-10-26",
       Estado: "CONFIRMADO",
       q: "",

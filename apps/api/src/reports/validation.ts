@@ -25,6 +25,7 @@ export const summaryQuery = z
     q: z.string().trim().max(100).default(""),
     Cliente: z.string().trim().max(20).optional(),
     ClienteTipo: z.string().trim().min(1).max(20).optional(),
+    TipoSaldo: z.enum(["TODOS", "DEUDOR", "ACREEDOR"]).default("TODOS"),
     ...resultFields,
   })
   .strict();
